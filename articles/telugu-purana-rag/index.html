@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sanskrit in, Telugu out: a RAG over 17 Puranas · AI Engineering Notes</title>
+  <meta name="description" content="The Puranas exist only in Sanskrit and the users ask in Telugu. How chapter cards, in-memory retrieval and verse-level citation solved the cross-language problem without translating 141,000 verses — with the measured numbers.">
+  <meta property="og:title" content="Sanskrit in, Telugu out: a RAG over 17 Puranas">
+  <meta property="og:description" content="Index the questions, not the verses. How a Telugu question finds a Sanskrit chapter, and how the meaning gets made on demand — with real numbers.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://aiengineeringnotes.com/articles/telugu-purana-rag/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/articles/telugu-purana-rag/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .flow-box { fill: var(--surface); stroke: var(--rule); stroke-width: 1.5; }
+    .flow-hi  { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+    .flow-t   { fill: var(--text); font-size: 14px; font-weight: 600; }
+    .flow-s   { fill: var(--muted); font-size: 12px; }
+    .flow-a   { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+    .card-ex { font-size: 15px; }
+    .card-ex dt { font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); margin-top: 12px; }
+    .card-ex dd { margin: 4px 0 0; }
+    .num { text-align: right; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="site">
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/#series">Series</a>
+      <a href="/#projects">Projects</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+
+  <p class="crumbs"><a href="/#series">Series</a> / RAG in Telugu / Part 2</p>
+
+  <article class="post">
+    <header>
+      <h1>Sanskrit in, Telugu out: a RAG over 17 Puranas</h1>
+      <p class="lede">The texts exist only in Sanskrit. The users ask in Telugu. No Telugu translation exists that we are allowed to use. This is how the gap was closed without translating 141,000 verses — and what the measurements say.</p>
+      <div class="byline"><span>16 Sep 2026</span><span>16 min read</span></div>
+      <div class="cta">
+        <a class="btn primary" href="https://huggingface.co/spaces/amrithatejaswiservices/telugu-purana-rag">Live demo (private beta) →</a>
+        <a class="btn" href="/articles/telugu-gita-rag/">Part 1: the Gita RAG →</a>
+      </div>
+    </header>
+
+    <p><a href="/articles/telugu-gita-rag/">Part 1</a> built a question-answering system over the Bhagavad Gita in Telugu. That was the easy case, in one specific way: a public-domain Telugu <em>tatparyam</em> (meaning) existed for every verse, so the thing we searched and the thing the user typed were in the same language.</p>
+
+    <p>The Puranas are the hard case. They are the texts a Telugu devotee actually asks about — why Dhruva went to the forest, what the Garuda Purana says happens after death, whether a curse given in anger can be undone — and they exist, in open-licensed form, <strong>only in Sanskrit</strong>. Modern Telugu prose Puranas are all under copyright. The medieval Telugu poets' versions are public domain but are adaptations in classical verse, not translations, and they cover a fraction of the eighteen.</p>
+
+    <p>So the situation was:</p>
+    <ul>
+      <li>The corpus is Sanskrit: 17 Purana texts from <a href="https://gretil.sub.uni-goettingen.de/">GRETIL</a>, 2,809 chapters, 140,873 verses, in Roman transliteration.</li>
+      <li>The questions are Telugu, often typed in Latin letters ("dhruvudu enduku tapassu chesadu?").</li>
+      <li>The answer must be Telugu, and every claim must point to a verse.</li>
+      <li>There is no Telugu meaning to search, to show, or to quote.</li>
+    </ul>
+
+    <p>Here is the finished pipeline. The rest of the article is about the one idea that made it work, and the numbers that say how well it works.</p>
+
+    <figure>
+      <div class="fig-body">
+        <svg viewBox="0 0 700 260" width="100%" style="min-width:620px" role="img" aria-labelledby="flowT flowD">
+          <title id="flowT">Purana RAG pipeline</title>
+          <desc id="flowD">A Telugu question is transliterated if needed, routed, matched against Telugu chapter cards by dense and keyword search, the rankings are fused, the Sanskrit verses of the top three chapters go to Claude, which writes a Telugu answer with verse citations that are verified against the source.</desc>
+          <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--muted)"/></marker></defs>
+          <rect class="flow-box" x="10" y="100" width="96" height="56" rx="8"/>
+          <text class="flow-t" x="58" y="124" text-anchor="middle">Question</text>
+          <text class="flow-s" x="58" y="142" text-anchor="middle">Telugu / Tenglish</text>
+
+          <rect class="flow-hi" x="146" y="35" width="130" height="56" rx="8"/>
+          <text class="flow-t" x="211" y="59" text-anchor="middle">Chapter cards</text>
+          <text class="flow-s" x="211" y="77" text-anchor="middle">dense, BGE-M3</text>
+          <rect class="flow-hi" x="146" y="165" width="130" height="56" rx="8"/>
+          <text class="flow-t" x="211" y="189" text-anchor="middle">Chapter cards</text>
+          <text class="flow-s" x="211" y="207" text-anchor="middle">BM25, 4-letter pieces</text>
+
+          <rect class="flow-box" x="316" y="100" width="90" height="56" rx="8"/>
+          <text class="flow-t" x="361" y="124" text-anchor="middle">Fuse</text>
+          <text class="flow-s" x="361" y="142" text-anchor="middle">RRF → 3 chapters</text>
+
+          <rect class="flow-hi" x="446" y="100" width="110" height="56" rx="8"/>
+          <text class="flow-t" x="501" y="124" text-anchor="middle">Sanskrit verses</text>
+          <text class="flow-s" x="501" y="142" text-anchor="middle">of those chapters</text>
+
+          <rect class="flow-box" x="596" y="35" width="94" height="56" rx="8"/>
+          <text class="flow-t" x="643" y="59" text-anchor="middle">Claude</text>
+          <text class="flow-s" x="643" y="77" text-anchor="middle">Telugu answer</text>
+          <rect class="flow-box" x="596" y="165" width="94" height="56" rx="8"/>
+          <text class="flow-t" x="643" y="189" text-anchor="middle">Verify</text>
+          <text class="flow-s" x="643" y="207" text-anchor="middle">quote ⊂ verse</text>
+
+          <path class="flow-a" d="M106,118 C126,118 126,63 144,63" marker-end="url(#ah)"/>
+          <path class="flow-a" d="M106,138 C126,138 126,193 144,193" marker-end="url(#ah)"/>
+          <path class="flow-a" d="M276,63 C296,63 296,118 314,118" marker-end="url(#ah)"/>
+          <path class="flow-a" d="M276,193 C296,193 296,138 314,138" marker-end="url(#ah)"/>
+          <path class="flow-a" d="M406,128 L444,128" marker-end="url(#ah)"/>
+          <path class="flow-a" d="M556,118 C574,118 574,63 594,63" marker-end="url(#ah)"/>
+          <path class="flow-a" d="M643,91 L643,163" marker-end="url(#ah)"/>
+        </svg>
+      </div>
+      <figcaption>The shaded boxes are the answer to the language problem. Search happens in Telugu, over chapter cards. Reading happens in Sanskrit, over the real verses. The Sanskrit never has to be searched.</figcaption>
+    </figure>
+
+    <nav class="toc" aria-label="Contents">
+      <p>Contents</p>
+      <ol>
+        <li><a href="#options">Three ways to bridge two languages, and why two of them fail</a></li>
+        <li><a href="#cards">Index the questions, not the verses: chapter cards</a></li>
+        <li><a href="#building">Building 2,809 cards: model choice, prompt, cost</a></li>
+        <li><a href="#retrieval">Retrieval: Telugu to Telugu, then coarse to fine</a></li>
+        <li><a href="#answer">Answering: the Sanskrit goes into the context, the Telugu comes out</a></li>
+        <li><a href="#evaluation">Evaluation</a></li>
+        <li><a href="#unsolved">What is not solved</a></li>
+        <li><a href="#takeaways">Takeaways</a></li>
+      </ol>
+    </nav>
+
+    <h2 id="options"><span class="num">01</span>Three ways to bridge two languages, and why two of them fail</h2>
+
+    <p>When the corpus and the query are in different languages there are only three places to close the gap: translate the corpus, translate the query, or build a bridge in the middle.</p>
+
+    <h3>Translate the corpus</h3>
+    <p>Generate a Telugu tatparyam for every verse, then run the Gita pipeline unchanged. It is the obvious plan and it is wrong for this corpus. There are 141,000 verses in the texts we have, and roughly 400,000 across the eighteen Puranas. Verse-by-verse machine translation of Puranic Sanskrit is decent but not trustworthy, and once the Telugu exists people will quote it as scripture. Every one of those verses would need review before it could be shown. That is a multi-year project disguised as a batch job.</p>
+
+    <h3>Embed the Sanskrit directly</h3>
+    <p>Put the Sanskrit verses into a multilingual embedding model and search them with the Telugu question. Two things go wrong. Multilingual encoders learned what Sanskrit they know from Devanagari text, and our corpus is either Roman transliteration or Telugu script, both out of distribution. And even in the best case, a single sloka rarely contains the idea a devotee asks about. "Why did Dhruva go to the forest" is spread over forty verses of insults, tears and a mother's advice. Verse-level retrieval across languages is the hardest configuration you can choose.</p>
+
+    <h3>Build a bridge at the level where questions live</h3>
+    <p>A devotee never asks about verse 14 of chapter 8. They ask about a story, a rule, or a lesson. Stories, rules and lessons live at the <em>chapter</em> level, and there are only 2,809 chapters. If each chapter had a Telugu description of what it contains, written the way a devotee would ask about it, then a Telugu question could find a Sanskrit chapter by matching Telugu to Telugu. The Sanskrit would only be read after the chapter is found, by a model that reads Sanskrit well.</p>
+
+    <div class="concept">
+      <span class="label">Concept · the bridge</span>
+      <p><strong>Index the questions, not the verses.</strong> Search runs over a small Telugu layer generated once, offline, at chapter granularity. The Sanskrit stays exactly as it is and is only ever read, never searched. The cross-lingual problem is solved at build time, one chapter at a time, instead of on every query.</p>
+    </div>
+
+    <h2 id="cards"><span class="num">02</span>Index the questions, not the verses: chapter cards</h2>
+
+    <p>A <strong>chapter card</strong> is a structured Telugu description of one adhyaya, produced by a language model that reads the chapter's Sanskrit and writes:</p>
+    <ul>
+      <li>a title and a 6-to-10 sentence summary of what happens, in order;</li>
+      <li>the key events;</li>
+      <li>the dharmic lesson, phrased as general life guidance;</li>
+      <li><strong>10 to 14 questions a devotee would ask that this chapter answers</strong>, in everyday Telugu, including at least three phrased as a personal dilemma without naming any character;</li>
+      <li>every named character, deity, place and concept, each with its Telugu form and a canonical Sanskrit stem;</li>
+      <li><strong>anchors</strong>: 3 to 8 key events mapped to the exact verse ids that state them.</li>
+    </ul>
+
+    <p>Here is a trimmed card for the chapter of the Bhagavata where Ashvatthama is captured and Draupadi asks for his life.</p>
+
+    <figure>
+      <div class="fig-body card-ex">
+        <dl style="margin:0">
+          <dt>adhyaya</dt><dd>Bhagavata Purana 1.7 · 58 verses · narrator సూతుడు → శౌనకుడు</dd>
+          <dt>title</dt><dd class="te">అశ్వత్థామ శిక్ష - ద్రౌపది కరుణ</dd>
+          <dt>summary (excerpt)</dt><dd class="te">…అశ్వత్థామ నిద్రిస్తున్న ద్రౌపది కుమారుల తలలు నరికి తన యజమానికి ప్రియం చేశానని తెచ్చాడు. బిడ్డల మరణం విని ద్రౌపది కన్నీరుమున్నీరై విలపిస్తే, అర్జునుడు ఆమెను ఓదార్చి… కృష్ణుడు సారథిగా రథంపై వెంబడించాడు… ద్రౌపది అతణ్ణి చూసి కరుణతో నమస్కరించి, గురువు ద్రోణుని రూపమే ఇతడని, విడిచిపెట్టమని కోరింది.</dd>
+          <dt>questions (4 of 12)</dt><dd class="te">ద్రౌపది కుమారులను ఎవరు చంపారు, ఎప్పుడు చంపారు? · అర్జునుడు రెండు అస్త్రాలను ఎందుకు ఉపసంహరించాడు? · శత్రువునైనా ఎవరిని చంపకూడదని కృష్ణుడు చెప్పాడు? · బ్రహ్మబంధువును చంపరాదు, ఆతతాయిని చంపాలి - ఈ రెండు ఎలా సరిపోయాయి?</dd>
+          <dt>moral</dt><dd class="te">నిద్రిస్తున్నవారిని, పిల్లలను, స్త్రీలను, శరణు కోరినవారిని చంపడం అధర్మం; శత్రువు పట్ల కూడా ద్రౌపది చూపిన కరుణే నిజమైన ధర్మం.</dd>
+          <dt>entities (5 of 25)</dt><dd><span class="te">అశ్వత్థామ</span> = aśvatthāman · <span class="te">ద్రౌపది</span> = draupadī · <span class="te">బ్రహ్మశిరాస్త్రం</span> = brahmaśiras (object) · <span class="te">ఆతతాయి</span> = ātatāyin (concept) · <span class="te">శమ్యాప్రాస ఆశ్రమం</span> = śamyāprāsa (place)</dd>
+          <dt>anchors (2 of 9)</dt><dd><span class="te">ద్రౌపది కరుణతో విడుదల కోరడం</span> → bhp-1-7-42, 43, 45, 47 · <span class="te">చంపరాని వారి గురించి కృష్ణుని ధర్మబోధ</span> → bhp-1-7-35, 36, 37</dd>
+        </dl>
+      </div>
+      <figcaption>The questions are the primary search surface. A user's Telugu question is compared with these Telugu questions, which is the easy case for any multilingual encoder. The anchors are what lets the answer later cite the right verses.</figcaption>
+    </figure>
+
+    <p>Three properties of the card matter for what comes later. The <strong>questions</strong> make retrieval a same-language, same-register problem. The <strong>entities</strong> carry canonical names, so "కర్ణుడు", "కర్ణ" and "karna" can be normalised to one id. The <strong>anchors</strong> mean the generation step does not have to read the whole chapter to know where the important verses are.</p>
+
+    <h2 id="building"><span class="num">03</span>Building 2,809 cards: model choice, prompt, cost</h2>
+
+    <p>The card generator is one structured-output call per chapter: the chapter's Sanskrit verses in transliteration, the narrator markers, and a system prompt that says, in short, "you are a Telugu pandit; write plain modern Telugu a devotee reads without a dictionary; stay strictly within these verses; copy verse ids exactly." The output is validated against a schema, and every anchor id is checked against the chapter's real verse ids before the card is accepted.</p>
+
+    <h3>Which model writes the cards?</h3>
+    <p>I generated the first skandha of the Bhagavata (19 chapters) with two models and measured them with the same 35 hand-written Telugu questions, scoring whether the right chapter came first.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Skandha 1, 35 questions, chapter level</th><th class="num">Opus 5</th><th class="num">Sonnet 5</th><th class="num">Sonnet 5, stronger prompt</th></tr></thead>
+        <tbody>
+          <tr><td>hit@1</td><td class="num">0.89</td><td class="num">0.77</td><td class="num">0.77</td></tr>
+          <tr><td>hit@3</td><td class="num">0.97</td><td class="num">0.94</td><td class="num">0.97</td></tr>
+          <tr><td>hit@5</td><td class="num">0.97</td><td class="num">1.00</td><td class="num">1.00</td></tr>
+          <tr><td>MRR</td><td class="num">0.927</td><td class="num">0.860</td><td class="num">0.874</td></tr>
+          <tr><td>moral questions, hit@1</td><td class="num">0.75</td><td class="num">0.25</td><td class="num">0.50</td></tr>
+          <tr><td>cost per chapter</td><td class="num">$0.13</td><td class="num">$0.04</td><td class="num">$0.05</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Two things fell out of this. Opus writes better cards, by about 12 points of hit@1, but both models put the right chapter in the top five essentially every time, and the top five is what the answer step reads. And the miss analysis showed the gap was concentrated on <em>moral</em> questions: the cards had story questions but not "should a wrongdoer be forgiven or punished" questions. Requiring three life-situation questions per card <strong>doubled Sonnet's moral hit@1</strong> for one extra cent a chapter. That prompt change is worth more than the model change.</p>
+
+    <p>Sonnet with the stronger prompt did the bulk run.</p>
+
+    <h3>Cost and scale</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Route</th><th class="num">Chapters</th><th class="num">Cost</th><th class="num">Per chapter</th></tr></thead>
+        <tbody>
+          <tr><td>Sonnet 5, direct API</td><td class="num">374</td><td class="num">$18.13</td><td class="num">4.8¢</td></tr>
+          <tr><td>Sonnet 5, Message Batches API (50% off)</td><td class="num">2,372</td><td class="num">$66.34</td><td class="num">2.8¢</td></tr>
+          <tr><td>Opus 5, model test</td><td class="num">13</td><td class="num">$1.77</td><td class="num">13.6¢</td></tr>
+          <tr><td>In-session agents, gap filling</td><td class="num">49</td><td class="num">$0</td><td class="num">—</td></tr>
+          <tr><td><strong>Total</strong></td><td class="num"><strong>2,809</strong></td><td class="num"><strong>$86.24</strong></td><td class="num"></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>The Batches API is the right tool for this shape of job: 2,389 requests went in as six batches in the afternoon and every one came back within about an hour. Of the first 2,308 batch cards, 20 failed validation, under one percent. Twelve had written anchor ids in GRETIL's own reference style ("BrP_114.6") and were repaired by mapping; the rest had stray Latin letters or an empty question list and were regenerated. The parsing work was larger than the generation work: GRETIL's seventeen files use five different verse-reference conventions, including half-verse markers and a parenthesised form for prose passages.</p>
+
+    <div class="lesson">
+      <span class="label">Lesson</span>
+      <p>Generate the small Telugu layer at the granularity where questions live. Tens of thousands of chapter-card units cost under $90. Hundreds of thousands of verse translations would have cost more, taken longer, and produced text nobody had reviewed.</p>
+    </div>
+
+    <h2 id="retrieval"><span class="num">04</span>Retrieval: Telugu to Telugu, then coarse to fine</h2>
+
+    <p>Each card is split into <strong>units</strong>: every generated question, the summary, the moral and the title. Each unit gets a BGE-M3 vector, 45,489 vectors in all. A chapter's dense score is the best score among its units, so a chapter with twelve questions gets twelve chances to match. In parallel, BM25 over character 4-grams of the whole card text handles names, which is where Telugu inflection defeats whole-word search (<span class="te">పరీక్షిత్తు</span>, <span class="te">పరీక్షిత్</span>, <span class="te">పరీక్షిత్తుకు</span>). The two rankings are fused with reciprocal rank fusion, at chapter level.</p>
+
+    <p>Before search, a small model does two cheap things: transliterates romanised Telugu into Telugu script (the encoder cannot relate "dhruvudu" to <span class="te">ధ్రువుడు</span> otherwise), and suggests which Puranas are likely to hold the answer.</p>
+
+    <h3>A routing bug worth writing down</h3>
+    <p>That Purana suggestion was first implemented as a hard filter. It was the single largest source of misses in the full evaluation. When the router guessed wrong, the right chapter was excluded outright: Bharata and the deer was sent to Markandeya, Rukmangada's Ekadashi story to Garuda. Changing the hint into a <em>soft boost</em>, by fusing the unfiltered ranking with the filtered one, lifted recall@10 from 0.82 to 0.90 with no other change.</p>
+
+    <h3>No vector database</h3>
+    <p>45,489 vectors at 1,024 dimensions is 93 MB in half precision. It lives in RAM as a numpy matrix, and a query is one matrix multiply: <strong>11 ms</strong>. The whole retrieval stage, including the routing call and encoding the query, is about 4.6 seconds; search itself is a rounding error. A vector database would have replaced the cheapest step in the pipeline. The index is built once on a Hugging Face Space's GPU in about twenty minutes and saved to a dataset repo, so a restart loads it in seconds.</p>
+
+    <h2 id="answer"><span class="num">05</span>Answering: the Sanskrit goes into the context, the Telugu comes out</h2>
+
+    <p>This is the second half of the language solution, and it is where "no Telugu meaning exists" stops being a problem.</p>
+
+    <p>Once the top three chapters are known, their Sanskrit verses are loaded into the answer model's context, in Telugu script for quoting and in transliteration for reading, together with each chapter's card summary. The model is told to answer in modern Telugu, only from those verses, and to attach citations. Each citation is three things: the verse id, a <strong>verbatim quote</strong> of the Telugu-script sloka, and a one-sentence Telugu <strong>tatparyam</strong> of that verse written by the model.</p>
+
+    <p>Then the quote is checked. Whitespace and punctuation are stripped from both sides and the quoted string must be a substring of the real verse. A citation that fails is dropped. An answer with no surviving citations is not shown; the system refuses instead. This is the same guarantee as Part 1, applied to Sanskrit: the model may write the meaning, but it cannot invent the source.</p>
+
+    <p>Notice what happened to the translation problem. We never translated the corpus. The model translates <em>the handful of verses it cites</em>, at answer time, in the context of a specific question, and the translation is shown next to the verbatim Sanskrit it came from so a reader can check it. Every verified tatparyam is written to a cache marked <code>unreviewed</code>. The Telugu meaning layer that did not exist is now growing, verse by verse, driven by what people actually ask, and only those verses will ever need a reviewer.</p>
+
+    <div class="concept">
+      <span class="label">Concept · lazy translation</span>
+      <p>Translate on demand, cache the result, attach it to a verifiable source. The popular passages get reviewed and frozen. The obscure ones cost nothing until someone asks.</p>
+    </div>
+
+    <p>An example, shortened. Question: <span class="te">"కోపంలో ఇచ్చిన శాపం వల్ల ఏ నష్టం జరుగుతుంది?"</span> (what harm comes from a curse given in anger?). The system found Matsya Purana chapter 33, where Yayati curses the sons who refuse to take his old age, and answered with seven verified citations, one of which was:</p>
+
+    <figure>
+      <div class="fig-body">
+        <p style="margin:0 0 6px"><strong>మత్స్య పురాణము, అధ్యాయము 33, శ్లోకము 13</strong></p>
+        <p class="te" style="margin:0 0 6px">సంకీర్ణాశ్చోరధర్మేషు ప్రతిలోమచరేషు చ । పిశితాశిషు లోకేషు నూనం రాజా భవిష్యసి</p>
+        <p class="te" style="margin:0;color:var(--muted)">యదువు సంతానం దొంగలు, నీచులు, మాంసాహారులతో కలిసిపోతుందని యయాతి శాపమిచ్చాడు.</p>
+      </div>
+      <figcaption>Sanskrit in Telugu script, verified verbatim against the corpus, with the model's one-sentence Telugu meaning beneath it. The question was a moral one with no character named; the card's life-situation questions are what led to this chapter.</figcaption>
+    </figure>
+
+    <h2 id="evaluation"><span class="num">06</span>Evaluation</h2>
+
+    <p>Two layers were measured separately, on the deployed system, not on a laptop copy: <strong>retrieval</strong> (does the right chapter come up?) and <strong>generation</strong> (is the answer faithful and correct?).</p>
+
+    <h3>Retrieval</h3>
+    <p>96 hand-written Telugu questions, each tagged with the chapter or chapters that answer it: 66 on the Bhagavata and 30 spread over twelve other Puranas, including eleven typed in Latin letters and eleven moral questions with no character named. Where a story appears in several Puranas, every valid chapter counts as correct. The system returns its top 20 chapters and we score where the gold chapter lands.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>96 questions, 2,809 chapters</th><th class="num">recall@1</th><th class="num">recall@5</th><th class="num">recall@10</th><th class="num">NDCG@10</th><th class="num">MRR</th></tr></thead>
+        <tbody>
+          <tr><td>Purana hint as hard filter</td><td class="num">0.59</td><td class="num">0.77</td><td class="num">0.82</td><td class="num">0.660</td><td class="num">0.675</td></tr>
+          <tr><td><strong>Purana hint as soft boost (shipped)</strong></td><td class="num"><strong>0.64</strong></td><td class="num"><strong>0.86</strong></td><td class="num"><strong>0.90</strong></td><td class="num"><strong>0.717</strong></td><td class="num"><strong>0.731</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>By question kind (shipped)</th><th class="num">n</th><th class="num">recall@1</th><th class="num">recall@5</th><th class="num">recall@10</th><th class="num">NDCG@10</th></tr></thead>
+        <tbody>
+          <tr><td>story ("what happened")</td><td class="num">26</td><td class="num">0.65</td><td class="num">0.96</td><td class="num">1.00</td><td class="num">0.832</td></tr>
+          <tr><td>why</td><td class="num">20</td><td class="num">0.75</td><td class="num">1.00</td><td class="num">1.00</td><td class="num">0.824</td></tr>
+          <tr><td>lookup (lists, rules)</td><td class="num">10</td><td class="num">0.60</td><td class="num">1.00</td><td class="num">1.00</td><td class="num">0.770</td></tr>
+          <tr><td>teaching</td><td class="num">8</td><td class="num">0.88</td><td class="num">0.88</td><td class="num">1.00</td><td class="num">0.838</td></tr>
+          <tr><td>phalam (what is the fruit)</td><td class="num">7</td><td class="num">0.71</td><td class="num">0.86</td><td class="num">1.00</td><td class="num">0.680</td></tr>
+          <tr><td>romanised Telugu</td><td class="num">11</td><td class="num">0.82</td><td class="num">0.91</td><td class="num">0.91</td><td class="num">0.772</td></tr>
+          <tr><td>dharma</td><td class="num">3</td><td class="num">0.67</td><td class="num">1.00</td><td class="num">1.00</td><td class="num">0.807</td></tr>
+          <tr><td><strong>moral / life situation</strong></td><td class="num">11</td><td class="num"><strong>0.00</strong></td><td class="num"><strong>0.18</strong></td><td class="num"><strong>0.18</strong></td><td class="num"><strong>0.054</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Read the second table before the first. For every kind of question that names what it is about, the right chapter is in the top ten at least nine times in ten, and in the top five, which is more than the answer model reads, 86 to 100 percent of the time. Romanised input, which scored zero before the transliteration step, is now within a few points of native Telugu. Stock BGE-M3, no fine-tuning, no reranker.</p>
+
+    <p>The moral row is the failure, and it is an honest one. "Should a guru's adharmic order be obeyed?" does not embed close to the summary of the chapter where Bali defies Shukracharya, not when there are 2,809 summaries to choose from. Several of those "misses" are arguably other valid chapters, but the number is bad either way and it is the next thing to work on.</p>
+
+    <h3>Generation</h3>
+    <p>For generation, a stratified sample of questions was run through the full pipeline and each answer was scored by a second model acting as judge. <strong>Faithfulness</strong>: split the answer into its factual claims and count how many are supported by the cited verses and chapter summaries. <strong>Correctness</strong>: compare the answer with a reference built from the gold chapters' cards, on a 1 to 5 scale.</p>
+
+    <p>Only <strong>five</strong> of the planned 24 answers were judged before the API credit for the day ran out. Five is a small sample and I am reporting it as such; the remaining nineteen are queued.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>5 judged answers</th><th class="num">value</th></tr></thead>
+        <tbody>
+          <tr><td>Faithfulness (share of claims supported by cited evidence)</td><td class="num">0.945</td></tr>
+          <tr><td>Answers with faithfulness ≥ 0.9</td><td class="num">4 / 5</td></tr>
+          <tr><td>Correctness vs gold chapter (1–5)</td><td class="num">4.6</td></tr>
+          <tr><td>Telugu naturalness (1–5)</td><td class="num">5.0</td></tr>
+          <tr><td>Citations per answer, verified / written</td><td class="num">7.8 / 7.8</td></tr>
+          <tr><td>Citations dropped by verification</td><td class="num">0</td></tr>
+          <tr><td>Refusals</td><td class="num">0</td></tr>
+          <tr><td>Gold chapter among the three chapters read</td><td class="num">5 / 5</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Two notes on reading these. Every quoted sloka in every answer was a verbatim substring of its verse; the verification step never had to drop one. And the faithfulness figure is conservative: the judge was shown only the <em>cited</em> verses, and the four claims it flagged as unsupported, such as Putana's fall flattening trees for twelve krosas, are in the chapter the model had read but had not cited. With the full context as evidence the score would be higher. The next run will do that.</p>
+
+    <h3>Speed</h3>
+    <p>A full answer took <strong>76 seconds</strong> in the version measured above, of which retrieval was 4.6 seconds and search proper 11 milliseconds. The time is in generation: the model was reading up to three whole chapters and writing about eight citations, each with a quote, a meaning and a claim. Four changes have since been deployed and not yet re-measured: a cap of five citations and a 150-word answer, sending only the anchored verses of each chapter instead of the whole chapter, folding the "is this enough?" check into the generation call, and streaming the answer so the first words appear while the citations are still being written. In Part 1 the same kind of changes took 45 seconds to 10.</p>
+
+    <h2 id="unsolved"><span class="num">07</span>What is not solved</h2>
+    <ul>
+      <li><strong>Moral questions.</strong> 0.18 recall@10. Candidates: a cross-encoder reranker over the top 20 (already cached, not yet measured), a dedicated index over the cards' moral fields, or routing moral questions to a judge that picks a story. Part 1 had the same weak spot under a different name.</li>
+      <li><strong>The generation sample is five answers.</strong> Retrieval numbers are solid at 96 questions; generation numbers are indicative.</li>
+      <li><strong>Coverage.</strong> Padma, Varaha, Bhavishya and Brahmavaivarta are not on GRETIL at all, and Skanda only as its Reva Khanda. Skanda matters most for temple and Kartika questions.</li>
+      <li><strong>Licence.</strong> GRETIL's e-texts are CC BY-NC-SA. The Sanskrit is public domain, but the digitisation is not free for commercial use. Verse ids follow the editions, so re-sourcing from Ambuda or Wikisource is a re-parse, not a rebuild.</li>
+      <li><strong>The tatparyams are unreviewed.</strong> They are shown next to the Sanskrit they translate, which is the safeguard, but a reviewer queue is the real fix.</li>
+    </ul>
+
+    <h2 id="takeaways"><span class="num">08</span>Takeaways</h2>
+    <ol>
+      <li><strong>Close a language gap at build time, not query time.</strong> One offline pass per chapter turned a cross-lingual, cross-script search into a Telugu-to-Telugu one.</li>
+      <li><strong>Index at the granularity of questions.</strong> Chapters, not verses. It is 50 times smaller and matches how people ask.</li>
+      <li><strong>Search in the user's language; read in the source's.</strong> The model that answers is good at Sanskrit. The encoder does not need to be.</li>
+      <li><strong>Do not translate what you cannot verify.</strong> Translate the cited verses, on demand, next to the original, and cache them.</li>
+      <li><strong>The prompt that writes your index is a retrieval parameter.</strong> Asking for life-situation questions doubled moral-question accuracy for a cent a chapter.</li>
+      <li><strong>Hints should boost, never filter.</strong> A wrong hard filter costs the answer; a wrong soft boost costs a rank.</li>
+      <li><strong>Measure the deployed system, per question type.</strong> The aggregate hid a category at zero.</li>
+    </ol>
+
+    <div class="cta">
+      <a class="btn primary" href="https://huggingface.co/spaces/amrithatejaswiservices/telugu-purana-rag">Live demo (private beta) →</a>
+      <a class="btn" href="/articles/telugu-gita-rag/">Part 1: the Gita RAG →</a>
+    </div>
+    <p style="color:var(--muted);font-size:14px">Corpus: GRETIL e-texts, CC BY-NC-SA 4.0. Chapter cards generated with Claude Sonnet 5 and Opus 5; answers with Sonnet 5; judge Sonnet 5. Retrieval: stock BAAI/bge-m3 plus BM25.</p>
+  </article>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+
+</div>
+</body>
+</html>

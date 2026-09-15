@@ -35,7 +35,7 @@
     <div class="series">
       <div class="series-head">
         <h3>RAG in Telugu</h3>
-        <span class="series-count">1 article</span>
+        <span class="series-count">2 articles</span>
       </div>
       <p class="series-desc">Building a question-answering system over the Bhagavad Gita in a low-resource language — from raw web pages to a deployed app with verified citations.</p>
       <ol class="posts">
@@ -46,12 +46,33 @@
           <span class="post-sub">Preparing the dataset, choosing and fine-tuning the embedding model and reranker, hybrid search, and how it was evaluated.</span>
           <span class="post-meta">15 Sep 2026 · 20 min read</span>
         </li>
+        <li>
+          <a class="post-link" href="/articles/telugu-purana-rag/">
+            <span class="post-title">Sanskrit in, Telugu out: a RAG over 17 Puranas</span>
+          </a>
+          <span class="post-sub">The texts exist only in Sanskrit and the users ask in Telugu. Chapter cards, in-memory retrieval, verse-level citation and on-demand translation — with the measured numbers.</span>
+          <span class="post-meta">16 Sep 2026 · 16 min read</span>
+        </li>
       </ol>
     </div>
   </section>
 
   <section id="projects">
     <p class="eyebrow">Projects</p>
+    <article class="card">
+      <h3>Telugu Purana RAG</h3>
+      <p>Grounded Telugu answers over 17 Puranas that exist only in Sanskrit. A generated Telugu chapter-card layer makes the search same-language; the Sanskrit verses go to the model; every quoted sloka is verified word for word and the meaning is translated on demand.</p>
+      <div class="stats">
+        <div class="stat"><b>2,809</b><small>chapters carded, 141k Sanskrit verses</small></div>
+        <div class="stat"><b>0.90</b><small>recall@10 on 96 Telugu questions</small></div>
+        <div class="stat"><b>0.945</b><small>faithfulness, LLM judge (5 answers)</small></div>
+        <div class="stat"><b>2.8¢</b><small>per chapter card via the Batches API</small></div>
+      </div>
+      <div class="links">
+        <a href="/articles/telugu-purana-rag/">Read the write-up →</a>
+        <a href="https://huggingface.co/spaces/amrithatejaswiservices/telugu-purana-rag">Live demo (private beta) →</a>
+      </div>
+    </article>
     <article class="card">
       <h3>Telugu Bhagavad Gita RAG</h3>
       <p>Grounded question answering over 699 verses in Telugu. Every quotation is verified word for word against the source verse, and the system refuses rather than answering from the model's memory.</p>
