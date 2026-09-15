@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Engineering Notes</title>
+  <meta name="description" content="Notes from building AI systems — retrieval, fine-tuning, evaluation — including the measurements that proved me wrong.">
+  <meta property="og:title" content="AI Engineering Notes">
+  <meta property="og:description" content="Notes from building AI systems, including the measurements that proved me wrong.">
+  <meta property="og:url" content="https://aiengineeringnotes.com/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="site">
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="#projects">Projects</a>
+      <a href="#writing">Writing</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <h1>Notes from building AI systems.</h1>
+    <p class="lede">Retrieval, fine-tuning and evaluation, written up with the numbers — including the experiments that didn't work and the assumptions that turned out to be wrong.</p>
+  </div>
+
+  <section id="projects">
+    <p class="eyebrow">Projects</p>
+    <article class="card">
+      <h3>Telugu Bhagavad Gita RAG</h3>
+      <p>Grounded question answering over 699 verses in Telugu. Every quotation is verified verbatim against the source verse, and the system refuses rather than answering from the model's memory.</p>
+      <div class="stats">
+        <div class="stat"><b>+81%</b><small>recall@10 after fine-tuning both encoders</small></div>
+        <div class="stat"><b>+83%</b><small>NDCG@10, 0.256 → 0.468</small></div>
+        <div class="stat"><b>100%</b><small>citations verified against source</small></div>
+        <div class="stat"><b>3.1s</b><small>to first word, down from 45s</small></div>
+      </div>
+      <div class="links">
+        <a href="https://huggingface.co/spaces/amrithatejaswiservices/telugu-gita-rag">Live demo →</a>
+        <a href="https://github.com/viswatejaraavip-ai/telugu-gita-rag">Source on GitHub →</a>
+      </div>
+    </article>
+  </section>
+
+  <section id="writing">
+    <p class="eyebrow">Writing</p>
+    <ol class="posts">
+      <li><span class="post-title">My embedding model could read Telugu fine. My questions were the problem.<span class="soon">Soon</span></span><span class="post-sub">A floor test, a wrong hypothesis, and the multilingual problems that were actually real.</span></li>
+      <li><span class="post-title">I wrote life situations for 699 verses, and it didn't help<span class="soon">Soon</span></span><span class="post-sub">Augmenting retrieval for thematic questions — and why the gain vanished behind a reranker.</span></li>
+      <li><span class="post-title">Fine-tuning BGE-M3 on $4.71 of synthetic data<span class="soon">Soon</span></span><span class="post-sub">Hard negatives, verse-level splits, and a margin that grew by pushing wrong answers down.</span></li>
+      <li><span class="post-title">The off-the-shelf reranker made my search worse<span class="soon">Soon</span></span><span class="post-sub">Why a reranker only helps if it's better at the task than the retriever it reorders.</span></li>
+      <li><span class="post-title">0.6% of the Ramayana has a Telugu explanation<span class="soon">Soon</span></span><span class="post-sub">Building a corpus in a low-resource language.</span></li>
+      <li><span class="post-title">Enforce, don't ask: citations, false claims, and 45 seconds down to 3<span class="soon">Soon</span></span><span class="post-sub">A prompt that changed nothing, a model swap that did, and a citation rate that silently hit zero.</span></li>
+    </ol>
+  </section>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+
+</div>
+</body>
+</html>
