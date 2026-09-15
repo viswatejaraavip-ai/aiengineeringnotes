@@ -136,3 +136,66 @@ ol.posts li::before { content: counter(post, decimal-leading-zero); font-family:
 }
 
 footer { padding-block: 40px 56px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 14px; }
+
+/* ---------- series on home ---------- */
+.series { margin-bottom: 36px; }
+.series:last-child { margin-bottom: 0; }
+.series-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 4px; }
+.series-head h3 { font-size: 24px; margin: 0; }
+.series-count { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.series-desc { color: var(--muted); margin: 0 0 8px; }
+.post-link { color: var(--text); text-decoration: none; }
+.post-link:hover .post-title { color: var(--accent); }
+.post-meta { grid-column: 2; font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+/* ---------- article ---------- */
+.crumbs { font-family: var(--mono); font-size: 13px; color: var(--muted); padding-top: 40px; }
+.crumbs a { color: var(--muted); }
+article.post { padding-block: 16px 48px; }
+article.post > header { padding-block: 16px 32px; border-bottom: 1px solid var(--rule); margin-bottom: 32px; }
+article.post h1 { font-size: clamp(32px, 5.5vw, 44px); }
+.byline { font-family: var(--mono); font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 16px; }
+article.post h2 { font-size: 30px; margin: 56px 0 16px; scroll-margin-top: 24px; }
+article.post h2 .num { font-family: var(--mono); font-size: 15px; color: var(--accent); display: block; margin-bottom: 6px; letter-spacing: 0; }
+article.post h3 { font-size: 21px; margin: 32px 0 10px; }
+article.post p, article.post li { max-width: 40em; }
+article.post ul, article.post ol { padding-left: 1.3em; }
+article.post li { margin-bottom: 6px; }
+article.post strong { font-weight: 600; }
+.te { font-family: "Noto Sans Telugu", "Kohinoor Telugu", "Telugu Sangam MN", var(--sans); }
+
+.toc { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 18px 22px; margin: 0 0 16px; }
+.toc p { margin: 0 0 8px; font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.toc ol { margin: 0; padding-left: 1.4em; font-size: 16px; }
+.toc li { margin-bottom: 2px; }
+
+.concept { border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 8px 8px 0; padding: 14px 18px; margin: 24px 0; }
+.concept .label { display: block; font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); margin-bottom: 4px; }
+.concept p { margin: 0 0 8px; } .concept p:last-child { margin-bottom: 0; }
+
+.lesson { border: 1px solid var(--rule); background: var(--surface); border-radius: 8px; padding: 14px 18px; margin: 24px 0; }
+.lesson .label { display: block; font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 4px; }
+.lesson p { margin: 0; }
+
+.table-wrap { overflow-x: auto; margin: 20px 0 24px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 15px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+th { font-weight: 600; color: var(--muted); font-size: 13px; }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; }
+tr.best td { font-weight: 600; }
+
+pre { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font: 14px/1.55 var(--mono); margin: 20px 0; }
+code { font-family: var(--mono); font-size: .88em; }
+p code, li code, td code { background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+
+figure { margin: 28px 0; }
+figure .fig-body { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 18px; overflow-x: auto; }
+figcaption { color: var(--muted); font-size: 14px; margin-top: 8px; }
+svg text { font-family: var(--sans); }
+
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0; }
+.btn { display: inline-block; border: 1px solid var(--rule); background: var(--surface); color: var(--text); text-decoration: none; border-radius: 8px; padding: 10px 16px; font-size: 15px; }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { color: #fff; opacity: .9; }

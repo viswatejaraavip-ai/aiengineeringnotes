@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How I built a RAG on the Bhagavad Gita in Telugu · AI Engineering Notes</title>
+  <meta name="description" content="Preparing 699 Telugu verses, choosing and fine-tuning an embedding model and reranker, hybrid search for an agglutinative language, and how the system was evaluated — with the real numbers.">
+  <meta property="og:title" content="How I built a RAG on the Bhagavad Gita in Telugu">
+  <meta property="og:description" content="Dataset, embeddings, fine-tuning, reranking, hybrid search and evaluation — explained in plain English with real numbers.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://aiengineeringnotes.com/articles/telugu-gita-rag/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/articles/telugu-gita-rag/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .viz { --s1: #2a78d6; --s2: #eb6834; }
+    @media (prefers-color-scheme: dark) { .viz { --s1: #3987e5; --s2: #d95926; } }
+    .flow-box { fill: var(--surface); stroke: var(--rule); stroke-width: 1.5; }
+    .flow-hi  { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+    .flow-t   { fill: var(--text); font-size: 14px; font-weight: 600; }
+    .flow-s   { fill: var(--muted); font-size: 12px; }
+    .flow-a   { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+    .ax       { fill: var(--muted); font-size: 12px; }
+    .grid     { stroke: var(--rule); stroke-width: 1; }
+    .val      { fill: var(--text); font-size: 12px; font-variant-numeric: tabular-nums; }
+    .legend   { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin: 0 0 10px; }
+    .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="site">
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/#series">Series</a>
+      <a href="/#projects">Projects</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+
+  <p class="crumbs"><a href="/#series">Series</a> / RAG in Telugu / Part 1</p>
+
+  <article class="post">
+    <header>
+      <h1>How I built a RAG on the Bhagavad Gita in Telugu</h1>
+      <p class="lede">A step-by-step walk-through: preparing the verses, choosing and fine-tuning the models, hybrid search, and measuring whether any of it actually worked.</p>
+      <div class="byline"><span>15 Sep 2026</span><span>20 min read</span></div>
+      <div class="cta">
+        <a class="btn primary" href="https://huggingface.co/spaces/amrithatejaswiservices/telugu-gita-rag">Try the live demo →</a>
+        <a class="btn" href="https://github.com/viswatejaraavip-ai/telugu-gita-rag">Code on GitHub →</a>
+      </div>
+    </header>
+
+    <p>Ask a general chatbot a question about the Bhagavad Gita in Telugu and you will usually get a fluent answer. But it comes from the model's memory: a mix of the Gita, commentaries, and everything else it read on the internet. There is no citation, and no way to check whether the Gita actually says that.</p>
+
+    <p>I wanted the opposite. A system that answers <strong>only</strong> from the text of the Gita, shows <strong>which verse</strong> each point came from, and says "I can't answer that from the Gita" when the verses don't support an answer.</p>
+
+    <p>That is a <strong>RAG</strong> problem.</p>
+
+    <div class="concept">
+      <span class="label">Concept · RAG</span>
+      <p><strong>Retrieval-Augmented Generation</strong> means: first <em>retrieve</em> the few passages relevant to the question, then give only those passages to a language model and ask it to <em>generate</em> an answer from them.</p>
+      <p>Think of it as an open-book exam. The model is not allowed to answer from memory. It must find the page first, and it must point to the page.</p>
+    </div>
+
+    <p>Here is the finished pipeline. The rest of this article explains why each box exists.</p>
+
+    <figure>
+      <div class="fig-body">
+        <svg viewBox="0 0 680 250" width="100%" style="min-width:600px" role="img" aria-labelledby="flowT flowD">
+          <title id="flowT">RAG pipeline</title>
+          <desc id="flowD">A question goes to dense search and BM25 keyword search in parallel. Their rankings are fused with RRF, the top 30 are reranked by a cross-encoder, the top verses go to Claude, and every quote in the answer is checked against the source text.</desc>
+          <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--muted)"/></marker></defs>
+          <rect class="flow-box" x="10" y="95" width="100" height="56" rx="8"/>
+          <text class="flow-t" x="60" y="119" text-anchor="middle">Question</text>
+          <text class="flow-s" x="60" y="137" text-anchor="middle">Telugu / Tenglish</text>
+
+          <rect class="flow-hi" x="150" y="30" width="130" height="56" rx="8"/>
+          <text class="flow-t" x="215" y="54" text-anchor="middle">Dense search</text>
+          <text class="flow-s" x="215" y="72" text-anchor="middle">fine-tuned BGE-M3</text>
+          <rect class="flow-hi" x="150" y="160" width="130" height="56" rx="8"/>
+          <text class="flow-t" x="215" y="184" text-anchor="middle">Keyword search</text>
+          <text class="flow-s" x="215" y="202" text-anchor="middle">BM25, 4-letter pieces</text>
+
+          <rect class="flow-box" x="320" y="95" width="90" height="56" rx="8"/>
+          <text class="flow-t" x="365" y="119" text-anchor="middle">Fuse</text>
+          <text class="flow-s" x="365" y="137" text-anchor="middle">RRF</text>
+
+          <rect class="flow-hi" x="440" y="95" width="100" height="56" rx="8"/>
+          <text class="flow-t" x="490" y="119" text-anchor="middle">Rerank</text>
+          <text class="flow-s" x="490" y="137" text-anchor="middle">top 30 → top 8</text>
+
+          <rect class="flow-box" x="570" y="30" width="100" height="56" rx="8"/>
+          <text class="flow-t" x="620" y="54" text-anchor="middle">Claude</text>
+          <text class="flow-s" x="620" y="72" text-anchor="middle">writes answer</text>
+          <rect class="flow-box" x="570" y="160" width="100" height="56" rx="8"/>
+          <text class="flow-t" x="620" y="184" text-anchor="middle">Verify</text>
+          <text class="flow-s" x="620" y="202" text-anchor="middle">quotes vs source</text>
+
+          <path class="flow-a" d="M110,112 C130,112 130,58 148,58" marker-end="url(#ah)"/>
+          <path class="flow-a" d="M110,134 C130,134 130,188 148,188" marker-end="url(#ah)"/>
+          <path class="flow-a" d="M280,58 C300,58 300,112 318,112" marker-end="url(#ah)"/>
+          <path class="flow-a" d="M280,188 C300,188 300,134 318,134" marker-end="url(#ah)"/>
+          <path class="flow-a" d="M410,123 L438,123" marker-end="url(#ah)"/>
+          <path class="flow-a" d="M540,112 C555,112 555,58 568,58" marker-end="url(#ah)"/>
+          <path class="flow-a" d="M620,86 L620,158" marker-end="url(#ah)"/>
+        </svg>
+      </div>
+      <figcaption>The shaded boxes are the retrieval steps this article focuses on. Dense search and the reranker use models fine-tuned for this project.</figcaption>
+    </figure>
+
+    <nav class="toc" aria-label="Contents">
+      <p>Contents</p>
+      <ol>
+        <li><a href="#dataset">Preparing the dataset</a></li>
+        <li><a href="#why-not-long-context">Why not just give all the verses to the LLM?</a></li>
+        <li><a href="#embedding-model">Choosing the embedding model</a></li>
+        <li><a href="#finetune-embeddings">Why the embedding model had to be fine-tuned</a></li>
+        <li><a href="#reranker">The reranker: why add one, and why fine-tune it</a></li>
+        <li><a href="#hybrid">Hybrid search</a></li>
+        <li><a href="#evaluation">How the models were evaluated</a></li>
+        <li><a href="#results">Final results</a></li>
+      </ol>
+    </nav>
+
+    <!-- ============================================================ 1 -->
+    <h2 id="dataset"><span class="num">01</span>Preparing the dataset</h2>
+
+    <h3>The corpus I wanted vs. the corpus that exists</h3>
+    <p>The original plan was the Ramayana, the Mahabharata and the Gita. For a Telugu RAG, each verse needs its <strong>tatparyam</strong>: the meaning explained in modern Telugu. That is the text people's questions will actually match.</p>
+    <p>An audit of <a href="https://te.wikisource.org">Telugu Wikisource</a> ended that plan on day one. Of the Ramayana's 13,693 slokas, only <strong>64 had a Telugu tatparyam</strong>, about 0.5%. The rest was Sanskrit written in Telugu script. It <em>looks</em> like Telugu to a simple character check, but it isn't Telugu prose. The Mahabharata was in the same situation.</p>
+    <p>Only the Gita had a Sanskrit verse <em>and</em> a Telugu meaning for every verse. So the project became: <strong>do one book properly</strong>.</p>
+
+    <div class="lesson">
+      <span class="label">Lesson</span>
+      <p>In a low-resource language, check what text actually exists before designing anything. The data decided the scope, not the architecture.</p>
+    </div>
+
+    <h3>Three page formats, one schema</h3>
+    <p>The Gita pages on Wikisource (licensed CC BY-SA 4.0) were downloaded through the MediaWiki API. The 18 chapters were not written in one consistent format, so the parser had to handle three:</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Format</th><th>What the page looks like</th><th>How the verse number was found</th><th class="num">Verses</th></tr></thead>
+        <tbody>
+          <tr><td>A</td><td>Full Sanskrit sloka, then <code>|| 2-47 ||</code>, then meaning</td><td>Read from the <code>|| chapter-verse ||</code> marker</td><td class="num">219</td></tr>
+          <tr><td>B</td><td>Only the first line of the sloka, then meaning</td><td>Counted by position in the page</td><td class="num">440</td></tr>
+          <tr><td>C</td><td>First line, then <code>N. sloka |</code>, then meaning</td><td>Read from the <code>N.</code> prefix</td><td class="num">40</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Every verse became one JSON record with the same fields. A trimmed example:</p>
+<pre>{
+  "id": "gita-18-6",
+  "adhyaya_no": 18,
+  "sloka_no": 6,
+  "citation_en": "Bhagavad Gita 18.6",
+  "sloka_sa": "…",                       // Sanskrit, in Telugu script
+  "tatparyam_te": "అర్జునా! ఈ కర్మలను కూడా సంగాన్ని, ఫలాన్ని వదిలి
+                   చెయ్యాలని నా నిశ్చితమైన ఉత్తమమైన అభిప్రాయం.",
+  "source_url": "https://te.wikisource.org/…",
+  "license": "CC BY-SA 4.0",
+  "parse_mode": "B",
+  "verse_number_verified": false
+}</pre>
+    <p>The <code>id</code> matters more than it looks. It is what every citation points to, so it must be stable and correct.</p>
+
+    <h3>Checking the count</h3>
+    <p>This edition has 701 verses. After parsing and removing duplicates I had <strong>699</strong>. 16 of the 18 chapters matched the expected verse count exactly. The two gaps are in the source itself, not bugs in the parser:</p>
+    <ul>
+      <li><strong>Chapter 3:</strong> the source page labels two different verses as <code>3-4</code>, so there is no <code>3-5</code>.</li>
+      <li><strong>Chapter 16:</strong> verse <code>16-4</code> is missing from the page (it jumps from 16-3 to 16-5).</li>
+    </ul>
+
+    <h3>Cleaning: let the search results find the dirt</h3>
+    <p>The first retrieval test surfaced something odd. For an unrelated question, the top result was verse 1.13, and its "meaning" started with <span class="te">ఆదిశంకరాచార్యులవారు :</span> ("Adi Shankaracharya says:"). Commentary text had leaked into the verse records.</p>
+    <p>Looking closer, there were two kinds of contamination:</p>
+    <ul>
+      <li><strong>Commentary leakage:</strong> 17 records in chapter 1 had Shankaracharya's commentary appended, averaging 946 characters each, against a normal meaning of about 120. A long record matches almost any query, so these kept winning.</li>
+      <li><strong>Sanskrit bleed:</strong> 30 records across 7 chapters had Sanskrit text stuck onto the end of the Telugu meaning.</li>
+    </ul>
+    <p>The cleaning script cut each record at the commentary marker or the Sanskrit danda (<code>|</code>). In total it cleaned 37 records and <strong>removed 15,247 characters of junk</strong>. Automated tests in the repo now fail if either problem comes back.</p>
+    <p>After cleaning, a Telugu meaning is short: <strong>127 characters on average</strong> (median 118). Keep that number in mind; it matters in section 4.</p>
+
+    <!-- ============================================================ 2 -->
+    <h2 id="why-not-long-context"><span class="num">02</span>Why not just give all the verses to the LLM?</h2>
+    <p>This is the first question anyone should ask, because modern models have very large context windows. So I measured it.</p>
+    <p>All 699 verses, Sanskrit plus Telugu meaning, come to <strong>114,471 tokens</strong> on Claude Sonnet 5. The context window is 1 million tokens. <strong>It fits.</strong> So why build retrieval at all?</p>
+
+    <div class="concept">
+      <span class="label">Concept · Tokens</span>
+      <p>LLMs don't read letters or words, they read <strong>tokens</strong>: small chunks of text. You pay per token, and more tokens means a longer wait.</p>
+      <p>Telugu is expensive here. Measured on the same tokenizer, Telugu text costs <strong>0.89 tokens per character</strong>, while English costs <strong>0.30</strong>. The same amount of text needs about <strong>3× more tokens in Telugu</strong>.</p>
+    </div>
+
+    <p>Five reasons pushed me to RAG anyway:</p>
+    <ol>
+      <li><strong>Cost per question.</strong> Sending the whole Gita costs about <strong>$0.23 of input per question</strong> on Sonnet 5 ($2 per million input tokens). RAG sends about 8 verses, roughly 1,300 tokens, which is about <strong>$0.003</strong>. That is around 90 times less. Prompt caching would make the repeated part cheaper, but the model still has to work through a very long prompt for every question.</li>
+      <li><strong>It doesn't scale to the rest of the plan.</strong> The long-term goal includes the Ramayana and the Mahabharata. If every Ramayana sloka had a Telugu meaning like the Gita's, that book alone would be over 2 million tokens (a rough estimate), past the context limit.</li>
+      <li><strong>Citations become checkable.</strong> With RAG, I know exactly which 8 verses the model was given. Every quote in the answer can be checked, character by character, against those 8 verses. With the whole book in the prompt, it becomes much harder to tell the text apart from the model's own memory of the Gita.</li>
+      <li><strong>Attention thins out.</strong> Models tend to use information less reliably when it is buried in a very long prompt. A short, focused context is easier to answer from faithfully.</li>
+      <li><strong>You can measure each part.</strong> With RAG, "did we find the right verse?" and "did the model answer well from it?" are separate questions with separate numbers. When something breaks, you know where.</li>
+    </ol>
+    <p>To be clear: I did not build a long-context version and compare answer quality. The reasons above are cost measurements plus design arguments, not a head-to-head benchmark.</p>
+
+    <!-- ============================================================ 3 -->
+    <h2 id="embedding-model"><span class="num">03</span>Choosing the embedding model</h2>
+
+    <div class="concept">
+      <span class="label">Concept · Embeddings</span>
+      <p>An <strong>embedding model</strong> turns a piece of text into a list of numbers (for BGE-M3, 1,024 of them) called a <strong>vector</strong>. It is trained so that texts with similar meaning get similar vectors.</p>
+      <p>To search, you turn every verse into a vector once and store them. When a question arrives, you turn it into a vector too and find the verse vectors closest to it. "Closest" is usually measured with <strong>cosine similarity</strong>: 1.0 means pointing the same way, 0 means unrelated.</p>
+      <p>This is called <strong>dense retrieval</strong>. It can match meaning even when the question and the verse share no words.</p>
+    </div>
+
+    <h3>What the model needed</h3>
+    <ul>
+      <li><strong>Understands Telugu</strong>, including romanized Telugu ("Tenglish") like <code>kopam ela puttundi</code>, which is how many people type on phones.</li>
+      <li><strong>Open weights</strong>, so it can be fine-tuned.</li>
+      <li><strong>Runs locally</strong>, with no per-query API bill.</li>
+      <li><strong>Has a matching reranker</strong> from the same family (more on that in section 5).</li>
+    </ul>
+
+    <h3>The shortlist</h3>
+    <p>Candidates were BGE-M3, Qwen3-Embedding, IBM Granite Embedding Multilingual and Krutrim's Vyakyarth (open models), plus hosted APIs from Voyage, Google Gemini and Cohere. I chose <a href="https://huggingface.co/BAAI/bge-m3"><strong>BAAI/bge-m3</strong></a>:</p>
+    <ul>
+      <li>It is trained on 100+ languages, including Telugu.</li>
+      <li>It has 568M parameters: small enough to run on a laptop CPU and fine-tune on a free Colab GPU.</li>
+      <li>It accepts inputs up to 8,192 tokens.</li>
+      <li>It has a sister reranker, <code>bge-reranker-v2-m3</code>.</li>
+    </ul>
+    <p>API embeddings were ruled out because they can't be fine-tuned and add a cost to every query. I did not benchmark the other open models against it. That is a fair criticism, and a good follow-up experiment.</p>
+
+    <h3>What to embed: the meaning, not the Sanskrit</h3>
+    <p>Each verse has two texts: the Sanskrit sloka and the modern Telugu tatparyam. I embed the <strong>tatparyam</strong>.</p>
+    <div class="concept">
+      <span class="label">Concept · Register mismatch</span>
+      <p>The same language can be written in very different styles, or <strong>registers</strong>. Classical Telugu (grandhika) and everyday Telugu (vyavaharika) differ a lot, and Sanskrit is a different language altogether.</p>
+      <p>Users type everyday Telugu. If the stored text is in a different register, question and verse look far apart to the model even when they mean the same thing. The tatparyam is written in the same everyday register as the questions, so it is the right text to search.</p>
+    </div>
+
+    <h3>Does it actually understand Telugu? Two quick tests</h3>
+    <p>When the first results were weak, the obvious explanation was "multilingual models are bad at Telugu". Before acting on that, I tested it.</p>
+    <p><strong>Test 1 — the floor test.</strong> Take 30 random verses, copy a 45-character slice straight out of each one, and use that slice as the query. Any working model must rank the source verse first. Result: <strong>26/30 at rank 1, 29/30 in the top 5, and none outside the top 20.</strong></p>
+    <p><strong>Test 2 — are all Telugu texts squashed together?</strong> If a model doesn't really understand a language, it tends to give every text in that language a similar vector. Then random, unrelated pairs look similar. I measured the average similarity between random pairs of verses. Telugu: <strong>0.485</strong>. The same Gita in English: <strong>0.502</strong>. Telugu is not squashed together any more than English is.</p>
+    <div class="lesson">
+      <span class="label">Lesson</span>
+      <p>The model reads Telugu fine. The explanation that felt obvious was wrong, and testing it saved me from "fixing" the wrong problem (for example, by translating everything into English).</p>
+    </div>
+
+    <!-- ============================================================ 4 -->
+    <h2 id="finetune-embeddings"><span class="num">04</span>Why the embedding model had to be fine-tuned</h2>
+
+    <h3>The real problem: questions don't look like verses</h3>
+    <p>The stock model struggled with the kinds of questions people actually ask. Here is one verse with three real test questions, one of each type:</p>
+    <div class="table-wrap">
+      <table>
+        <tbody>
+          <tr><th>Verse 18.6</th><td class="te" style="white-space:normal">అర్జునా! ఈ కర్మలను కూడా సంగాన్ని, ఫలాన్ని వదిలి చెయ్యాలని నా నిశ్చితమైన ఉత్తమమైన అభిప్రాయం.</td></tr>
+          <tr><th>Lookup</th><td class="te" style="white-space:normal">ఫలితం ఆశించకుండా పని చేయాలని గీత ఎక్కడ చెబుతుంది?</td></tr>
+          <tr><th>Thematic</th><td class="te" style="white-space:normal">ఉద్యోగం చేస్తున్నాను కానీ ఫలితం మీద ఆశతో మనసు ఆందోళనగా ఉంది, ఏం చేయాలి?</td></tr>
+          <tr><th>Tenglish</th><td style="white-space:normal"><code>phalam asinchakunda pani cheyyali ani krishna emi cheppadu</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul>
+      <li><strong>Lookup</strong> questions ask directly about the text. They share some words with the verse.</li>
+      <li><strong>Thematic</strong> questions describe a life situation ("I work, but worry about results makes me anxious") and never mention the Gita. The link to the verse is purely about meaning.</li>
+      <li><strong>Tenglish</strong> questions are in a different script from every stored verse.</li>
+    </ul>
+    <p>A question is a short interrogative. A verse is a ~127-character statement where the answer is one clause among several. That mismatch in <em>shape</em> is hard for any embedding model, in any language. On the 320 held-out test questions, the stock model found the right verse in its top 10 for only <strong>38% of questions</strong>. For Tenglish it was <strong>8%</strong>, and the right verse usually wasn't even in the top 50.</p>
+
+    <div class="concept">
+      <span class="label">Concept · Recall@10</span>
+      <p><strong>Recall@10</strong> = the share of questions where the correct verse appears anywhere in the top 10 results. 0.38 means 38 out of 100 questions. If retrieval misses the verse, the LLM never sees it, and no prompt can fix that.</p>
+    </div>
+
+    <p>Fine-tuning teaches the model what "similar" should mean <em>for this task</em>: "this verse answers this question", rather than "these two texts use similar words".</p>
+
+    <h3>Step 1: create training data (there was none)</h3>
+    <p>No dataset of Telugu Gita questions exists, so I generated one. For each verse, Claude Opus 5 wrote five questions: 2 lookup, 2 thematic and 1 Tenglish. Two rules mattered most:</p>
+    <ul>
+      <li><strong>Don't reuse the verse's own words.</strong> A question that copies the verse's vocabulary teaches word-matching, which keyword search already does. The embedding model needs to learn <em>paraphrase</em>.</li>
+      <li><strong>Thematic questions must be first-person life situations</strong> that never mention the Gita, because that is how people actually ask.</li>
+    </ul>
+    <p>Result: <strong>2,905 training questions for $4.71.</strong></p>
+
+    <h3>Step 2: split by verse, not by question</h3>
+    <p>The 699 verses were split into <strong>581 for training</strong> and <strong>104 held out</strong>, plus 14 more reserved as gold answers for an early test set. The held-out verses and their questions are never seen during training.</p>
+    <div class="concept">
+      <span class="label">Concept · Why split by verse?</span>
+      <p>If you split by <em>question</em>, a test question can be about a verse the model already trained on with four sibling questions. The model then scores well just by remembering that verse. That measures memorisation, not understanding, and gives a big, satisfying, meaningless improvement.</p>
+    </div>
+
+    <h3>Step 3: find hard negatives</h3>
+    <p>Training works by showing the model a question, the <strong>right verse</strong> (the positive), and a <strong>wrong verse</strong> (the negative). The choice of wrong verse matters a lot:</p>
+    <ul>
+      <li>A <strong>random</strong> wrong verse is too easy. A verse about war conches is obviously not about work stress, so the model learns nothing.</li>
+      <li>A <strong>hard negative</strong> is a wrong verse that the current search system <em>ranks highly</em>. These are exactly the mistakes that cost recall.</li>
+    </ul>
+    <p>For every training question, I ran the existing search and took 2 highly ranked wrong verses (training verses only). That gave <strong>5,810 triplets</strong> of (question, right verse, wrong verse).</p>
+
+    <h3>Step 4: contrastive training</h3>
+    <div class="concept">
+      <span class="label">Concept · Contrastive learning</span>
+      <p>The model is trained to <strong>pull</strong> each question's vector towards its right verse and <strong>push</strong> it away from wrong verses.</p>
+      <p>The trick is <strong>in-batch negatives</strong>. With a batch of 64 triplets, each question is compared against its own right verse <em>and every other verse in the batch</em>: its own hard negative plus 126 others that belong to other questions. So a bigger batch means more wrong answers to learn from, for free. <strong>Batch size is the main quality lever.</strong></p>
+    </div>
+    <p>A free Colab T4 GPU can't fit a batch of 64 normally. <code>CachedMultipleNegativesRankingLoss</code> from sentence-transformers solves this. It processes the batch in small pieces of 8 but computes the loss as if all 64 were together.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Setting</th><th>Value</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>Loss</td><td><code>CachedMultipleNegativesRankingLoss</code></td><td>Large effective batch on a small GPU</td></tr>
+          <tr><td>Batch size</td><td>64 (mini-batch 8)</td><td>More in-batch negatives</td></tr>
+          <tr><td>Learning rate</td><td>2e-5</td><td>Conservative, to avoid forgetting general Telugu</td></tr>
+          <tr><td>Epochs</td><td>3</td><td>Small dataset overfits quickly</td></tr>
+          <tr><td>Checkpoint</td><td>best of evaluations every 25 steps</td><td>Keep the best model, not the last one</td></tr>
+          <tr><td>Hardware</td><td>Google Colab, free T4</td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>What training changed</h3>
+    <p>As a sanity check, I scored 32 training triplets before and after:</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th></th><th class="num">Before</th><th class="num">After</th></tr></thead>
+        <tbody>
+          <tr><td>Score for the right verse</td><td class="num">0.500</td><td class="num">0.522</td></tr>
+          <tr><td>Score for the hard negative</td><td class="num">0.500</td><td class="num">0.177</td></tr>
+          <tr><td>Wrong verse scores higher than right verse</td><td class="num">13 / 32</td><td class="num">1 / 32</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Almost all of the improvement came from <strong>pushing wrong verses down</strong>, not pulling right ones up. The model already knew the right verse was related; it learned to tell it apart from verses that were merely <em>about something similar</em>. (These are training triplets, so this shows the mechanism, not the real-world gain. The held-out results are in section 8.)</p>
+
+    <!-- ============================================================ 5 -->
+    <h2 id="reranker"><span class="num">05</span>The reranker: why add one, and why fine-tune it</h2>
+
+    <div class="concept">
+      <span class="label">Concept · Bi-encoder vs cross-encoder</span>
+      <p>The embedding model is a <strong>bi-encoder</strong>. It reads the question and each verse <em>separately</em> and compares the two vectors. That is fast: all 699 verse vectors are computed once in advance. But the model never sees the question and the verse side by side.</p>
+      <p>A <strong>cross-encoder</strong> (reranker) reads the question and one verse <em>together</em>, as a single input, and outputs a relevance score. Every word of the question can attend to every word of the verse, so it is much more accurate. It is also much slower: one full model run per verse, per question.</p>
+      <p>So you use both. The fast search picks <strong>30 candidates</strong>, and the reranker carefully re-orders just those 30. It is like skimming a library catalogue, then actually opening the 30 most promising books.</p>
+    </div>
+
+    <h3>The off-the-shelf reranker helped, a little</h3>
+    <p>With the fine-tuned search already in place, adding the stock <code>bge-reranker-v2-m3</code> raised recall@10 from <strong>0.512 to 0.559</strong> on the 320 held-out questions. That is useful but modest, with the biggest gain on lookup questions, the type closest to what generic rerankers are trained on.</p>
+    <div class="lesson">
+      <span class="label">Lesson · small tests mislead</span>
+      <p>On an earlier 100-question sample, the stock reranker seemed to make things <em>worse</em> (recall@1 dropped from 0.290 to 0.250). On the full 320 questions it helped every question type. With a small test set, random noise can be larger than the effect you are measuring.</p>
+    </div>
+
+    <h3>Why fine-tune it</h3>
+    <p>The stock reranker was trained on general web data. It has not seen Tenglish questions matched to Telugu-script verses, or first-person life situations matched to scripture. The embedding model had just been taught those things, and the reranker should know them too: <strong>a reranker only helps if it is better at the task than the search it is re-ordering.</strong></p>
+
+    <h3>How it was fine-tuned</h3>
+    <ul>
+      <li><strong>New hard negatives.</strong> The fine-tuned search makes <em>different</em> mistakes than the stock one, so negatives were mined again with the new model: 8 wrong verses per question from its top 50, giving 26,145 (question, verse) pairs.</li>
+      <li><strong>Objective.</strong> For each question, score the right verse above its 8 hard negatives.</li>
+      <li><strong>Settings.</strong> 2 epochs, learning rate 1e-5, Colab T4.</li>
+      <li><strong>Memory.</strong> The first two runs crashed with out-of-memory errors. The fixes: cutting the max input length from 512 to <strong>192 tokens</strong> (the longest real question+verse pair is 146 tokens), freeing the stock model from GPU memory before training, and using the lighter Adafactor optimizer.</li>
+    </ul>
+
+    <h3>Result</h3>
+    <p>On the same 320 held-out questions and the same 50 candidates per question:</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th></th><th class="num">No reranker</th><th class="num">Stock reranker</th><th class="num">Fine-tuned reranker</th></tr></thead>
+        <tbody>
+          <tr><td>Recall@10 · all</td><td class="num">0.512</td><td class="num">0.559</td><td class="num"><strong>0.634</strong></td></tr>
+          <tr><td>NDCG@10 · all</td><td class="num">0.358</td><td class="num">0.396</td><td class="num"><strong>0.468</strong></td></tr>
+          <tr><td>Recall@10 · lookup</td><td class="num">0.758</td><td class="num">0.805</td><td class="num"><strong>0.883</strong></td></tr>
+          <tr><td>Recall@10 · Tenglish</td><td class="num">0.359</td><td class="num">0.422</td><td class="num"><strong>0.641</strong></td></tr>
+          <tr><td>Recall@10 · thematic</td><td class="num">0.344</td><td class="num">0.383</td><td class="num">0.383</td></tr>
+          <tr><td>Median rank · Tenglish</td><td class="num">7</td><td class="num">4</td><td class="num"><strong>1</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><strong>Tenglish gained the most:</strong> recall@10 went from 0.36 to 0.64, and the right verse now typically comes first. That makes sense. A cross-encoder sees <code>kopam</code> and <span class="te">కోపం</span> in the same input and can learn to line them up directly. A bi-encoder only ever compares two vectors computed separately.</p>
+    <p><strong>Thematic questions did not improve</strong> with fine-tuning (0.383 either way). They remain the hardest part of this system.</p>
+
+    <h3>How many candidates to rerank?</h3>
+    <p>Reranking more candidates costs more time, so I measured it on 80 questions. I reranked the top 50 once and read off smaller pools by cutting the list.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th class="num">Pool</th><th class="num">Recall@10</th><th class="num">NDCG@10</th><th class="num">Right verse is in the pool</th></tr></thead>
+        <tbody>
+          <tr><td class="num">10</td><td class="num">0.525</td><td class="num">0.418</td><td class="num">0.525</td></tr>
+          <tr><td class="num">15</td><td class="num">0.562</td><td class="num">0.436</td><td class="num">0.588</td></tr>
+          <tr><td class="num">20</td><td class="num">0.588</td><td class="num">0.435</td><td class="num">0.625</td></tr>
+          <tr class="best"><td class="num">30</td><td class="num">0.625</td><td class="num">0.462</td><td class="num">0.762</td></tr>
+          <tr><td class="num">50</td><td class="num">0.625</td><td class="num">0.467</td><td class="num">0.812</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Recall stops improving at 30. Going to 50 costs 40% more compute for +0.005 NDCG, so production uses <strong>30</strong>.</p>
+
+    <!-- ============================================================ 6 -->
+    <h2 id="hybrid"><span class="num">06</span>Hybrid search</h2>
+
+    <div class="concept">
+      <span class="label">Concept · Dense vs keyword search</span>
+      <p><strong>Dense search</strong> (embeddings) matches <em>meaning</em>. It can connect "anxious about results" to a verse about giving up attachment to results, but it can miss exact names and rare terms.</p>
+      <p><strong>Keyword search</strong> (BM25, the classic search-engine algorithm) matches <em>exact terms</em>, and rewards rare terms more than common ones. It is great for specific words, but useless when the question uses different words.</p>
+      <p><strong>Hybrid search</strong> runs both and combines the results, so each covers the other's blind spots.</p>
+    </div>
+
+    <h3>The Telugu problem with keyword search</h3>
+    <p>Standard BM25 splits text into words. That fails in Telugu, which is <strong>agglutinative</strong>: suffixes attach directly to words, and <strong>sandhi</strong> fuses neighbouring words together. The same concept appears in many surface forms.</p>
+    <p>Real example. Question: <span class="te">యోగక్షేమం ఎవరు వహిస్తారు?</span> ("Who takes care of one's welfare?"). The answer is verse 9.22, which contains <span class="te">యోగక్షేమాలను నేనే వహిస్తాను</span>. The question and the verse share <strong>zero whole words</strong>: <span class="te">యోగక్షేమం ≠ యోగక్షేమాలను</span>, and <span class="te">వహిస్తారు ≠ వహిస్తాను</span>.</p>
+    <p>The fix is to index <strong>overlapping 4-character pieces</strong> (character 4-grams) instead of whole words:</p>
+<pre>యోగక్షేమం  →  యోగక · ోగక్ · గక్ష · క్షే · ్షేమ · షేమం
+               (Unicode characters, so vowel signs are separate pieces)</pre>
+    <p>With 4-grams, that question and verse share <strong>11 pieces</strong>. Keyword search now finds the verse. On this question, the stock dense model did not have 9.22 anywhere in its top 40; BM25 ranked it <strong>#1</strong>; after combining, it sat at #7, inside the reranker's pool, where it can be lifted further.</p>
+
+    <h3>Combining two rankings: Reciprocal Rank Fusion</h3>
+    <p>Dense scores are cosine similarities around 0.3–0.8. BM25 scores are unbounded numbers like 14.2. You can't just add them. <strong>RRF</strong> ignores the scores and uses only the <strong>rank</strong>:</p>
+<pre>RRF score(verse) = Σ over each search   1 / (60 + rank in that search)</pre>
+    <p>Worked example: a verse ranked <strong>#1 by BM25</strong> but <strong>missing from dense</strong> scores 1/61 = 0.0164. A verse ranked <strong>#3 by dense</strong> and <strong>#4 by BM25</strong> scores 1/63 + 1/64 = 0.0315, so it wins. Being good in both beats being first in one. The constant 60 keeps any single first place from dominating. Keep this rule in mind: it matters a lot in the results below.</p>
+    <div class="lesson">
+      <span class="label">Lesson · never merge by raw score</span>
+      <p>I learned this the hard way. In a later experiment, I merged results from several search queries by their reranker scores. Recall@1 fell from 0.300 to 0.160. Scores from different runs are not on the same scale. Merging by rank avoids this.</p>
+    </div>
+
+    <h3>Did hybrid search actually help?</h3>
+    <p>This is the question I should have asked much earlier. While writing this article, I measured each retriever on its own and combined, on the same 320 held-out questions, with no reranker:</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Retriever</th><th class="num">Recall@10</th><th class="num">NDCG@10</th><th class="num">Lookup</th><th class="num">Thematic</th><th class="num">Tenglish</th></tr></thead>
+        <tbody>
+          <tr><td>Keyword only (BM25, 4-grams)</td><td class="num">0.241</td><td class="num">0.171</td><td class="num">0.531</td><td class="num">0.062</td><td class="num">0.016</td></tr>
+          <tr><td>Dense only · stock BGE-M3</td><td class="num">0.384</td><td class="num">0.273</td><td class="num">0.711</td><td class="num">0.211</td><td class="num">0.078</td></tr>
+          <tr class="best"><td>Dense only · fine-tuned</td><td class="num">0.641</td><td class="num">0.419</td><td class="num">0.820</td><td class="num">0.523</td><td class="num">0.516</td></tr>
+          <tr><td>Hybrid · stock BGE-M3 + BM25</td><td class="num">0.362</td><td class="num">0.260</td><td class="num">0.680</td><td class="num">0.180</td><td class="num">0.094</td></tr>
+          <tr><td>Hybrid · fine-tuned + BM25</td><td class="num">0.512</td><td class="num">0.351</td><td class="num">0.758</td><td class="num">0.344</td><td class="num">0.359</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="table-note" style="color:var(--muted);font-size:14px;margin-top:-12px">Lookup / Thematic / Tenglish columns are recall@10 for that question type.</p>
+    <p><strong>Adding keyword search made retrieval worse.</strong> The fine-tuned dense model on its own finds the right verse in the top 10 for <strong>64.1%</strong> of questions. Combining it with BM25 drops that to <strong>51.2%</strong>, and the combined version is lower for every question type. The same happens with the stock model, less dramatically (0.384 → 0.362).</p>
+    <p>Why?</p>
+    <ul>
+      <li><strong>The keyword side is weak on these questions.</strong> BM25 alone reaches 0.241 overall, 0.062 on thematic questions and 0.016 on Tenglish. Tenglish is in a different script from the verses, so not a single 4-gram can match.</li>
+      <li><strong>The test questions were written to avoid the verse's words.</strong> That rule was right for training the embedding model, but it also makes this test set unusually hard for keyword search. Real users often do use a verse's own words and names, like <span class="te">యోగక్షేమం</span>.</li>
+      <li><strong>RRF gives both searches an equal vote.</strong> "Good in both beats first in one" is a strength when both searches are decent. When one of them is usually wrong, its bad rankings push good verses out of the top 10.</li>
+    </ul>
+    <p>Hybrid search was a reasonable design choice: it is standard practice, and the <span class="te">యోగక్షేమం</span> example shows the kind of question it rescues. But I never measured it on its own until now, and on this test set it costs more than it gains. The next experiments are clear: give dense search more weight in the fusion, feed the reranker from dense search alone, and test on real user questions.</p>
+    <div class="lesson">
+      <span class="label">Lesson · measure every part on its own</span>
+      <p>Hybrid search went through fine-tuning, reranking and deployment without ever being tested alone, because "hybrid is best practice". Removing one component at a time and re-measuring (an <strong>ablation</strong>) is cheap. This one took 15 minutes on a laptop and overturned an assumption the whole pipeline was built on.</p>
+    </div>
+
+    <!-- ============================================================ 7 -->
+    <h2 id="evaluation"><span class="num">07</span>How the models were evaluated</h2>
+    <p>Evaluation happened at three levels. Each catches different failures.</p>
+
+    <h3>Level 1: retrieval — did we find the right verse?</h3>
+    <p><strong>Test set.</strong> 320 held-out questions, generated the same way as the training questions, about 64 held-out verses. (Question generation for the held-out split stopped at 64 of the 104 verses when API credit ran out; 320 questions was enough to measure with.) None of these verses were used in training.</p>
+    <p>An earlier set of 14 questions was used as a quick smoke test while building, before the held-out set existed.</p>
+    <p><strong>Metrics.</strong> Each question has one correct verse. For each system, record the rank at which that verse appears:</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Metric</th><th>Plain meaning</th><th>Example</th></tr></thead>
+        <tbody>
+          <tr><td>Recall@10</td><td style="white-space:normal">Is the right verse in the top 10?</td><td>rank 7 → 1, rank 12 → 0</td></tr>
+          <tr><td>NDCG@10</td><td style="white-space:normal">Is it in the top 10, <em>and how high</em>? Higher ranks score more.</td><td>rank 1 → 1.0, rank 3 → 0.5, rank 10 → 0.29</td></tr>
+          <tr><td>MRR</td><td style="white-space:normal">1 ÷ rank, averaged</td><td>rank 1 → 1.0, rank 4 → 0.25</td></tr>
+          <tr><td>Median rank</td><td style="white-space:normal">The typical position of the right verse</td><td>1 = usually first</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Recall tells you whether the LLM <em>will see</em> the verse. NDCG tells you whether it sees it <em>near the top</em>, which matters because models pay more attention to the first passages.</p>
+    <p>Results were always reported <strong>per question type</strong>. An average hides a lot: in the stock model, a decent lookup score was hiding a Tenglish score of zero.</p>
+
+    <h3>Level 2: answer quality — an LLM judge</h3>
+    <p>Retrieval metrics don't tell you whether the final answer is any good. For that, I sent 21 held-out questions (7 per type) to the <strong>live deployed app</strong>, not a local copy, and had Claude Opus 5 grade each answer:</p>
+    <ul>
+      <li><strong>Faithfulness</strong> (1–5): is every claim supported by the cited verses?</li>
+      <li><strong>Relevance</strong> (1–5): does it answer the question that was asked?</li>
+      <li><strong>Register</strong> (1–5): is it natural, correct Telugu?</li>
+      <li><strong>Unsupported claims:</strong> a list of specific sentences that the cited verses don't support.</li>
+    </ul>
+    <p>The judge sees only the question, the answer and the full text of the cited verses. It is told to ignore its own knowledge of the Gita, because the question is not "is this true?" but "does <em>this text</em> say this?"</p>
+
+    <h3>Level 3: citations — checked by code, not by a model</h3>
+    <p>Every quote in an answer must be traceable to the source. A citation is accepted only if at least 24 consecutive characters of the quote appear, character for character, in the cited verse. What the user is shown is the <strong>verse text from the corpus</strong>, never the model's copy of it. The model may paraphrase around a quote, but it can't invent one.</p>
+
+    <div class="lesson">
+      <span class="label">Lesson · count silent failures</span>
+      <p>After one code change, the citation rate silently dropped to 0%. The answers still looked perfect. The cause was a parser: the model wrote <code>[gita-2-47]</code> with brackets, then later just <code>2-47</code>, and both were rejected as invalid. A simple "cited N" counter in the logs caught it. Anything that can fail silently needs a number you watch.</p>
+    </div>
+
+    <!-- ============================================================ 8 -->
+    <h2 id="results"><span class="num">08</span>Final results</h2>
+
+    <h3>Retrieval, 320 held-out questions</h3>
+    <figure class="viz">
+      <div class="fig-body">
+        <div class="legend"><span><i style="background:var(--s1)"></i>Recall@10</span><span><i style="background:var(--s2)"></i>NDCG@10</span></div>
+        <svg viewBox="-40 0 680 270" width="100%" style="min-width:520px" role="img" aria-label="Recall@10 and NDCG@10 at each stage">
+          <line class="grid" x1="170.0" x2="170.0" y1="10" y2="246"/><text class="ax" x="170.0" y="262" text-anchor="middle">0.0</text>
+          <line class="grid" x1="275.0" x2="275.0" y1="10" y2="246"/><text class="ax" x="275.0" y="262" text-anchor="middle">0.2</text>
+          <line class="grid" x1="380.0" x2="380.0" y1="10" y2="246"/><text class="ax" x="380.0" y="262" text-anchor="middle">0.4</text>
+          <line class="grid" x1="485.0" x2="485.0" y1="10" y2="246"/><text class="ax" x="485.0" y="262" text-anchor="middle">0.6</text>
+          <line class="grid" x1="590.0" x2="590.0" y1="10" y2="246"/><text class="ax" x="590.0" y="262" text-anchor="middle">0.8</text>
+          <text class="flow-t" x="158" y="38" text-anchor="end" style="font-weight:500">Stock BGE-M3 hybrid</text>
+          <path d="M170,20 H356.3125 Q360.3125,20 360.3125,24 V32 Q360.3125,36 356.3125,36 H170 Z" style="fill:var(--s1)"><title>Stock BGE-M3 hybrid · Recall@10 0.362</title></path><text class="val" x="366.3" y="32">0.362</text>
+          <path d="M170,39 H302.4791470554107 Q306.4791470554107,39 306.4791470554107,43 V51 Q306.4791470554107,55 302.4791470554107,55 H170 Z" style="fill:var(--s2)"><title>Stock BGE-M3 hybrid · NDCG@10 0.260</title></path><text class="val" x="312.5" y="51">0.260</text>
+          <text class="flow-t" x="158" y="96" text-anchor="end" style="font-weight:500">+ fine-tuned embeddings</text>
+          <path d="M170,78 H435.06249999999994 Q439.06249999999994,78 439.06249999999994,82 V90 Q439.06249999999994,94 435.06249999999994,94 H170 Z" style="fill:var(--s1)"><title>+ fine-tuned embeddings · Recall@10 0.512</title></path><text class="val" x="445.1" y="90">0.512</text>
+          <path d="M170,97 H350.1637875289749 Q354.1637875289749,97 354.1637875289749,101 V109 Q354.1637875289749,113 350.1637875289749,113 H170 Z" style="fill:var(--s2)"><title>+ fine-tuned embeddings · NDCG@10 0.351</title></path><text class="val" x="360.2" y="109">0.351</text>
+          <text class="flow-t" x="158" y="154" text-anchor="end" style="font-weight:500">+ reranker (stock)</text>
+          <path d="M170,136 H459.47499999999997 Q463.47499999999997,136 463.47499999999997,140 V148 Q463.47499999999997,152 459.47499999999997,152 H170 Z" style="fill:var(--s1)"><title>+ reranker (stock) · Recall@10 0.559</title></path><text class="val" x="469.5" y="148">0.559</text>
+          <path d="M170,155 H373.9 Q377.9,155 377.9,159 V167 Q377.9,171 373.9,171 H170 Z" style="fill:var(--s2)"><title>+ reranker (stock) · NDCG@10 0.396</title></path><text class="val" x="383.9" y="167">0.396</text>
+          <text class="flow-t" x="158" y="212" text-anchor="end" style="font-weight:500">+ reranker (fine-tuned)</text>
+          <path d="M170,194 H498.84999999999997 Q502.84999999999997,194 502.84999999999997,198 V206 Q502.84999999999997,210 498.84999999999997,210 H170 Z" style="fill:var(--s1)"><title>+ reranker (fine-tuned) · Recall@10 0.634</title></path><text class="val" x="508.8" y="206">0.634</text>
+          <path d="M170,213 H411.7 Q415.7,213 415.7,217 V225 Q415.7,229 411.7,229 H170 Z" style="fill:var(--s2)"><title>+ reranker (fine-tuned) · NDCG@10 0.468</title></path><text class="val" x="421.7" y="225">0.468</text>
+        </svg>
+      </div>
+      <figcaption>Each step's gain on the same 320 held-out questions. Exact values in the table below.</figcaption>
+    </figure>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>System</th><th class="num">Recall@10</th><th class="num">NDCG@10</th></tr></thead>
+        <tbody>
+          <tr><td>Stock BGE-M3 hybrid</td><td class="num">0.362</td><td class="num">0.260</td></tr>
+          <tr><td>+ fine-tuned embeddings</td><td class="num">0.512</td><td class="num">0.351</td></tr>
+          <tr><td>+ reranker (stock)</td><td class="num">0.559</td><td class="num">0.396</td></tr>
+          <tr class="best"><td>+ reranker (fine-tuned)</td><td class="num">0.634</td><td class="num">0.468</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>From the stock model to the finished pipeline, recall@10 rose from 0.362 to 0.634 (<strong>+75%</strong>) and NDCG@10 from 0.260 to 0.468 (<strong>+80%</strong>). Each row adds one change to the row above it, except the last two, which are alternatives: the same pipeline with the stock or the fine-tuned reranker.</p>
+    <p>An open question from section 6: fine-tuned dense search <em>alone</em>, with no BM25 and no reranker, already reaches 0.641 recall@10 (NDCG 0.419). How much the fine-tuned reranker adds on top of dense-only search hasn't been measured yet, so the best configuration is still to be found.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Question type</th><th class="num">Recall@10 before → after</th><th class="num">NDCG@10 before → after</th><th class="num">Median rank before → after</th></tr></thead>
+        <tbody>
+          <tr><td>Lookup</td><td class="num">0.680 → <strong>0.883</strong></td><td class="num">0.533 → <strong>0.714</strong></td><td class="num">2 → <strong>1</strong></td></tr>
+          <tr><td>Tenglish</td><td class="num">0.094 → <strong>0.641</strong></td><td class="num">0.053 → <strong>0.483</strong></td><td class="num">>50 → <strong>1</strong></td></tr>
+          <tr><td>Thematic</td><td class="num">0.180 → <strong>0.383</strong></td><td class="num">0.090 → <strong>0.214</strong></td><td class="num">>50 → <strong>10</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="color:var(--muted);font-size:14px;margin-top:-12px">"Before" = stock BGE-M3 hybrid search, no reranker. "After" = fine-tuned search + fine-tuned reranker.</p>
+
+    <h3>Answer quality, 21 questions judged by Claude Opus 5</h3>
+    <p>The generation model was switched from Claude Haiku 4.5 to Claude Sonnet 5 after this comparison:</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th></th><th class="num">Haiku 4.5</th><th class="num">Sonnet 5</th></tr></thead>
+        <tbody>
+          <tr><td>Faithfulness (1–5)</td><td class="num">3.86</td><td class="num"><strong>4.76</strong></td></tr>
+          <tr><td>Relevance (1–5)</td><td class="num">4.43</td><td class="num"><strong>4.67</strong></td></tr>
+          <tr><td>Telugu quality (1–5)</td><td class="num">4.05</td><td class="num"><strong>4.81</strong></td></tr>
+          <tr><td>Answers with ≥1 unsupported claim</td><td class="num">16 / 21</td><td class="num"><strong>7 / 21</strong></td></tr>
+          <tr><td>Mixed-script words (e.g. Devanagari inside Telugu)</td><td class="num">1 / 21</td><td class="num"><strong>0 / 21</strong></td></tr>
+          <tr><td>Citations verified against source</td><td class="num">18 / 18</td><td class="num">17 / 17</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Before switching models, I tried a stricter prompt with explicit rules and Telugu examples for each type of drift. Unsupported claims went from 13/21 to 16/21, which is no better and possibly worse. Changing the model did what prompting could not.</p>
+
+    <h3>Speed</h3>
+    <p>The first version took <strong>45 seconds</strong> per answer. Turning off an extended-thinking budget that wasn't improving answers, folding a separate "is this context enough?" check into the generation step, running question routing and search in parallel, and streaming the answer brought it to about <strong>10 seconds total</strong>, with the <strong>first words appearing after 3.1 seconds</strong>.</p>
+
+    <h3>What still isn't solved</h3>
+    <ul>
+      <li><strong>Thematic questions.</strong> Life-situation questions reach only 0.383 recall@10. Neither fine-tuning nor reranking moved them much. This is the next problem to work on.</li>
+      <li><strong>One in three answers</strong> still has at least one sentence the judge flags as not supported by the cited verses. Quotes are verified, but the sentences <em>around</em> the quotes are not.</li>
+      <li><strong>The test questions were written by an LLM</strong>, not collected from real users, and 21 judged answers is a small sample. Real user questions would be a better test.</li>
+    </ul>
+
+    <h3>Takeaways</h3>
+    <ol>
+      <li><strong>Check the data first.</strong> In a low-resource language, what exists decides your scope.</li>
+      <li><strong>Test the obvious explanation before fixing it.</strong> "The model can't read Telugu" was wrong. The real problem was question shape.</li>
+      <li><strong>Fine-tuning can be cheap.</strong> $4.71 of generated questions and a free GPU produced the largest gains in the project.</li>
+      <li><strong>Split by document, not by question</strong>, or your evaluation measures memory.</li>
+      <li><strong>Pick search methods that fit the language.</strong> Character 4-grams handle Telugu word forms that whole-word search misses.</li>
+      <li><strong>Measure with enough data, per question type, on the system you actually ship.</strong></li>
+    </ol>
+
+    <div class="cta">
+      <a class="btn primary" href="https://huggingface.co/spaces/amrithatejaswiservices/telugu-gita-rag">Try the live demo →</a>
+      <a class="btn" href="https://github.com/viswatejaraavip-ai/telugu-gita-rag">Code on GitHub →</a>
+    </div>
+    <p style="color:var(--muted);font-size:14px">Corpus text: Telugu Wikisource, CC BY-SA 4.0. Code: MIT.</p>
+  </article>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+
+</div>
+</body>
+</html>
