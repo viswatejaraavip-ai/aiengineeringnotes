@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How to chunk wiki pages · AI Engineering Notes</title>
+  <meta name="description" content="Wiki pages come with a heading tree, infoboxes and tables. Fixed-size chunking throws that away. Split on the heading hierarchy, inject the heading path, normalise the tables, and retrieve parent sections from child paragraphs.">
+  <meta property="og:title" content="How to chunk wiki pages">
+  <meta property="og:description" content="Split on headings, not on token counts. Prepend the heading path, flatten the infobox, and fall back to paragraphs only when a section is too long.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://aiengineeringnotes.com/articles/chunking-wiki-pages/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/articles/chunking-wiki-pages/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .tree { font-family: var(--mono); font-size: 14px; line-height: 1.5; }
+    .tree .hit { color: var(--accent); font-weight: 600; }
+    .snippet { font-family: var(--mono); font-size: 14px; line-height: 1.5; }
+    .snippet .k { color: var(--accent); }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="site">
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/#series">Series</a>
+      <a href="/#notes">Notes</a>
+      <a href="/#projects">Projects</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+
+  <p class="crumbs"><a href="/#notes">Notes</a> / Retrieval</p>
+
+  <article class="post">
+    <header>
+      <h1>How to chunk wiki pages</h1>
+      <p class="lede">A wiki page arrives with its structure already written down: a heading tree, an infobox, tables and lists. Fixed-size chunking throws all of that away and then pays to reconstruct it. Split on the headings instead, tell every chunk where it came from, and retrieve the section when a paragraph matches.</p>
+      <div class="byline"><span>19 Oct 2026</span><span>8 min read</span></div>
+    </header>
+
+    <div class="concept">
+      <span class="label">The recipe</span>
+      <p>Structural, heading-aware chunking plus contextual enrichment. One section or subsection per chunk. Prepend the page title and heading path before embedding. Flatten infoboxes and tables to text. Fall back to paragraph splitting only when a section runs past about 500 tokens. Index paragraphs, retrieve sections.</p>
+    </div>
+
+    <div class="toc">
+      <p>Contents</p>
+      <ol>
+        <li><a href="#why">Why wiki pages are a special case</a></li>
+        <li><a href="#headings">Split on the heading hierarchy</a></li>
+        <li><a href="#long">Fallback: long sections</a></li>
+        <li><a href="#path">Heading path injection</a></li>
+        <li><a href="#tables">Infoboxes and tables</a></li>
+        <li><a href="#parent">Index paragraphs, retrieve sections</a></li>
+        <li><a href="#checklist">Pipeline checklist</a></li>
+        <li><a href="#here">The same shape in the Purana corpus</a></li>
+        <li><a href="#takeaways">Takeaways</a></li>
+      </ol>
+    </div>
+
+    <h2 id="why"><span class="num">01</span>Why wiki pages are a special case</h2>
+
+    <p>Most chunking advice assumes the input is undifferentiated prose and the splitter has to guess where the ideas begin and end. A wiki page is the opposite. It was written by people who were forced to declare its structure: nested headings in MediaWiki's <code>==</code> syntax or Markdown's <code>#</code>, a table of contents generated from those headings, an infobox summarising the key facts, and tables and lists for anything tabular.</p>
+
+    <p>Fixed-size or naive recursive splitting ignores all of that. It cuts a table mid-row, separates a subsection from its heading, and produces chunks like <em>"He was born in 1942"</em> with no way of knowing who "he" is, because the page title was two thousand tokens ago. The <a href="/articles/chunk-size-recall-vs-faithfulness/">recall versus faithfulness tension</a> is at its worst here, and it is entirely self-inflicted.</p>
+
+    <h2 id="headings"><span class="num">02</span>Split on the heading hierarchy</h2>
+
+    <p>The core move is to split along heading boundaries rather than character counts. Parse the page into a tree and make each leaf section a chunk.</p>
+
+    <pre class="tree">Page: Apollo 11
+ ├── # Overview
+ ├── ## Mission summary
+ └── ## Lunar module operations
+      ├── ### Descent phase        <span class="hit">→ chunk 1</span>
+      └── ### Surface activities   <span class="hit">→ chunk 2</span></pre>
+
+    <p>This works for wikis for two reasons.</p>
+
+    <ul>
+      <li><strong>Topic boundaries are preserved.</strong> A section under a heading is usually about one idea or one event. The author has already done the segmentation that a splitter would otherwise be guessing at, so each vector is about one thing, which is what search wants.</li>
+      <li><strong>Tables and lists stay whole.</strong> An infobox, a specification table or a bulleted list lives inside one section, so it is never cut mid-row. A half table is worse than no table, because the model reads column headers that no longer line up with the values.</li>
+    </ul>
+
+    <p>A side benefit: with structural boundaries there is no reason to add chunk overlap. Overlap exists to repair cuts that land mid-thought, and headings do not cut mid-thought.</p>
+
+    <h2 id="long"><span class="num">03</span>Fallback: long sections</h2>
+
+    <p>Wiki sections vary wildly in length, from a single sentence to three thousand words. A <em>History</em> section on a well-tended page can be longer than some entire articles. Pure structural splitting would make that one chunk, and its vector would be the diluted average of fifty years of events.</p>
+
+    <p>So structural splitting needs a fallback. When a section exceeds a budget, around 500 tokens is a sensible default, split inside it recursively. Split on double line breaks first so paragraphs stay intact, then on single line breaks, then on sentences, and only as a last resort on a token count. Every piece produced this way keeps the same heading path as the section it came from, which is the next point.</p>
+
+    <h2 id="path"><span class="num">04</span>Heading path injection</h2>
+
+    <p>An isolated wiki chunk has lost its scope. A section under <em>Engine specs</em> on the Falcon 9 page does not contain the words "Falcon 9" anywhere. A query about Falcon 9's engines will match pages that happen to say Falcon 9 and engines in the same paragraph, and miss the section that actually answers it.</p>
+
+    <p>The fix is cheap: prepend the page title and the full heading path to the top of every chunk before embedding it.</p>
+
+    <pre class="snippet"><span class="k">[DOCUMENT]</span>: SpaceX Falcon 9
+<span class="k">[PATH]</span>: Falcon 9 &gt; First stage &gt; Engine specs
+<span class="k">[TEXT]</span>: Uses 9 Merlin 1D engines arranged in an Octaweb pattern
+generating 1.71 million pounds of thrust at sea level...</pre>
+
+    <p>The vector now carries the entity name and the section's place in the page, so the match is on <em>Falcon 9 engines</em> rather than on <em>some engines</em>. The same prefix resolves the "he was born in 1942" problem, because the document line names the person. And it helps a keyword index for free, since the page title is now literally in the text.</p>
+
+    <div class="lesson">
+      <span class="label">This is contextual retrieval without a model call</span>
+      <p>Anthropic's contextual retrieval pattern asks a model to write a short preface for every chunk. On a wiki page the preface is already written: it is the title and the heading path. Use the structure first and reach for a generated preface only for sections where the path alone is not enough.</p>
+    </div>
+
+    <h2 id="tables"><span class="num">05</span>Infoboxes and tables</h2>
+
+    <p>Wiki pages put their most-asked-about facts in the infobox: launch date, crew, manufacturer, population, dates of birth and death. In raw wikitext or HTML that is a tangle of template syntax and table markup, and an embedding of it is mostly noise.</p>
+
+    <p>Convert tables and infoboxes to a clean textual form before chunking. Two forms work well.</p>
+
+    <ul>
+      <li><strong>Key-value lines</strong> for infoboxes: <code>Launch date: July 16, 1969</code>, one per line. Each line is a self-contained fact and the vector captures the relationship between the key and the value.</li>
+      <li><strong>Markdown tables</strong> for real tables, with the header row kept. If a table is too long for one chunk, repeat the header row at the top of every piece so the columns stay labelled.</li>
+    </ul>
+
+    <p>Give the infobox its own chunk with the heading path <em>Page &gt; Infobox</em>. It is the single most valuable chunk on the page for factual lookups.</p>
+
+    <h2 id="parent"><span class="num">06</span>Index paragraphs, retrieve sections</h2>
+
+    <p>Everything above produces good chunks. The last step is to stop using the same chunk for search and for the model, following the <a href="/articles/chunk-is-not-the-embedding/">decoupling pattern</a>.</p>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Layer</th><th>Unit</th><th>Size</th><th>Role</th></tr>
+        <tr><td>Child</td><td>Paragraph or subsection, with the heading path injected</td><td>150 to 300 tokens</td><td>Vector search. Sharp, specific, highly searchable.</td></tr>
+        <tr><td>Parent</td><td>The whole <code>##</code> section</td><td>Whatever the section is</td><td>Model context. When a child matches, hand the model its entire parent section.</td></tr>
+      </table>
+    </div>
+
+    <p>Each child carries its parent's section id. On a hit, look up the parent and send that, and deduplicate so that three matching paragraphs from one section produce one copy of the section in the prompt. The model gets the full background of the section, including the paragraphs around the one that matched, and the search still ran on small, precise vectors.</p>
+
+    <h2 id="checklist"><span class="num">07</span>Pipeline checklist</h2>
+
+    <ul>
+      <li><strong>Parser.</strong> Use a syntax-aware parser that gives you the heading tree, not a regex over the text. WikiExtractor or mwparserfromhell for wikitext, BeautifulSoup for rendered HTML, a Markdown parser for Markdown wikis.</li>
+      <li><strong>Chunking unit.</strong> One section or subsection per chunk.</li>
+      <li><strong>Fallback.</strong> Recursive paragraph-first splitting when a section exceeds about 500 tokens.</li>
+      <li><strong>Enrichment.</strong> Page title plus heading path prepended to every chunk before embedding.</li>
+      <li><strong>Tables.</strong> Infoboxes to key-value lines, tables to Markdown with headers kept.</li>
+      <li><strong>Metadata.</strong> Attach the wiki title, heading path, URL and section id to every vector record, so the answer can cite the exact section and the retrieval step can fetch the parent.</li>
+      <li><strong>Retrieval.</strong> Children in the index, parents in the document store, deduplicate on section id.</li>
+    </ul>
+
+    <h2 id="here"><span class="num">08</span>The same shape in the Purana corpus</h2>
+
+    <p>The Purana texts used in the <a href="/articles/telugu-purana-rag/">Purana question-answering system</a> are not wiki pages, but they have the same property: the structure is already written down. Each Purana is divided into chapters with verse numbers, and the GRETIL e-texts carry those markers, five different reference conventions across seventeen files. The parsing work was larger than the generation work, and it was worth it, because the chapter turned out to be the right retrieval unit. Indexing at the structural boundary rather than at a token count is what made the chapter cards possible, and the card's title and Purana name play exactly the role the heading path plays here.</p>
+
+    <h2 id="takeaways"><span class="num">09</span>Takeaways</h2>
+    <ol>
+      <li><strong>Use the structure the author gave you.</strong> Headings are a segmentation someone already did by hand.</li>
+      <li><strong>Every chunk should know its page and its path.</strong> Prepend the title and heading path before embedding.</li>
+      <li><strong>Flatten the infobox.</strong> Key-value lines turn the most-asked facts into the most-findable chunk.</li>
+      <li><strong>Fall back, do not default, to size-based splitting.</strong> Only inside sections that are too long, paragraph-first.</li>
+      <li><strong>Search the paragraph, read the section.</strong> Decoupled parent-child retrieval closes the loop.</li>
+    </ol>
+
+    <div class="cta">
+      <a class="btn primary" href="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve →</a>
+      <a class="btn" href="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall vs faithfulness →</a>
+    </div>
+  </article>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+
+</div>
+</body>
+</html>
