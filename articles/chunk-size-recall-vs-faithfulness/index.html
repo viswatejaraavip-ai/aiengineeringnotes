@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chunk size: recall falls, faithfulness rises · AI Engineering Notes</title>
+  <meta name="description" content="What happens to a RAG system as chunks grow from 128 to 2,000 tokens. Retrieval recall declines because the vector dilutes; answer faithfulness rises because the model finally sees whole paragraphs. Why that tension exists and how to escape it.">
+  <meta property="og:title" content="Chunk size: recall falls, faithfulness rises">
+  <meta property="og:description" content="From 128 to 2,000 tokens: why bigger chunks hurt search and help the answer, and why the fix is not to pick a number in the middle.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://aiengineeringnotes.com/articles/chunk-size-recall-vs-faithfulness/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/articles/chunk-size-recall-vs-faithfulness/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .num { text-align: right; }
+    .arrow { font-family: var(--mono); font-size: 14px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="site">
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/#series">Series</a>
+      <a href="/#notes">Notes</a>
+      <a href="/#projects">Projects</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+
+  <p class="crumbs"><a href="/#notes">Notes</a> / Retrieval</p>
+
+  <article class="post">
+    <header>
+      <h1>Chunk size: recall falls, faithfulness rises</h1>
+      <p class="lede">Grow a chunk from 128 tokens to 2,000 and two things happen at once. Search gets worse, because the vector now represents an average of many topics. The answer gets better, because the model finally sees whole paragraphs. Here is why both are true, and why the fix is not to pick a number in the middle.</p>
+      <div class="byline"><span>19 Oct 2026</span><span>6 min read</span></div>
+    </header>
+
+    <div class="concept">
+      <span class="label">The short version</span>
+      <p>Chunk size sets the granularity of the vector. Small chunks give sharp vectors and high recall but fragmented context. Large chunks give rich context and faithful answers but diluted vectors. One size cannot win both, so decouple the text you index from the text you retrieve.</p>
+    </div>
+
+    <div class="toc">
+      <p>Contents</p>
+      <ol>
+        <li><a href="#why">Why chunk size matters at all</a></li>
+        <li><a href="#curve">What happens from 128 to 2,000 tokens</a></li>
+        <li><a href="#recall">Recall declines: vector dilution</a></li>
+        <li><a href="#faithfulness">Faithfulness rises: no more splintered context</a></li>
+        <li><a href="#table">Side by side</a></li>
+        <li><a href="#escape">The way out is not a compromise size</a></li>
+        <li><a href="#takeaways">Takeaways</a></li>
+      </ol>
+    </div>
+
+    <h2 id="why"><span class="num">01</span>Why chunk size matters at all</h2>
+
+    <p>A dense embedding model takes a block of text and compresses it into one fixed-length vector, typically 768 or 1,536 floating-point numbers. The vector is the same size whether the block is one sentence or three pages. That single fact is the root of the whole trade-off.</p>
+
+    <ul>
+      <li><strong>Small chunks, around 128 tokens.</strong> The block is about one thing: a rule, a figure, a definition. The vector is sharp and uncluttered, and cosine similarity lines it up cleanly with a specific user question.</li>
+      <li><strong>Large chunks, around 2,000 tokens.</strong> The block weaves together several topics, transitions and asides. The vector has to represent all of them, so it ends up as an average. Each distinct signal is weakened. This is <em>vector dilution</em>.</li>
+    </ul>
+
+    <p>So the chunk size you choose is not a tokenisation detail. It directly sets how fine-grained your search can be, and how much setting the model gets to read.</p>
+
+    <h2 id="curve"><span class="num">02</span>What happens from 128 to 2,000 tokens</h2>
+
+    <p>Two retrieval-augmented generation metrics move in opposite directions as chunks grow.</p>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Metric</th><th>At 128 tokens</th><th class="arrow">→</th><th>At 2,000 tokens</th></tr>
+        <tr><td><strong>Recall</strong> (does the right passage come back?)</td><td>High</td><td class="arrow">declines</td><td>Lower</td></tr>
+        <tr><td><strong>Faithfulness</strong> (is the answer grounded in the source?)</td><td>Low</td><td class="arrow">rises</td><td>High</td></tr>
+      </table>
+    </div>
+
+    <p>Recall is a property of the search step and is hurt by big chunks. Faithfulness is a property of the generation step and is helped by them. The two sections below say why.</p>
+
+    <h2 id="recall"><span class="num">03</span>Recall declines: vector dilution</h2>
+
+    <p>Take a 2,000-token chunk from a customer policy document. Somewhere inside it is the sentence <em>"Refund processing takes 3 to 5 business days."</em> That fact is about one percent of the chunk. The other ninety-nine percent covers cancellation terms, shipping rules and account setup.</p>
+
+    <p>The embedding of that chunk represents its average topic, which is something like <em>policy management in general</em>. A user asking about the refund timeline produces a query vector that is sharp and specific. It is now being compared against a blurred vector, and a different chunk that happens to mention refunds in passing may score higher. The right passage drops out of the top results.</p>
+
+    <p>There is a second effect. Search works best when the variance inside a chunk is low. A 128-token chunk has almost no off-topic text, so the noise ratio is minimal and fine-grained queries hit reliably. A 2,000-token chunk carries high internal variance, and the search has no way to see past it.</p>
+
+    <div class="lesson">
+      <span class="label">The rule</span>
+      <p>The more topics a chunk contains, the less its vector says about any one of them. Recall for specific questions falls as chunks grow.</p>
+    </div>
+
+    <h2 id="faithfulness"><span class="num">04</span>Faithfulness rises: no more splintered context</h2>
+
+    <p>Now look at the same documents from the model's side. A 128-token chunk is often cut mid-thought. It can begin halfway through a sentence, or open with a pronoun whose referent was in the previous chunk: <em>"It increased by 10%"</em>, with no statement of what increased or compared with when.</p>
+
+    <p>When the model is handed a set of fragments like that, it has to guess at the connections between them. The guessing comes from parametric memory, not from the source, and that is exactly what a faithfulness metric penalises. The answer reads fluently and is partly made up.</p>
+
+    <p>A 2,000-token chunk gives the model complete paragraphs, the section header, the surrounding constraints and the local definitions. It has the full picture, so it can synthesise an answer that stays strictly inside the source text. Faithfulness rises, up to the point where the chunk is so large that the relevant sentence is buried in material the model has to wade through, and where a handful of chunks fills the context window with padding.</p>
+
+    <div class="lesson">
+      <span class="label">The rule</span>
+      <p>A model hallucinates to fill gaps. Bigger chunks leave fewer gaps. Faithfulness rises with chunk size, until the window is full of fluff.</p>
+    </div>
+
+    <h2 id="table"><span class="num">05</span>Side by side</h2>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Dimension</th><th>128-token chunks</th><th>2,000-token chunks</th></tr>
+        <tr><td>Search precision and recall</td><td>Very high. Pinpoints specific facts, numbers and definitions.</td><td>Lower. Dilution hides fine detail inside broad themes.</td></tr>
+        <tr><td>Answer faithfulness</td><td>Lower. Fragments with missing background trigger hallucination.</td><td>High. Keeps sentence logic, pronoun referents and conditional rules.</td></tr>
+        <tr><td>Context window cost</td><td>Efficient. Only targeted snippets reach the prompt.</td><td>Expensive. A few chunks fill the window, much of it irrelevant.</td></tr>
+        <tr><td>Typical fit</td><td>FAQ lookup, precise entity search, code snippet matching.</td><td>Multi-step reasoning, thematic summaries, narrative analysis.</td></tr>
+      </table>
+    </div>
+
+    <h2 id="escape"><span class="num">06</span>The way out is not a compromise size</h2>
+
+    <p>Because neither extreme is good on its own, the tempting move is to tune the dial to the middle. Many teams land somewhere around 300 to 500 tokens, and that is a reasonable place to balance the two failures. But it is a balance of failures. Recall is a bit worse than it could be and faithfulness is a bit worse than it could be, and no amount of tuning changes that, because one string is still doing two jobs.</p>
+
+    <p>Production systems escape the dial by <a href="/articles/chunk-is-not-the-embedding/">decoupling the indexed text from the retrieved text</a>. The vector is made from one string and the model reads another.</p>
+
+    <ul>
+      <li><strong>Small-to-big, or parent-document retrieval.</strong> Index 128-token child chunks so that search has sharp vectors and high recall. When a child matches, fetch its 1,000 to 2,000-token parent block and give that to the model, so that generation has the whole picture and high faithfulness.</li>
+      <li><strong>Contextual chunks.</strong> Keep chunks in the 300 to 500 range, but before embedding each one, prepend a short generated summary of where it sits in the document. The vector now knows what "it" refers to, which recovers the recall that mid-sized chunks lose, without shrinking what the model reads.</li>
+    </ul>
+
+    <p>Both patterns let you move recall and faithfulness independently, which is the whole point. The previous note walks through each of them, plus a third based on summary and question indexes, in more detail.</p>
+
+    <h2 id="takeaways"><span class="num">07</span>Takeaways</h2>
+    <ol>
+      <li><strong>A vector is a fixed-size average of its input.</strong> The more topics go in, the less it says about any one of them.</li>
+      <li><strong>Recall falls as chunks grow.</strong> Specific questions stop matching diluted vectors.</li>
+      <li><strong>Faithfulness rises as chunks grow.</strong> Whole paragraphs leave the model fewer gaps to fill from memory.</li>
+      <li><strong>A middle size balances two failures.</strong> It does not remove either.</li>
+      <li><strong>Decouple the two texts.</strong> Index small for recall, retrieve big for faithfulness, and tune each on its own.</li>
+    </ol>
+
+    <div class="cta">
+      <a class="btn primary" href="/articles/chunk-is-not-the-embedding/">Next: the chunk you embed is not the chunk you retrieve →</a>
+    </div>
+  </article>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+
+</div>
+</body>
+</html>
