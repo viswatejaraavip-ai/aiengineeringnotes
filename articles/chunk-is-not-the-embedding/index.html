@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The chunk you embed is not the chunk you retrieve · AI Engineering Notes</title>
+  <meta name="description" content="Search wants small, focused text. The language model wants rich, surrounding context. Using one chunk for both forces a bad compromise. Three ways to decouple the text you index from the text you hand to the model.">
+  <meta property="og:title" content="The chunk you embed is not the chunk you retrieve">
+  <meta property="og:description" content="Search wants small text, generation wants big text. Decouple them: parent-document retrieval, contextual embeddings, and summary or question indexes.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://aiengineeringnotes.com/articles/chunk-is-not-the-embedding/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/articles/chunk-is-not-the-embedding/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .flow-box { fill: var(--surface); stroke: var(--rule); stroke-width: 1.5; }
+    .flow-hi  { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+    .flow-t   { fill: var(--text); font-size: 14px; font-weight: 600; }
+    .flow-s   { fill: var(--muted); font-size: 12px; }
+    .flow-a   { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="site">
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/#series">Series</a>
+      <a href="/#notes">Notes</a>
+      <a href="/#projects">Projects</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+
+  <p class="crumbs"><a href="/#notes">Notes</a> / Retrieval</p>
+
+  <article class="post">
+    <header>
+      <h1>The chunk you embed is not the chunk you retrieve</h1>
+      <p class="lede">Search wants small, focused text. The language model wants rich, surrounding text. If one chunk has to do both jobs, it does both badly. The fix is to decouple the text you index from the text you hand to the model.</p>
+      <div class="byline"><span>19 Oct 2026</span><span>7 min read</span></div>
+    </header>
+
+    <div class="concept">
+      <span class="label">The fix in one line</span>
+      <p>Embed a small, focused or contextualised version of the text to produce the vector record. When it matches, retrieve the full surrounding chunk for the model. The vector and the context are two different strings that share an id.</p>
+    </div>
+
+    <div class="toc">
+      <p>Contents</p>
+      <ol>
+        <li><a href="#conflict">The conflict inside every RAG chunk</a></li>
+        <li><a href="#compromise">Why one chunk size is always wrong</a></li>
+        <li><a href="#decouple">Decoupling: two strings, one id</a></li>
+        <li><a href="#parent">Pattern 1: small-to-big, or parent-document retrieval</a></li>
+        <li><a href="#contextual">Pattern 2: contextualised embeddings</a></li>
+        <li><a href="#summary">Pattern 3: summary and question indexes</a></li>
+        <li><a href="#choosing">Which one to use</a></li>
+        <li><a href="#here">Where this shows up in the Purana RAG</a></li>
+        <li><a href="#takeaways">Takeaways</a></li>
+      </ol>
+    </div>
+
+    <h2 id="conflict"><span class="num">01</span>The conflict inside every RAG chunk</h2>
+
+    <p>A retrieval-augmented generation system does two very different things with the same piece of text. First it turns the text into a vector so a query can find it. Then it pastes the text into a prompt so a language model can answer from it. Those two uses want opposite things.</p>
+
+    <ul>
+      <li><strong>What search wants.</strong> Small, concise snippets about one thing. A vector made from a focused snippet sits tightly in one region of embedding space, so a specific question lands on it precisely.</li>
+      <li><strong>What generation wants.</strong> The whole paragraph, the parent section, the table header, the definitions two paragraphs up. A model answers accurately when it can see the surrounding explanation, and hallucinates when it is handed a sentence torn out of its setting.</li>
+    </ul>
+
+    <p>Most pipelines pick one chunk size and use that chunk for both. That is the mistake this note is about.</p>
+
+    <h2 id="compromise"><span class="num">02</span>Why one chunk size is always wrong</h2>
+
+    <p>If the indexed text and the retrieved text are the same string, chunk size is a single dial that has to serve two masters.</p>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Chunk size</th><th>Search</th><th>Generation</th></tr>
+        <tr><td>Small, about 100 tokens</td><td>Precise. Vectors are sharp and specific queries hit.</td><td>Poor. The model gets chopped-up sentences with no setting.</td></tr>
+        <tr><td>Large, about 1,000 tokens</td><td>Diluted. One vector averages many topics and misses fine-grained queries.</td><td>Rich. The model sees whole explanations.</td></tr>
+      </table>
+    </div>
+
+    <p>Tuning the dial finds the least bad compromise, not a good setting. Every chunking benchmark that reports "512 tokens worked best" is reporting the point where the two failures balance.</p>
+
+    <div class="lesson">
+      <span class="label">The underlying reason</span>
+      <p>An embedding is a lossy summary of its input. The more you put in, the more the vector becomes an average, and an average of three topics is close to none of them. A language model has the opposite property: the more relevant context it sees, the better it does, up to its window.</p>
+    </div>
+
+    <h2 id="decouple"><span class="num">03</span>Decoupling: two strings, one id</h2>
+
+    <p>The way out is to stop pretending there is one chunk. Each record in the index has two texts:</p>
+
+    <ul>
+      <li>The <strong>indexed text</strong>, which is what gets embedded. Small, focused, possibly rewritten.</li>
+      <li>The <strong>retrieved text</strong>, which is what the model reads. Large, raw, surrounding.</li>
+    </ul>
+
+    <p>They are linked by an id. Search runs over the indexed texts. When a vector matches, the system follows the id to a document store and returns the retrieved text instead. The vector database never has to hold the big text at all.</p>
+
+    <figure>
+      <div class="fig-body">
+        <svg viewBox="0 0 700 200" width="100%" style="min-width:620px" role="img" aria-labelledby="flowT flowD">
+          <title id="flowT">Decoupled index and retrieval</title>
+          <desc id="flowD">A query is embedded and matched against vectors made from small indexed texts. The matching record's id is looked up in a document store, which returns the large retrieved text, and that text goes to the language model.</desc>
+          <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--muted)"/></marker></defs>
+
+          <rect class="flow-box" x="10" y="72" width="96" height="56" rx="8"/>
+          <text class="flow-t" x="58" y="96" text-anchor="middle">Query</text>
+          <text class="flow-s" x="58" y="114" text-anchor="middle">embedded</text>
+
+          <rect class="flow-hi" x="150" y="72" width="150" height="56" rx="8"/>
+          <text class="flow-t" x="225" y="96" text-anchor="middle">Vector index</text>
+          <text class="flow-s" x="225" y="114" text-anchor="middle">small indexed texts</text>
+
+          <rect class="flow-box" x="344" y="72" width="150" height="56" rx="8"/>
+          <text class="flow-t" x="419" y="96" text-anchor="middle">Document store</text>
+          <text class="flow-s" x="419" y="114" text-anchor="middle">large retrieved texts</text>
+
+          <rect class="flow-box" x="538" y="72" width="150" height="56" rx="8"/>
+          <text class="flow-t" x="613" y="96" text-anchor="middle">Language model</text>
+          <text class="flow-s" x="613" y="114" text-anchor="middle">answers from context</text>
+
+          <path class="flow-a" d="M106,100 L150,100" marker-end="url(#ah)"/>
+          <path class="flow-a" d="M300,100 L344,100" marker-end="url(#ah)"/>
+          <path class="flow-a" d="M494,100 L538,100" marker-end="url(#ah)"/>
+
+          <text class="flow-s" x="322" y="60" text-anchor="middle">same id</text>
+          <text class="flow-s" x="225" y="160" text-anchor="middle">matched on the small text</text>
+          <text class="flow-s" x="419" y="160" text-anchor="middle">returns the big text</text>
+        </svg>
+      </div>
+      <figcaption>Search and generation see different strings. The id is the only thing they share.</figcaption>
+    </figure>
+
+    <p>There are three common ways to produce the indexed text. They differ in what the small string is: a piece of the big one, the big one with a preface, or a rewrite of it.</p>
+
+    <h2 id="parent"><span class="num">04</span>Pattern 1: small-to-big, or parent-document retrieval</h2>
+
+    <p>Split each document twice. Cut it into large parent sections of around 1,000 tokens, then cut each parent into small child chunks of around 128 tokens. Embed only the children. Each child carries its parent's id in its metadata.</p>
+
+    <ul>
+      <li><strong>Search step.</strong> The query matches a small child vector. Because the child is about one thing, the match is precise, down to the line.</li>
+      <li><strong>Retrieval step.</strong> The system reads the child's parent id, fetches the whole parent section from the document store, and hands the parent to the model.</li>
+    </ul>
+
+    <p>This is the simplest of the three because no model is involved at index time. It is pure bookkeeping. If several children of the same parent match, deduplicate on the parent id so the model does not see the same section three times.</p>
+
+    <div class="lesson">
+      <span class="label">Why it works</span>
+      <p>Precision comes from the small vector pinpointing the exact line. Faithfulness comes from the model reading the entire surrounding explanation. Neither has to give anything up.</p>
+    </div>
+
+    <h2 id="contextual"><span class="num">05</span>Pattern 2: contextualised embeddings</h2>
+
+    <p>Small chunks lose meaning when isolated. A chunk that says <em>"It grew by 15% in Q3"</em> is nearly useless on its own. The vector has no idea what "it" is, which company, or which year's third quarter. A query asking about that company's quarterly revenue growth will not land on it.</p>
+
+    <p>Anthropic's <a href="https://www.anthropic.com/news/contextual-retrieval">contextual retrieval</a> pattern fixes this at index time. Before embedding each chunk, pass the chunk and the whole document to a model and ask it to write a short preface, roughly 50 to 100 tokens, that says what the chunk is about within the broader document. The chunk above might become:</p>
+
+    <blockquote><p><em>This chunk is from ACME Corp's 2023 annual filing, in the section on North American revenue. The figure refers to revenue growth over the previous quarter.</em> It grew by 15% in Q3.</p></blockquote>
+
+    <ul>
+      <li><strong>Search step.</strong> Embed the generated context plus the raw chunk. The vector now carries the company name, the document title and the core theme, so queries phrased in those terms find it.</li>
+      <li><strong>Retrieval step.</strong> Return either the raw chunk or the contextualised version to the model. Both work. The preface is usually harmless to include.</li>
+    </ul>
+
+    <p>The cost is one model call per chunk at index time. With prompt caching the document is sent once and each chunk's call is cheap, which is what makes this affordable over a large corpus. The same preface also helps a keyword index, since the company name is now literally in the text.</p>
+
+    <h2 id="summary"><span class="num">06</span>Pattern 3: summary and question indexes</h2>
+
+    <p>For dense technical material, long reports or legal text, embedding the raw prose produces noisy vectors. The language is formal and repetitive, and the thing a user asks about is often buried in a subordinate clause.</p>
+
+    <p>Here the indexed text is not a piece of the document at all. Run a light model over each section and have it write a two-sentence summary, or a list of questions the section answers. Embed only that.</p>
+
+    <ul>
+      <li><strong>Search step.</strong> The query is matched against the summary's vector, or the generated questions' vectors. A question-to-question match is much tighter than a question-to-prose match, because both sides are written in the same register.</li>
+      <li><strong>Retrieval step.</strong> When a summary matches, fetch the full underlying section it was written from and give that to the model. The summary itself is never what the model answers from.</li>
+    </ul>
+
+    <p>A close cousin is HyDE, hypothetical document embeddings, which does the rewrite on the query side instead: the model writes a hypothetical answer to the user's question and that is embedded and searched. Both are the same idea, moving the two sides of the match into the same register before comparing them.</p>
+
+    <div class="concept">
+      <span class="label">The prompt is a retrieval parameter</span>
+      <p>When the indexed text is generated, the prompt that generates it decides what the index can find. Ask for summaries and you find topics. Ask for the questions a reader would bring and you find intents. Changing that prompt changes recall without touching the embedding model.</p>
+    </div>
+
+    <h2 id="choosing"><span class="num">07</span>Which one to use</h2>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Pattern</th><th>Indexed text</th><th>Index-time cost</th><th>Best when</th></tr>
+        <tr><td>Parent-document</td><td>A small piece of the section</td><td>None</td><td>Documents are well structured and sections stand alone.</td></tr>
+        <tr><td>Contextualised</td><td>Preface plus the raw chunk</td><td>One short model call per chunk</td><td>Chunks are full of pronouns, abbreviations and references to things defined elsewhere.</td></tr>
+        <tr><td>Summary or questions</td><td>A rewrite of the section</td><td>One model call per section</td><td>The prose is dense or in a different register, or language, from the questions.</td></tr>
+      </table>
+    </div>
+
+    <p>They stack. A common production shape is parent-document retrieval with contextualised children, so the vector is sharp and self-describing and the model still reads the full section. Start with parent-document because it is free, then add a generated layer when you can measure a recall gap that it would close.</p>
+
+    <h2 id="here"><span class="num">08</span>Where this shows up in the Purana RAG</h2>
+
+    <p>The clearest case of pattern 3 on this site is the <a href="/articles/telugu-purana-rag/">Purana question-answering system</a>. The corpus is Sanskrit and the users ask in Telugu. Embedding the Sanskrit verses and searching them with Telugu questions did not work, for the same reason a dense technical section does not match a casual question: the two sides are in different registers, and here also in different languages.</p>
+
+    <p>So the indexed text and the retrieved text were split. For each chapter, a model wrote a Telugu card, a summary plus the questions a reader would bring to that chapter, and only the card was embedded. When a card matches, the retrieval step fetches the original Sanskrit verses of that chapter and sends those to the answering model, which reads Sanskrit well. The card summary rides along for orientation, but the verses are what the model answers from and cites.</p>
+
+    <p>Two things from that project are worth carrying back to the general pattern. Indexing at chapter level, the granularity of questions, made the index fifty times smaller than verse level and matched how people ask. And rewriting the card prompt to require three life-situation questions per card doubled hit@1 on moral questions, with no change to the embedding model. The prompt that writes the indexed text was the most effective retrieval parameter in the system.</p>
+
+    <h2 id="takeaways"><span class="num">09</span>Takeaways</h2>
+    <ol>
+      <li><strong>One chunk cannot serve both search and generation.</strong> Small is right for the vector, large is right for the model, and any single size is a compromise.</li>
+      <li><strong>Store two strings per record, linked by an id.</strong> Embed the small one. Return the large one.</li>
+      <li><strong>Start with parent-document retrieval.</strong> It costs nothing at index time and fixes most of the problem.</li>
+      <li><strong>Add generated context when chunks cannot stand alone.</strong> A short preface makes a vector self-describing and helps keyword search too.</li>
+      <li><strong>Index summaries or questions when the prose is in the wrong register.</strong> Match question to question, then read the source.</li>
+      <li><strong>Treat the generating prompt as a retrieval parameter.</strong> It decides what the index can find.</li>
+    </ol>
+
+    <div class="cta">
+      <a class="btn primary" href="/articles/telugu-purana-rag/">The Purana RAG write-up →</a>
+      <a class="btn" href="https://www.anthropic.com/news/contextual-retrieval">Anthropic: contextual retrieval →</a>
+    </div>
+  </article>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+
+</div>
+</body>
+</html>
