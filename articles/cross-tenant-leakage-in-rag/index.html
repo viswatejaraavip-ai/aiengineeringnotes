@@ -55,7 +55,6 @@
         <li><a href="#scores">Leak 4: exposed distances and scores</a></li>
         <li><a href="#test">How to test: canaries and starvation probes</a></li>
         <li><a href="#fixes">Fixes, by root cause</a></li>
-        <li><a href="#applies">When this applies to you</a></li>
         <li><a href="#takeaways">Takeaways</a></li>
       </ol>
     </div>
@@ -154,11 +153,7 @@
 
     <p>The decision between logical and physical isolation is the usual one. Separate namespaces per tenant are the simplest thing to reason about and remove the filter entirely, at the cost of many small indexes. A single collection with enforced pre-filtering scales better and is fine when the database genuinely enforces the filter inside the search. What is never fine is a single collection where the application promises to filter later.</p>
 
-    <h2 id="applies"><span class="num">08</span>When this applies to you</h2>
-
-    <p>None of this matters for a system with one public corpus. The <a href="/articles/telugu-purana-rag/">Purana</a> and <a href="/articles/telugu-gita-rag/">Gita</a> systems on this site index scripture that every user may read, so there is nothing to isolate and no filter in the path. The moment a product adds per-user or per-organisation documents into the same index, every leak above becomes live, including the cache bleed, which can appear with no change to retrieval at all. The canary test is cheap enough to run before that first private document goes in, and again every time someone adds a cache.</p>
-
-    <h2 id="takeaways"><span class="num">09</span>Takeaways</h2>
+    <h2 id="takeaways"><span class="num">08</span>Takeaways</h2>
     <ol>
       <li><strong>Ask where the filter runs.</strong> Inside the index is isolation. After the search or in the prompt is a leak.</li>
       <li><strong>Suppression is a signal.</strong> Post-filtering leaks the existence and vocabulary of foreign data through your own result count.</li>
