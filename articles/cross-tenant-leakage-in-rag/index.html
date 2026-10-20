@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cross-tenant leakage in vector search, and how to test for it · AI Engineering Notes</title>
+  <meta name="description" content="A RAG system can leak across tenants even with ACL filters in place: post-filtering after top-k, filters applied at the prompt layer, shared semantic caches, and exposed similarity scores. What each leak looks like, and a canary-based test plan to find them in your own system.">
+  <meta property="og:title" content="Cross-tenant leakage in vector search, and how to test for it">
+  <meta property="og:description" content="Four ways an ACL-filtered vector search still leaks between tenants, and a canary test that finds each one.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://aiengineeringnotes.com/articles/cross-tenant-leakage-in-rag/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/articles/cross-tenant-leakage-in-rag/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .probe { font-family: var(--mono); font-size: 14px; line-height: 1.5; }
+    .probe .k { color: var(--accent); }
+    .probe .bad { color: #b4232c; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="site">
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/#series">Series</a>
+      <a href="/#notes">Notes</a>
+      <a href="/#projects">Projects</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+
+  <p class="crumbs"><a href="/#notes">Notes</a> / Retrieval security</p>
+
+  <article class="post">
+    <header>
+      <h1>Cross-tenant leakage in vector search, and how to test for it</h1>
+      <p class="lede">A multi-tenant RAG system can have an access-control filter on every query and still leak between tenants. The filter is usually real. The problem is where it runs. Here are the four places it goes wrong, what each leak actually exposes, and a canary test that finds all of them.</p>
+      <div class="byline"><span>20 Oct 2026</span><span>9 min read</span></div>
+    </header>
+
+    <div class="concept">
+      <span class="label">The one-line diagnosis</span>
+      <p>"We filter by tenant" is not a security property until you know whether the filter runs inside the index search, after it, or at the prompt. Only the first is isolation. The other two are a cleanup step that leaks through its side effects.</p>
+    </div>
+
+    <div class="toc">
+      <p>Contents</p>
+      <ol>
+        <li><a href="#model">The threat model</a></li>
+        <li><a href="#postfilter">Leak 1: post-filtering after top-k</a></li>
+        <li><a href="#graph">Leak 2: filtered graph traversal and late filters</a></li>
+        <li><a href="#cache">Leak 3: a shared semantic cache</a></li>
+        <li><a href="#scores">Leak 4: exposed distances and scores</a></li>
+        <li><a href="#test">How to test: canaries and starvation probes</a></li>
+        <li><a href="#fixes">Fixes, by root cause</a></li>
+        <li><a href="#applies">When this applies to you</a></li>
+        <li><a href="#takeaways">Takeaways</a></li>
+      </ol>
+    </div>
+
+    <h2 id="model"><span class="num">01</span>The threat model</h2>
+
+    <p>Two tenants, A and B, share one vector collection. Each chunk carries a tenant id in its metadata. Every query is supposed to return only the caller's own chunks. Tenant B is the attacker: an ordinary authenticated user who can issue any query they like, choose the retrieval depth if the API exposes it, and read whatever comes back, including scores, latency and headers.</p>
+
+    <p>The leaks below range from the serious, foreign text landing in the model's context, to the subtle, learning that a foreign document exists and roughly what it is about. The subtle ones matter because they are repeatable, and a repeatable one-bit oracle becomes an extraction tool with enough queries.</p>
+
+    <h2 id="postfilter"><span class="num">02</span>Leak 1: post-filtering after top-k</h2>
+
+    <p>The commonest mistake. The vector database searches the whole collection for the k nearest neighbours by similarity alone, say k of 10, and the application applies the tenant filter afterwards to that list of ten.</p>
+
+    <p>If tenant A's chunks are semantically closer to the query than tenant B's, A's chunks fill the ten slots. The filter then removes them, and B gets zero or very few results, even though B has perfectly good documents a little further down the ranking.</p>
+
+    <p>The direct effect is a correctness bug: B's recall depends on A's data. The security effect is an oracle. B can issue a query and observe whether their own results are suppressed. Suppression means <em>something in another tenant's data is closer to this query than my own documents</em>. By varying the query, B maps out what topics, names and phrasings exist in A's data, without ever seeing a byte of it. Force the top-k to be exhausted by foreign chunks and the signal is binary and clean.</p>
+
+    <div class="lesson">
+      <span class="label">What is actually leaked</span>
+      <p>Not A's text. The existence, topic and vocabulary of A's documents, one bit per query, via the size of B's own result set. That is enough to confirm a project name, a client, or a figure, by asking about it and watching your own results vanish.</p>
+    </div>
+
+    <h2 id="graph"><span class="num">03</span>Leak 2: filtered graph traversal and late filters</h2>
+
+    <p>Most vector databases use a graph index such as HNSW. Search starts at entry nodes and hops to ever-closer neighbours. When pre-filtering is switched on and the filter hides most nodes, the visible part of the graph can fragment into disconnected islands. The traversal gets stuck in a local cluster and returns poor results for the filtered tenant, which is why databases offer dedicated filtered-search modes and why a restrictive filter can hurt recall in ways that look random.</p>
+
+    <p>Two consequences matter for isolation. First, teams that hit this degradation sometimes "fix" it by moving the filter out of the index and applying it later, which recreates leak 1. Second, and worse, some pipelines apply the tenant check at the prompt layer or in the model's instructions rather than in the retrieval path. By then the foreign chunks are already in the context window. A model told to ignore text it should not have seen is not an access control; it is a request.</p>
+
+    <p>Whether a filtered traversal itself leaks through timing is more theoretical than practical in most deployments, but it is one more reason the clean answer is a hard boundary rather than a clever filter.</p>
+
+    <h2 id="cache"><span class="num">04</span>Leak 3: a shared semantic cache</h2>
+
+    <p>Semantic caches at the gateway store query-response pairs, or query embeddings and the retrieved context, so that a repeated or near-identical question is answered without running the pipeline again. If the cache key is the query, or the query embedding, and not the query plus the tenant id plus the caller's permissions, then the first user to ask a question warms the cache for everyone.</p>
+
+    <p>Tenant A asks about their confidential budget and gets an answer built from their private chunk. Tenant B asks the same question and gets A's answer back from the cache, fast, with no retrieval and no filter in the path. This is the one leak on this list that hands over the actual content, and it is the easiest to introduce, because caches get added late by someone optimising latency rather than security.</p>
+
+    <h2 id="scores"><span class="num">05</span>Leak 4: exposed distances and scores</h2>
+
+    <p>If the search API returns raw similarity scores or distances in the response metadata, an attacker can probe the embedding space. Send a family of queries that vary one detail and watch how the scores of your own results shift. Combined with leak 1, where foreign chunks displace yours, the scores tell you how close the foreign cluster is and in which direction, which turns the one-bit oracle into a gradient. Scores are useful for debugging and for rerankers. They should not reach an end user in a multi-tenant system.</p>
+
+    <h2 id="test"><span class="num">06</span>How to test: canaries and starvation probes</h2>
+
+    <p>The test is black-box against the retrieval API, plus a look at headers and traces where you have them. It takes two accounts and an afternoon.</p>
+
+    <h3>Step 1: plant a canary</h3>
+
+    <p>In tenant A, index one chunk containing a unique secret with distinctive vocabulary, something like a line stating the internal budget for a made-up project with an unusual name and a specific figure. In tenant B, the attacker account, index several generic documents on the same general topic, budgets and projects, that overlap semantically with the canary but do not contain the secret name or figure.</p>
+
+    <h3>Step 2: the top-k starvation probe</h3>
+
+    <p>Authenticate as B. Ask the question the canary answers, using A's project name. Set the retrieval depth low, k of 3, then raise it.</p>
+
+    <pre class="probe"><span class="k">as B</span>  "What is the budget for Project Zephyr?"   k=3   → results: <span class="bad">0</span>
+<span class="k">as B</span>  "What is the budget for Project Zephyr?"   k=10  → results: <span class="bad">0</span>
+<span class="k">as B</span>  "What is the budget for Project Zephyr?"   k=50  → results: 4   (B's own generic docs)
+<span class="k">as B</span>  "What is the budget for Project Nothing?"  k=3   → results: 3   (B's own generic docs)</pre>
+
+    <ul>
+      <li><strong>Safe.</strong> The system pre-filters inside the index. B gets their own best-matching generic documents at k of 3, or an empty set if nothing is relevant, and the result count does not depend on whether the query names A's project.</li>
+      <li><strong>Vulnerable.</strong> B gets zero results at k of 3 and results only appear when k is raised far enough for B's own documents to survive. A's canary and its neighbours occupied the top slots during scoring and were dropped afterwards. The result count is an oracle for A's content.</li>
+    </ul>
+
+    <p>Repeat with queries that name the project but not the figure, and queries that use the figure but not the project, to confirm the signal tracks A's vocabulary and not just general topic density.</p>
+
+    <h3>Step 3: the cache probe</h3>
+
+    <p>As A, ask the canary question and confirm the secret comes back. Immediately, as B, send the exact same query string. Then send a paraphrase. Inspect the response body, the latency, and any cache headers or trace spans.</p>
+
+    <ul>
+      <li>If B gets A's answer or A's context, the cache is unscoped. Stop and fix this before anything else.</li>
+      <li>If B gets a suspiciously fast response with a cache-hit flag but a correct empty or own-tenant answer, check what was cached: a shared retrieval result that is filtered on read is still a shared retrieval result.</li>
+    </ul>
+
+    <h3>Step 4: the score probe</h3>
+
+    <p>Look at the raw API response as B for scores, distances or vector ids. If they are present, run the starvation probe again and record scores across a family of queries that vary the project name. If the scores of B's own results move in a way that correlates with how close the query is to A's canary, the scores are leaking the shape of A's data.</p>
+
+    <h3>Step 5: trace the filter</h3>
+
+    <p>With access to the code or traces, find where the tenant filter runs. It should be a parameter of the vector search call itself, enforced by the database. If it is a list comprehension after the search returns, or a line in the system prompt, it is leak 1 or leak 2 regardless of what the probes showed on this data set.</p>
+
+    <h2 id="fixes"><span class="num">07</span>Fixes, by root cause</h2>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Symptom</th><th>Root cause</th><th>Fix</th></tr>
+        <tr><td>Top-k starvation</td><td>Filtering after the vector search</td><td>Native pre-filtering in the vector database, as a parameter of the search call.</td></tr>
+        <tr><td>Recall collapses under a restrictive filter</td><td>Graph fragmentation during filtered traversal</td><td>Use the database's filtered-search mode, or give each tenant its own namespace or index so no filter is needed.</td></tr>
+        <tr><td>Cache bleed</td><td>Cache key lacks tenant and permissions</td><td>Bind the tenant id and a hash of the caller's ACL into every cache key. Cache nothing above the retrieval layer that was built from private chunks.</td></tr>
+        <tr><td>Filter at the prompt layer</td><td>Access control treated as an instruction</td><td>Move the check into the retrieval path. The model must never see what the caller cannot.</td></tr>
+        <tr><td>Scores in responses</td><td>Debug metadata exposed to users</td><td>Strip scores, distances and internal ids before the response leaves the service.</td></tr>
+        <tr><td>Everything in one collection</td><td>No row-level isolation</td><td>Logical multi-tenancy with enforced tenant-scoped rules, or physical multi-tenancy with separate namespaces per tenant for anything sensitive.</td></tr>
+      </table>
+    </div>
+
+    <p>The decision between logical and physical isolation is the usual one. Separate namespaces per tenant are the simplest thing to reason about and remove the filter entirely, at the cost of many small indexes. A single collection with enforced pre-filtering scales better and is fine when the database genuinely enforces the filter inside the search. What is never fine is a single collection where the application promises to filter later.</p>
+
+    <h2 id="applies"><span class="num">08</span>When this applies to you</h2>
+
+    <p>None of this matters for a system with one public corpus. The <a href="/articles/telugu-purana-rag/">Purana</a> and <a href="/articles/telugu-gita-rag/">Gita</a> systems on this site index scripture that every user may read, so there is nothing to isolate and no filter in the path. The moment a product adds per-user or per-organisation documents into the same index, every leak above becomes live, including the cache bleed, which can appear with no change to retrieval at all. The canary test is cheap enough to run before that first private document goes in, and again every time someone adds a cache.</p>
+
+    <h2 id="takeaways"><span class="num">09</span>Takeaways</h2>
+    <ol>
+      <li><strong>Ask where the filter runs.</strong> Inside the index is isolation. After the search or in the prompt is a leak.</li>
+      <li><strong>Suppression is a signal.</strong> Post-filtering leaks the existence and vocabulary of foreign data through your own result count.</li>
+      <li><strong>A shared semantic cache leaks content, not just metadata.</strong> Tenant id and permissions belong in the cache key.</li>
+      <li><strong>Do not return scores to users.</strong> They turn a one-bit oracle into a gradient.</li>
+      <li><strong>Plant a canary and run the starvation probe.</strong> Two accounts, one secret chunk, vary k, watch the count.</li>
+      <li><strong>Prefer separate namespaces for anything sensitive.</strong> A filter you do not need cannot be applied in the wrong place.</li>
+    </ol>
+
+    <div class="cta">
+      <a class="btn primary" href="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve →</a>
+      <a class="btn" href="/#notes">All notes →</a>
+    </div>
+    <p style="color:var(--muted);font-size:14px">Draws on write-ups by Rewanth Tammana and the OSAI AI red-teaming lesson on cross-tenant leakage in multi-tenant RAG.</p>
+  </article>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+
+</div>
+</body>
+</html>
