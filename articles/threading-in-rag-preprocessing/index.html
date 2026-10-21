@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Threads in the RAG preprocessing pipeline · AI Engineering Notes</title>
+  <meta name="description" content="Ingestion is six stages with three different bottlenecks. Threads help the ones that wait on the network, hurt the ones that burn CPU in Python, and do nothing for the one that owns the GPU. How to pick the concurrency model per stage, join them with bounded queues, and survive rate limits and retries.">
+  <meta property="og:title" content="Threads in the RAG preprocessing pipeline">
+  <meta property="og:description" content="Which ingestion stages are I/O-bound, which are CPU-bound, and how to thread each one without blowing up memory, rate limits or the index.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://aiengineeringnotes.com/articles/threading-in-rag-preprocessing/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/articles/threading-in-rag-preprocessing/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .flow-box { fill: var(--surface); stroke: var(--rule); stroke-width: 1.5; }
+    .flow-hi  { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+    .flow-t   { fill: var(--text); font-size: 13px; font-weight: 600; }
+    .flow-s   { fill: var(--muted); font-size: 11px; }
+    .flow-a   { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+    .flow-q   { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 4 3; }
+    .num { text-align: right; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="site">
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/#series">Series</a>
+      <a href="/#notes">Notes</a>
+      <a href="/#projects">Projects</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+
+  <p class="crumbs"><a href="/#notes">Notes</a> / Ingestion</p>
+
+  <article class="post">
+    <header>
+      <h1>Threads in the RAG preprocessing pipeline</h1>
+      <p class="lede">A RAG ingestion pipeline is a chain of stages with three different bottlenecks: waiting on the network, burning CPU, and feeding a GPU. Threads are the right tool for exactly one of those. Here is how to tell which stage is which, what to use for each, and how to join them so that a fast stage cannot drown a slow one.</p>
+      <div class="byline"><span>21 Oct 2026</span><span>11 min read</span></div>
+    </header>
+
+    <div class="concept">
+      <span class="label">The short version</span>
+      <p>Threads for stages that wait: fetching, calling embedding and model APIs, upserting to the vector store. Processes for stages that compute: parsing, OCR, tokenising. One batching consumer for a local GPU. Join the stages with bounded queues so backpressure flows upstream, cap in-flight requests below the rate limit, and make every write idempotent so a retry is free.</p>
+    </div>
+
+    <div class="toc">
+      <p>Contents</p>
+      <ol>
+        <li><a href="#stages">The six stages and what each waits on</a></li>
+        <li><a href="#serial">Why the serial version is slow</a></li>
+        <li><a href="#gil">What a thread buys you in Python</a></li>
+        <li><a href="#pick">Picking the model per stage</a></li>
+        <li><a href="#queues">Joining stages: bounded queues and backpressure</a></li>
+        <li><a href="#limits">Rate limits, retries and the in-flight cap</a></li>
+        <li><a href="#batch">Batching: the other concurrency</a></li>
+        <li><a href="#safety">Idempotency, ordering and checkpoints</a></li>
+        <li><a href="#pitfalls">Pitfalls that look like bugs elsewhere</a></li>
+        <li><a href="#here">What the Purana ingest did</a></li>
+        <li><a href="#takeaways">Takeaways</a></li>
+      </ol>
+    </div>
+
+    <h2 id="stages"><span class="num">01</span>The six stages and what each waits on</h2>
+
+    <p>Strip any ingestion pipeline down and it is the same six steps. What differs is what each step is waiting for.</p>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Stage</th><th>What it does</th><th>Bottleneck</th><th>Typical wait</th></tr>
+        <tr><td>Fetch</td><td>Download the document from a drive, a bucket, a wiki, a crawl</td><td>Network I/O</td><td>50 ms to seconds</td></tr>
+        <tr><td>Parse</td><td>PDF to text, HTML to tree, OCR, table extraction</td><td>CPU, sometimes memory</td><td>10 ms to tens of seconds</td></tr>
+        <tr><td>Chunk</td><td>Split on structure, count tokens, build parent and child records</td><td>CPU, light</td><td>Milliseconds</td></tr>
+        <tr><td>Enrich</td><td>Model-generated metadata, summaries, contextual prefixes</td><td>Network I/O to an API, with a rate limit</td><td>0.5 to 5 seconds</td></tr>
+        <tr><td>Embed</td><td>Text to vector, by API or on a local GPU</td><td>Network I/O, or GPU throughput</td><td>100 ms to 1 second per batch</td></tr>
+        <tr><td>Upsert</td><td>Write vectors and metadata to the store</td><td>Network I/O, with a batch size</td><td>50 to 500 ms per batch</td></tr>
+      </table>
+    </div>
+
+    <p>Four of the six are waiting on something over the network. One is pure computation. One is either, depending on where the embedding model runs. That split decides everything that follows.</p>
+
+    <h2 id="serial"><span class="num">02</span>Why the serial version is slow</h2>
+
+    <p>The first version of every pipeline is a for loop. For a corpus of 100,000 chunks with one API-bound stage at 200 milliseconds per call, the arithmetic is unforgiving.</p>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Approach</th><th>Calls</th><th>In flight</th><th>Wall time</th></tr>
+        <tr><td>Serial, one chunk per call</td><td class="num">100,000</td><td class="num">1</td><td class="num">5.6 hours</td></tr>
+        <tr><td>Threaded, one chunk per call</td><td class="num">100,000</td><td class="num">32</td><td class="num">10 minutes</td></tr>
+        <tr><td>Threaded, 64 chunks per call</td><td class="num">1,563</td><td class="num">8</td><td class="num">about 1 minute</td></tr>
+      </table>
+    </div>
+
+    <p>The serial loop is slow not because the machine is busy but because it is idle. Almost all of those 5.6 hours are spent waiting for a reply with the CPU at one or two percent. That is the signature of an I/O-bound stage, and it is the case where threads pay off most.</p>
+
+    <h2 id="gil"><span class="num">03</span>What a thread buys you in Python</h2>
+
+    <p>Most ingestion code is Python, and Python's global interpreter lock means only one thread runs Python bytecode at a time. This is the fact that trips people up, so it is worth being precise about what it does and does not cost.</p>
+
+    <ul>
+      <li><strong>While a thread waits on a socket, the lock is released.</strong> Thirty-two threads each waiting on an HTTP reply are thirty-two requests genuinely in flight. The lock does not serialise waiting. For I/O-bound stages, threads give near-linear speedup until the remote side pushes back.</li>
+      <li><strong>While a thread runs pure-Python computation, it holds the lock.</strong> Thirty-two threads parsing documents in a pure-Python parser take turns, and the total is no faster than one thread, often slower from the switching. For CPU-bound stages, threads are the wrong tool.</li>
+      <li><strong>C extensions may or may not release the lock.</strong> NumPy, many PDF libraries and tokenisers written in Rust or C release it during heavy work, so threads can help with those. The only way to know is to measure one thread against four on the real stage.</li>
+      <li><strong>Processes sidestep the lock.</strong> A process pool runs one interpreter per worker, so CPU-bound stages scale with cores. The cost is that inputs and outputs are pickled across the boundary, which matters for large documents and is why the parse stage should receive a path and return text, not receive bytes and return a parsed object graph.</li>
+      <li><strong>asyncio is the other way to wait.</strong> One thread, many coroutines, each suspended on its own socket. It handles thousands of concurrent requests with less memory than threads, and most provider SDKs ship an async client. It is the better choice for the API-bound stages when the surrounding code is already async; threads are fine when it is not.</li>
+    </ul>
+
+    <h2 id="pick"><span class="num">04</span>Picking the model per stage</h2>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Stage</th><th>Use</th><th>Concurrency to start with</th></tr>
+        <tr><td>Fetch</td><td>Thread pool or asyncio</td><td>16 to 64, bounded by the source's rate limit</td></tr>
+        <tr><td>Parse</td><td>Process pool</td><td>Number of cores, minus one</td></tr>
+        <tr><td>Chunk</td><td>Inline in the parse worker</td><td>None needed</td></tr>
+        <tr><td>Enrich</td><td>Thread pool or asyncio, with a semaphore</td><td>Just under the provider's requests-per-minute limit, divided by the per-call latency</td></tr>
+        <tr><td>Embed, by API</td><td>Thread pool or asyncio, batched</td><td>8 to 16 batches in flight</td></tr>
+        <tr><td>Embed, local GPU</td><td>One consumer thread with a batcher</td><td>One. The GPU is the parallelism.</td></tr>
+        <tr><td>Upsert</td><td>Thread pool, batched</td><td>4 to 8 batches in flight</td></tr>
+      </table>
+    </div>
+
+    <p>The local GPU row deserves a sentence. A GPU does its parallel work inside a single call on a batch of inputs. Several threads each sending small batches fight for the device and lose the benefit of the batch. One consumer that drains the queue into batches of 64 or 128 and calls the model once per batch will beat eight threads calling it with one chunk each, every time.</p>
+
+    <p>In code, an I/O-bound stage with a cap on in-flight requests looks like this:</p>
+
+    <pre><code>from concurrent.futures import ThreadPoolExecutor, as_completed
+
+def embed_batch(batch):            # one HTTP call, returns list of vectors
+    ...
+
+with ThreadPoolExecutor(max_workers=12) as pool:
+    futures = {pool.submit(embed_batch, b): b for b in batches}
+    for fut in as_completed(futures):
+        batch = futures[fut]
+        try:
+            vectors = fut.result()
+        except RateLimited:
+            requeue(batch)         # see the retry section
+        else:
+            upsert_queue.put((batch, vectors))</code></pre>
+
+    <p>And the CPU-bound stage next to it hands paths, not bytes, to a process pool:</p>
+
+    <pre><code>from concurrent.futures import ProcessPoolExecutor
+
+def parse_and_chunk(path):         # returns a list of small chunk dicts
+    text = parse(path)
+    return chunk(text, doc_id=path.stem)
+
+with ProcessPoolExecutor(max_workers=os.cpu_count() - 1) as pool:
+    for chunks in pool.map(parse_and_chunk, paths, chunksize=4):
+        for c in chunks:
+            enrich_queue.put(c)    # blocks when the queue is full</code></pre>
+
+    <h2 id="queues"><span class="num">05</span>Joining stages: bounded queues and backpressure</h2>
+
+    <p>Once each stage has its own concurrency, the question is how they hand work to each other. The answer is a queue between every pair of stages, and the queue must have a maximum size.</p>
+
+    <figure>
+      <div class="fig-body">
+        <svg viewBox="0 0 700 170" width="100%" style="min-width:640px" role="img" aria-labelledby="flowT flowD">
+          <title id="flowT">Staged pipeline with bounded queues</title>
+          <desc id="flowD">Fetch, parse, enrich, embed and upsert stages in a row, each with its own worker pool, joined by bounded queues drawn as dashed boxes. A full queue blocks the stage before it.</desc>
+          <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--muted)"/></marker></defs>
+
+          <rect class="flow-box" x="8" y="50" width="96" height="56" rx="8"/>
+          <text class="flow-t" x="56" y="73" text-anchor="middle">Fetch</text>
+          <text class="flow-s" x="56" y="90" text-anchor="middle">32 threads</text>
+
+          <rect class="flow-q" x="112" y="62" width="36" height="32" rx="4"/>
+          <path class="flow-a" d="M104,78 L112,78"/><path class="flow-a" d="M148,78 L158,78" marker-end="url(#ah)"/>
+
+          <rect class="flow-hi" x="158" y="50" width="96" height="56" rx="8"/>
+          <text class="flow-t" x="206" y="73" text-anchor="middle">Parse, chunk</text>
+          <text class="flow-s" x="206" y="90" text-anchor="middle">7 processes</text>
+
+          <rect class="flow-q" x="262" y="62" width="36" height="32" rx="4"/>
+          <path class="flow-a" d="M254,78 L262,78"/><path class="flow-a" d="M298,78 L308,78" marker-end="url(#ah)"/>
+
+          <rect class="flow-box" x="308" y="50" width="96" height="56" rx="8"/>
+          <text class="flow-t" x="356" y="73" text-anchor="middle">Enrich</text>
+          <text class="flow-s" x="356" y="90" text-anchor="middle">semaphore 20</text>
+
+          <rect class="flow-q" x="412" y="62" width="36" height="32" rx="4"/>
+          <path class="flow-a" d="M404,78 L412,78"/><path class="flow-a" d="M448,78 L458,78" marker-end="url(#ah)"/>
+
+          <rect class="flow-box" x="458" y="50" width="96" height="56" rx="8"/>
+          <text class="flow-t" x="506" y="73" text-anchor="middle">Embed</text>
+          <text class="flow-s" x="506" y="90" text-anchor="middle">batches of 64</text>
+
+          <rect class="flow-q" x="562" y="62" width="36" height="32" rx="4"/>
+          <path class="flow-a" d="M554,78 L562,78"/><path class="flow-a" d="M598,78 L606,78" marker-end="url(#ah)"/>
+
+          <rect class="flow-box" x="606" y="50" width="88" height="56" rx="8"/>
+          <text class="flow-t" x="650" y="73" text-anchor="middle">Upsert</text>
+          <text class="flow-s" x="650" y="90" text-anchor="middle">4 threads</text>
+
+          <text class="flow-s" x="350" y="140" text-anchor="middle">dashed boxes are bounded queues: when one fills, the stage to its left blocks</text>
+        </svg>
+      </div>
+      <figcaption>Each stage has the concurrency its bottleneck wants. The queues are small on purpose.</figcaption>
+    </figure>
+
+    <p>The bound is what makes the pipeline safe. Parsing is fast and enrichment is rate-limited, so without a bound the enrich queue grows until the process runs out of memory, usually an hour in, usually at night. With a bound of a few hundred items, the parse stage blocks when enrichment falls behind, which blocks fetch, and the whole pipeline settles at the speed of its slowest stage with bounded memory. That is backpressure, and it costs one argument to the queue constructor.</p>
+
+    <p>Size the queues at a few times the downstream stage's batch size, enough to keep it fed through jitter and no more. A queue that is always full is telling you where the bottleneck is. A queue that is always empty is telling you the stage before it is the bottleneck. Log the queue depths; they are the best profiler the pipeline has.</p>
+
+    <h2 id="limits"><span class="num">06</span>Rate limits, retries and the in-flight cap</h2>
+
+    <p>The API-bound stages do not scale with threads forever. They scale until the provider's rate limit, and then every extra thread adds a 429 response, a retry, and a wait. Beyond the limit, more concurrency makes the stage slower.</p>
+
+    <ul>
+      <li><strong>Cap in-flight requests with a semaphore</strong>, separate from the thread count. Set it from the provider's published limits: requests per minute divided by sixty, times the typical latency in seconds, gives the number of requests that can be in flight without exceeding the rate. Leave headroom for the production traffic that shares the same key.</li>
+      <li><strong>Retry with exponential backoff and jitter</strong>, honouring the retry-after header when one is given. Jitter matters: without it, thirty-two threads that got a 429 together retry together and get another one together.</li>
+      <li><strong>Treat the retry budget as a stage metric.</strong> If more than a few percent of calls are retried, the cap is too high. Lower it; throughput goes up.</li>
+      <li><strong>Separate the queue for failures.</strong> A chunk that failed three times goes to a dead-letter list with the error, and the pipeline moves on. One malformed PDF or one chunk that trips a content filter must not stall the other 99,999.</li>
+    </ul>
+
+    <h2 id="batch"><span class="num">07</span>Batching: the other concurrency</h2>
+
+    <p>Threads overlap waiting. Batching removes it. Embedding APIs accept dozens to hundreds of texts per call, vector stores accept hundreds of records per upsert, and a local model wants its inputs in batches anyway. Sixty-four chunks per embedding call is sixty-four times fewer round trips, and the per-call latency barely grows. Batch first, thread second: the threaded single-chunk row in the table above is ten minutes, the batched one is a minute.</p>
+
+    <p>For the model-generated enrichment stage there is a third option that removes the concurrency problem entirely. Provider batch APIs take a file of requests, run them over hours at a reduced price, and return a file of results. No threads, no rate limits, no retry logic, at the cost of latency you do not care about during a bulk ingest. For a first full load or a re-index after a prompt change, this is usually the right answer, and the threaded path is for the incremental trickle afterwards.</p>
+
+    <h2 id="safety"><span class="num">08</span>Idempotency, ordering and checkpoints</h2>
+
+    <p>Concurrency means things finish out of order and some things finish twice. The pipeline has to be built so neither matters.</p>
+
+    <ul>
+      <li><strong>Deterministic ids.</strong> A chunk's id is a hash of its document id, section and position, or of its content. Upserting the same chunk twice overwrites one record rather than creating two. Every retry and every re-run becomes safe.</li>
+      <li><strong>No dependence on order.</strong> Chunks of one document arrive at the upsert stage interleaved with chunks of others. Parent records should be written before, or independently of, children, and nothing downstream should assume that chunk 7 arrives after chunk 6.</li>
+      <li><strong>Checkpoint at the document level.</strong> Record a document as done only after all of its chunks are upserted. On restart, skip done documents and re-run the rest from the start. Re-running a partially ingested document is free because of the deterministic ids; tracking individual chunks is not worth the bookkeeping.</li>
+      <li><strong>Version the pipeline in the metadata.</strong> Prompt version, chunker version, embedding model. A later selective re-index can then target exactly the records that an old version produced.</li>
+    </ul>
+
+    <h2 id="pitfalls"><span class="num">09</span>Pitfalls that look like bugs elsewhere</h2>
+
+    <ul>
+      <li><strong>Clients that are not thread-safe.</strong> Some SDKs and database drivers must not be shared across threads. Create one per worker, or use a pool. The symptom is intermittent corrupt responses that never reproduce in a single-threaded test.</li>
+      <li><strong>Connection pool exhaustion.</strong> Thirty-two threads and a default HTTP pool of ten connections means twenty-two threads waiting on the pool, not on the network. Set the pool size to match the thread count.</li>
+      <li><strong>A tokeniser or model loaded per task.</strong> Loading a tokeniser inside the worker function means loading it a hundred thousand times. Load once per process, at worker start, and reuse.</li>
+      <li><strong>Pickling large objects to a process pool.</strong> Sending a 50 MB PDF's bytes to a worker, and getting a large object back, can cost more than the parse. Send paths, return small chunk records.</li>
+      <li><strong>Forking after threads exist.</strong> Starting a process pool from a process that already has threads running, or has initialised a CUDA context, deadlocks or crashes on some platforms. Use the spawn start method, or create the process pool first.</li>
+      <li><strong>Logging from many threads to one file.</strong> Interleaved lines and lost messages. Use the logging module's queue handler, or log structured events with the chunk id so they can be reassembled.</li>
+      <li><strong>Silent partial success.</strong> A pool that swallows exceptions in futures nobody checks. Always consume every future's result, and count failures as a first-class metric.</li>
+    </ul>
+
+    <h2 id="here"><span class="num">10</span>What the Purana ingest did</h2>
+
+    <p>The <a href="/articles/telugu-purana-rag/">Purana pipeline</a> is a small, concrete example of choosing per stage. Parsing seventeen GRETIL text files with five different verse-reference conventions is pure CPU, and at seventeen files it needs no pool at all; the effort went into the parser's correctness, not its speed. The model-generated chapter cards, 2,389 of them, went through the batch API as six batches submitted in one afternoon, every one back within about an hour, with no thread pool, no rate-limit handling and no retry code at all. The validation step then checked every returned card, repaired twelve by mapping and regenerated the handful that failed, which is the dead-letter pattern in miniature. The lesson is not that threads were avoided; it is that for a one-time bulk load, the batch API removed the stage that would have needed them.</p>
+
+    <h2 id="takeaways"><span class="num">11</span>Takeaways</h2>
+    <ol>
+      <li><strong>Classify each stage by what it waits on.</strong> Network, CPU or GPU. The classification picks the tool.</li>
+      <li><strong>Threads or asyncio for waiting, processes for computing, one batcher for a GPU.</strong> Python's interpreter lock makes this a rule, not a preference.</li>
+      <li><strong>Batch before you thread.</strong> Fewer round trips beats more overlapped ones.</li>
+      <li><strong>Bounded queues between stages.</strong> Backpressure is one constructor argument and it is what keeps memory flat overnight.</li>
+      <li><strong>Cap in-flight requests under the rate limit, retry with jitter, dead-letter the rest.</strong> Above the limit, more threads make it slower.</li>
+      <li><strong>Deterministic ids and document-level checkpoints.</strong> Then retries, re-runs and restarts are all free.</li>
+      <li><strong>For the bulk load, consider no threads at all.</strong> A provider batch API turns the hardest stage into a file upload.</li>
+    </ol>
+
+    <div class="cta">
+      <a class="btn primary" href="/articles/chunk-metadata-and-llm-extraction/">Metadata on chunks, and the care needed when a model writes it →</a>
+      <a class="btn" href="/articles/chunking-wiki-pages/">How to chunk wiki pages →</a>
+    </div>
+  </article>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+
+</div>
+</body>
+</html>
