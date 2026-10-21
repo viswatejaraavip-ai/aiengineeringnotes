@@ -106,6 +106,9 @@ NAV = [
 
 GITHUB = "https://github.com/viswatejaraavip-ai"
 
+# Bump when style.css or site.js changes, so cached copies are not used with new pages.
+ASSET_VERSION = "2"
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -265,6 +268,8 @@ def build():
             s = fill(s, "groups", groups_html())
         s = fill(s, "onpage", onpage_html(s))
         s = fill(s, "pager", pager_html(idx, pages))
+        s = re.sub(r'href="/style\.css(\?v=[^"]*)?"', f'href="/style.css?v={ASSET_VERSION}"', s)
+        s = re.sub(r'src="/site\.js(\?v=[^"]*)?"', f'src="/site.js?v={ASSET_VERSION}"', s)
         f.write_text(s)
         print("built", f.relative_to(ROOT))
 
