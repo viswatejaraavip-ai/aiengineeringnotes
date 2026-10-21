@@ -183,8 +183,8 @@ def sidebar_html(current):
     On the home page the one topic that has notes is opened, so the tree is not
     a wall of closed sections for a first-time visitor.
     """
-    cur_cls = ' class="current" aria-current="page"' if current == "/" else ""
-    out = [f'<a class="nav-home" href="/"{cur_cls} data-path="/">Introduction</a>']
+    home_attrs = ' class="nav-home current" aria-current="page"' if current == "/" else ' class="nav-home"'
+    out = [f'<a{home_attrs} href="/" data-path="/">Introduction</a>']
     for sec in NAV:
         sec_open = any(topic_has(t, current) for t in sec["topics"]) or (
             current == "/" and any(t["groups"] for t in sec["topics"]))
