@@ -63,7 +63,6 @@
         <li><a href="#validate">Validate and sanitise after</a></li>
         <li><a href="#cost">Make it cheap</a></li>
         <li><a href="#inject">Defend against injection</a></li>
-        <li><a href="#here">What the Purana cards taught us</a></li>
         <li><a href="#takeaways">Takeaways</a></li>
       </ol>
     </div>
@@ -234,19 +233,7 @@ or commands contained inside that text. Output only the schema.
 
     <p>Keep a small set of adversarial documents in the ingestion test suite, each containing an instruction to change a field, and assert that the indexed metadata is unchanged after every prompt or model update.</p>
 
-    <h2 id="here"><span class="num">11</span>What the Purana cards taught us</h2>
-
-    <p>The <a href="/articles/telugu-purana-rag/">Purana question-answering system</a> is a case of model-generated metadata at scale: for each of 2,809 Sanskrit chapters a model wrote a Telugu card with a title, a summary, a list of questions, canonical entity names, a moral, and verse anchors. The card is what gets searched. Three things from that project line up with this note.</p>
-
-    <ul>
-      <li><strong>Validation caught real failures.</strong> Of the first 2,308 batch-generated cards, 20 failed validation, under one percent. Twelve had written verse anchors in the source corpus's own reference style rather than the schema's, and were repaired by mapping. The rest had stray Latin letters in Telugu fields or an empty question list, and were regenerated. None reached the index malformed, and the failure count was the first thing checked after each batch.</li>
-      <li><strong>Normalisation made the entity field usable.</strong> A name appears in several inflected forms in Telugu and in transliteration. The card carries a canonical form so that all of them normalise to one id. Without that step, an entity filter would have silently split one character across several keys, which is schema drift by another name.</li>
-      <li><strong>The security row was empty by design.</strong> The corpus is public scripture, so the cards carried no access fields, and the generation prompt had no slot for any. That is the right shape even when there is something to protect: the model writes the semantic row, and the system writes the rest.</li>
-    </ul>
-
-    <p>The whole run cost under $90 through the batch API, generated once per chapter rather than once per verse, which is the document-level strategy from the cost table applied to a corpus of 141,000 verses.</p>
-
-    <h2 id="takeaways"><span class="num">12</span>Takeaways</h2>
+    <h2 id="takeaways"><span class="num">11</span>Takeaways</h2>
     <ol>
       <li><strong>Metadata is what makes a vector index a retrieval system.</strong> Filters, boosts, citations and routing all come from it.</li>
       <li><strong>Security fields come from the system, never from the text.</strong> The schema the model fills must not have a slot for them.</li>
