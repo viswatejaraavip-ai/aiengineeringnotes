@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Semantic chunking made my retrieval evals worse · AI Engineering Notes</title>
+  <meta name="description" content="Switching from fixed 512-token chunks to semantic chunking often lowers MRR, NDCG and hit rate. Five causes: variable length and embedding drift, lost overlap, tiny chunks starving the top-k budget, a mistuned global distance threshold, and ground truth labelled on the old boundaries. A four-step diagnostic to isolate which one you have.">
+  <meta property="og:title" content="Semantic chunking made my retrieval evals worse">
+  <meta property="og:description" content="Five reasons semantic chunking scores lower than fixed chunks, and the experiments that tell them apart.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://aiengineeringnotes.com/articles/semantic-chunking-regression/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/articles/semantic-chunking-regression/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .tree { font-family: var(--mono); font-size: 14px; line-height: 1.5; }
+    .tree .k { color: var(--accent); font-weight: 600; }
+    .num { text-align: right; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="site">
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/#series">Series</a>
+      <a href="/#notes">Notes</a>
+      <a href="/#projects">Projects</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+
+  <p class="crumbs"><a href="/#notes">Notes</a> / Retrieval</p>
+
+  <article class="post">
+    <header>
+      <h1>Semantic chunking made my retrieval evals worse</h1>
+      <p class="lede">You replaced fixed 512-token chunks with a semantic chunker, expecting cleaner boundaries and better search. MRR, NDCG and hit rate all went down. This is common, it has about five distinct causes, and each one leaves a different fingerprint. Here is how to tell them apart before changing anything.</p>
+      <div class="byline"><span>21 Oct 2026</span><span>10 min read</span></div>
+    </header>
+
+    <div class="concept">
+      <span class="label">The short version</span>
+      <p>Semantic chunking changes three things at once: chunk length becomes variable, overlap disappears, and the boundaries move away from the ones your ground truth was labelled on. Any of the three can explain the drop. Plot the length histogram, re-score on a token budget instead of top-k, inspect the queries that flipped from pass to fail, then add bounds and overlap one at a time.</p>
+    </div>
+
+    <div class="toc">
+      <p>Contents</p>
+      <ol>
+        <li><a href="#changed">What actually changed</a></li>
+        <li><a href="#c1">Cause 1: variable length and embedding drift</a></li>
+        <li><a href="#c2">Cause 2: the overlap went away</a></li>
+        <li><a href="#c3">Cause 3: tiny chunks starve the top-k budget</a></li>
+        <li><a href="#c4">Cause 4: one global distance threshold</a></li>
+        <li><a href="#c5">Cause 5: the ground truth was labelled on the old boundaries</a></li>
+        <li><a href="#isolate">Isolating the cause</a></li>
+        <li><a href="#fixes">Fixes, by cause</a></li>
+        <li><a href="#takeaways">Takeaways</a></li>
+      </ol>
+    </div>
+
+    <h2 id="changed"><span class="num">01</span>What actually changed</h2>
+
+    <p>"Semantic chunking" usually means this: embed each sentence, measure the distance between consecutive sentence embeddings, and cut wherever the distance spikes above some percentile. The promise is that cuts land at topic shifts rather than at arbitrary token counts.</p>
+
+    <p>The promise is real, but the switch is not one change. Compared with fixed 512-token chunks and a 64-token stride, it changes:</p>
+
+    <ul>
+      <li><strong>Length.</strong> From every chunk at 512 tokens to a spread from a single sentence to a page.</li>
+      <li><strong>Overlap.</strong> From 64 shared tokens at every boundary to none.</li>
+      <li><strong>Boundary placement.</strong> From positions your evaluation set may have been built on to positions it has never seen.</li>
+      <li><strong>A new tuning parameter.</strong> The distance percentile, which has no right value across different kinds of text.</li>
+    </ul>
+
+    <p>Each of those can lower a retrieval metric by itself. The regression you see is their sum, and the job is to find which terms are large.</p>
+
+    <h2 id="c1"><span class="num">02</span>Cause 1: variable length and embedding drift</h2>
+
+    <p>Fixed chunking guarantees every vector represents the same amount of text. Semantic chunking produces chunks of 50 tokens and chunks of 1,200 tokens in the same index, and most embedding models do not behave consistently across that range.</p>
+
+    <p>Very short chunks lack semantic density: a single sentence's vector is sharp but carries little, and often sits close to many unrelated single sentences. Very long chunks suffer the dilution described in the <a href="/articles/chunk-size-recall-vs-faithfulness/">chunk size note</a>: the vector averages several topics and a specific query no longer lands on it. Both tails score worse than the 512-token middle you came from, and both tails are now populated.</p>
+
+    <p>There is a quieter effect too. Similarity scores from chunks of different lengths are not on quite the same scale, so a ranking that mixes a 60-token chunk and a 900-token chunk is comparing numbers that were not meant to be compared. Rerankers partly absorb this; plain cosine ranking does not.</p>
+
+    <h2 id="c2"><span class="num">03</span>Cause 2: the overlap went away</h2>
+
+    <p>A fixed splitter almost always carries an overlap, and that overlap was quietly doing a job: any fact or definition that straddled a boundary appeared whole in at least one chunk. A semantic splitter cuts cleanly at the distance spike and shares nothing across it.</p>
+
+    <p>Cutting at a topic shift should mean fewer straddling facts, and often it does. But distance spikes are noisy. A splitter that reacts to a change in sentence style, a list item, or a quotation will cut in the middle of an explanation, and now neither side contains enough to match the query. The fixed chunker had the same bad cuts; the overlap hid them.</p>
+
+    <h2 id="c3"><span class="num">04</span>Cause 3: tiny chunks starve the top-k budget</h2>
+
+    <p>This one is often the whole story, and it is an artefact of how the metric is defined rather than of search quality.</p>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Chunking</th><th>Typical chunk</th><th>Top-5 yields</th></tr>
+        <tr><td>Fixed 512</td><td class="num">512 tokens</td><td class="num">2,560 tokens</td></tr>
+        <tr><td>Semantic, many single-sentence chunks</td><td class="num">30 to 80 tokens</td><td class="num">250 to 400 tokens</td></tr>
+      </table>
+    </div>
+
+    <p>If the semantic chunker produces many tiny chunks, retrieving five of them returns a fraction of the text that five fixed chunks returned. Any metric that asks "is the answer in the retrieved context" is now being asked with a sixth of the context. The downstream model is starved, and so is the evaluator. The ranking may be just as good or better; the budget it is given is smaller.</p>
+
+    <h2 id="c4"><span class="num">05</span>Cause 4: one global distance threshold</h2>
+
+    <p>The splitter cuts when the distance between consecutive sentences exceeds, say, the 95th percentile. That percentile is computed over whatever text the splitter sees, and one value cannot be right for a corpus that mixes code, dense legal clauses, tables and narrative prose.</p>
+
+    <p>In dense technical text every sentence introduces something new, so distances are uniformly high and the splitter over-segments into fragments. In smooth narrative prose distances are uniformly low, so the splitter under-segments into page-long chunks. The same threshold produces both tails of the length histogram, which is why cause 1 and cause 4 usually appear together.</p>
+
+    <h2 id="c5"><span class="num">06</span>Cause 5: the ground truth was labelled on the old boundaries</h2>
+
+    <p>This is the cause to rule out first, because if it applies, the metric is not measuring what you think.</p>
+
+    <p>Evaluation sets are built from the chunks that existed when they were built. Synthetic question generation ran over 512-token chunks and recorded which chunk the answer came from. Human annotators were shown 512-token passages and asked to write questions those passages answer. Either way, the ground truth carries the old boundaries inside it, in two forms.</p>
+
+    <ul>
+      <li><strong>The relevance label is a chunk id.</strong> If the metric counts a hit when the retrieved chunk id equals the labelled chunk id, then re-chunking invalidates every label, and the score is noise. Relevance has to be defined on something stable: the document, the section, or the answer span's character offsets.</li>
+      <li><strong>The questions need the old context.</strong> A question written from a 512-token passage may rely on two or three sentences that were together in that passage and are now in different semantic chunks. The new chunker is being graded against a test that was shaped by the old one.</li>
+    </ul>
+
+    <h2 id="isolate"><span class="num">07</span>Isolating the cause</h2>
+
+    <pre class="tree"><span class="k">eval dropped after switching to semantic chunks</span>
+ │
+ ├─ 0. is relevance labelled by chunk id?            → relabel on spans before anything else
+ │
+ ├─ 1. plot the chunk length histogram               → tails below 100 or above 800 tokens?
+ │
+ ├─ 2. re-score on a fixed token budget, not top-k   → does the gap close?
+ │
+ ├─ 3. inspect queries that flipped pass → fail      → is the answer split across a boundary?
+ │
+ └─ 4. add min/max bounds, then overlap, one at a time → which one recovers the score?</pre>
+
+    <h3>Step 0: check what the label is</h3>
+
+    <p>Open the evaluation set and look at the relevance field. If it is a chunk id from the old index, stop and relabel. Map each labelled chunk to its source document and the character span of the answer, and define a hit as "a retrieved chunk overlaps the labelled span" or, more loosely, "a retrieved chunk is from the labelled document and section". Only then are the two chunkers being scored on the same question.</p>
+
+    <h3>Step 1: the length histogram</h3>
+
+    <p>Count tokens per chunk for the semantic index and plot the distribution. Look for the two tails: a spike of chunks under 100 tokens, and a tail above 800. A heavy low tail points to causes 3 and 4. A heavy high tail points to causes 1 and 4. A histogram that looks like a reasonable hump around a few hundred tokens largely rules out length as the problem and sends you to step 3.</p>
+
+    <h3>Step 2: score on a token budget</h3>
+
+    <p>Instead of retrieving the top 5 chunks for both chunkers, retrieve the top chunks until a fixed budget is filled, say 2,000 tokens, and score both on that. This removes the budget asymmetry of cause 3.</p>
+
+    <ul>
+      <li>If the semantic chunker's score recovers to or above the fixed chunker's, the regression was context starvation from tiny chunks. The ranking was fine; the top-k metric was unfair to it.</li>
+      <li>If the gap stays, the ranking itself is worse, and the cause is among 1, 2 and 4.</li>
+    </ul>
+
+    <h3>Step 3: inspect the flipped queries</h3>
+
+    <p>Filter the evaluation run to the queries that passed under fixed chunking and failed under semantic chunking. There are usually fewer than you expect, and they are concentrated. For each, take the ground-truth answer span and find where it sits in the semantically chunked document.</p>
+
+    <ul>
+      <li>If the span straddles the boundary between chunk N and N+1, this is cause 2, aggressive splitting with no overlap.</li>
+      <li>If the span sits whole inside one chunk that is very long, this is cause 1, dilution.</li>
+      <li>If the span sits whole inside one chunk that is very short and that chunk ranked low, this is cause 1 on the other tail, a sentence with too little in it to match.</li>
+      <li>If the span is intact and well-sized and the chunk still ranked below unrelated ones, look at the query: it may depend on neighbouring sentences that the old passage included, which is cause 5.</li>
+    </ul>
+
+    <h3>Step 4: controlled experiments</h3>
+
+    <p>Change one thing at a time and re-score after each.</p>
+
+    <ol>
+      <li>Add a minimum chunk size of about 200 tokens, merging adjacent small chunks until they reach it. If the score recovers, it was tiny chunks.</li>
+      <li>Add a maximum of about 600 tokens, splitting long semantic chunks at paragraph breaks. If the score recovers, it was dilution.</li>
+      <li>Add a 10 to 15 percent overlap at the semantic boundaries. If the score recovers now, after bounds did not fix it, the splitter was cutting through explanations.</li>
+    </ol>
+
+    <p>The order matters. Bounds first, because they are cheaper to keep than overlap, and because overlap applied to tiny chunks only duplicates tiny chunks.</p>
+
+    <h2 id="fixes"><span class="num">08</span>Fixes, by cause</h2>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Finding</th><th>Fix</th></tr>
+        <tr><td>Tiny chunks, low token yield</td><td>Enforce a minimum chunk size; merge adjacent small chunks to at least about 200 tokens. Evaluate on a token budget as well as top-k from now on.</td></tr>
+        <tr><td>Answers split across boundaries</td><td>Prefer <a href="/articles/chunk-is-not-the-embedding/">parent-child retrieval</a>: index the small semantic chunk, return its parent paragraph or section. Overlap of 10 to 20 percent is the cheaper patch if you cannot change retrieval.</td></tr>
+        <tr><td>Extreme length skew</td><td>A hybrid splitter: semantic cuts inside a hard ceiling of about 512 tokens, with paragraph-first fallback above it.</td></tr>
+        <tr><td>Threshold behaves differently per document type</td><td>For structured text, replace the distance threshold with <a href="/articles/chunking-wiki-pages/">heading or structure-aware splitting</a>, or syntax-tree splitting for code. Keep semantic splitting for unstructured prose only, with the percentile set per document type.</td></tr>
+        <tr><td>Ground truth tied to old chunks</td><td>Relabel on answer spans or document and section ids. Regenerate synthetic questions from passages that do not depend on either chunker's boundaries.</td></tr>
+      </table>
+    </div>
+
+    <p>One honest possibility remains after all of this: semantic chunking is simply not better for your corpus. On text that already has structure, headings do the job with none of the variance, and on uniform prose a fixed size with a small overlap is a strong baseline that is hard to beat. The chunker is a hypothesis, and the evaluation set, once it is fair, is allowed to reject it.</p>
+
+    <h2 id="takeaways"><span class="num">09</span>Takeaways</h2>
+    <ol>
+      <li><strong>The switch changes length, overlap and boundaries at once.</strong> Separate them before you tune anything.</li>
+      <li><strong>Check the label first.</strong> Relevance defined by chunk id is invalidated by any re-chunking.</li>
+      <li><strong>Score on a token budget as well as top-k.</strong> Tiny chunks lose on top-k even when the ranking is better.</li>
+      <li><strong>Read the flipped queries.</strong> Where the answer span sits in the new chunks names the cause.</li>
+      <li><strong>Bounds before overlap, parent-child before either.</strong> Min and max chunk sizes fix most of it; parent-child fixes boundary splits without duplicating text.</li>
+      <li><strong>One global percentile cannot serve mixed text.</strong> Use structure where there is structure.</li>
+      <li><strong>Be willing to keep the fixed chunker.</strong> It is a strong baseline, and a fair evaluation may say so.</li>
+    </ol>
+
+    <div class="cta">
+      <a class="btn primary" href="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall falls, faithfulness rises →</a>
+      <a class="btn" href="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve →</a>
+    </div>
+  </article>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+
+</div>
+</body>
+</html>
