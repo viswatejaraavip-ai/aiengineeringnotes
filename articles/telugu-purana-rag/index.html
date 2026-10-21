@@ -27,16 +27,62 @@
 <body>
 <div class="wrap">
 
-  <header class="site">
+  <!-- site:header -->
+    <header class="site">
+    <button class="menu" type="button" aria-controls="sidenav" aria-expanded="false">Contents</button>
     <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
     <nav>
-      <a href="/#series">Series</a>
-      <a href="/#projects">Projects</a>
+      <a href="/">Introduction</a>
       <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
     </nav>
   </header>
+    <!-- /site:header -->
 
-  <p class="crumbs"><a href="/#series">Series</a> / RAG in Telugu / Part 2</p>
+  <div class="layout">
+  <aside class="sidenav" id="sidenav" aria-label="All notes">
+    <!-- site:nav -->
+    <div class="nav-group">
+      <p class="nav-title">Start here</p>
+      <ul>
+            <li><a href="/" data-path="/">Introduction</a></li>
+          </ul>
+    </div>
+    <div class="nav-group">
+      <p class="nav-title">Core concepts</p>
+      <ul>
+            <li><a href="/articles/chunk-size-recall-vs-faithfulness/" data-path="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall falls, faithfulness rises</a></li>
+            <li><a href="/articles/chunk-is-not-the-embedding/" data-path="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve</a></li>
+            <li><a href="/articles/chunk-metadata-and-llm-extraction/" data-path="/articles/chunk-metadata-and-llm-extraction/">Metadata on chunks, and the care needed when a model writes it</a></li>
+          </ul>
+    </div>
+    <div class="nav-group">
+      <p class="nav-title">Chunking patterns</p>
+      <ul>
+            <li><a href="/articles/chunking-wiki-pages/" data-path="/articles/chunking-wiki-pages/">How to chunk wiki pages</a></li>
+            <li><a href="/articles/semantic-chunking-regression/" data-path="/articles/semantic-chunking-regression/">Semantic chunking made my retrieval evals worse</a></li>
+          </ul>
+    </div>
+    <div class="nav-group">
+      <p class="nav-title">Security</p>
+      <ul>
+            <li><a href="/articles/cross-tenant-leakage-in-rag/" data-path="/articles/cross-tenant-leakage-in-rag/">Cross-tenant leakage in vector search, and how to test for it</a></li>
+            <li><a href="/articles/chunk-permissions-in-sync/" data-path="/articles/chunk-permissions-in-sync/">Permissions on chunks, and keeping them in sync</a></li>
+          </ul>
+    </div>
+    <div class="nav-group">
+      <p class="nav-title">Build breakdowns</p>
+      <ul>
+            <li><a href="/articles/telugu-gita-rag/" data-path="/articles/telugu-gita-rag/">How I built a RAG on the Bhagavad Gita in Telugu</a></li>
+            <li><a href="/articles/telugu-purana-rag/" class="current" aria-current="page" data-path="/articles/telugu-purana-rag/">Sanskrit in, Telugu out: a RAG over 17 Puranas</a></li>
+          </ul>
+    </div>
+    <!-- /site:nav -->
+  </aside>
+  <main class="content">
+
+  <p class="crumbs"><!-- site:crumbs -->
+    <a href="/#build-breakdowns">Build breakdowns</a> / Sanskrit in, Telugu out: a RAG over 17 Puranas
+    <!-- /site:crumbs --></p>
 
   <article class="post">
     <header>
@@ -346,10 +392,34 @@
     <p style="color:var(--muted);font-size:14px">Corpus: GRETIL e-texts, CC BY-NC-SA 4.0. Chapter cards generated with Claude Sonnet 5 and Opus 5; answers with Sonnet 5; judge Sonnet 5. Retrieval: stock BAAI/bge-m3 plus BM25. Code: MIT.</p>
   </article>
 
+  <nav class="pager" aria-label="Reading order">
+    <!-- site:pager -->
+    <a class="prev" href="/articles/telugu-gita-rag/"><small>Previous</small>How I built a RAG on the Bhagavad Gita in Telugu</a>
+    <!-- /site:pager -->
+  </nav>
+
   <footer>
     © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
   </footer>
+  </main>
+  <aside class="onpage" aria-label="On this page">
+    <!-- site:onpage -->
+    <p class="nav-title">On this page</p>
+    <ol>
+      <li><a href="#options">Three ways to bridge two languages, and why two of them fail</a></li>
+      <li><a href="#cards">Index the questions, not the verses: chapter cards</a></li>
+      <li><a href="#building">Building 2,809 cards: model choice, prompt, cost</a></li>
+      <li><a href="#retrieval">Retrieval: Telugu to Telugu, then coarse to fine</a></li>
+      <li><a href="#answer">Answering: the Sanskrit goes into the context, the Telugu comes out</a></li>
+      <li><a href="#evaluation">Evaluation</a></li>
+      <li><a href="#unsolved">What is not solved</a></li>
+      <li><a href="#takeaways">Takeaways</a></li>
+    </ol>
+    <!-- /site:onpage -->
+  </aside>
+  </div>
 
 </div>
+<script src="/site.js"></script>
 </body>
 </html>

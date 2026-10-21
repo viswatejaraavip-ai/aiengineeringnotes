@@ -22,17 +22,62 @@
 <body>
 <div class="wrap">
 
-  <header class="site">
+  <!-- site:header -->
+    <header class="site">
+    <button class="menu" type="button" aria-controls="sidenav" aria-expanded="false">Contents</button>
     <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
     <nav>
-      <a href="/#series">Series</a>
-      <a href="/#notes">Notes</a>
-      <a href="/#projects">Projects</a>
+      <a href="/">Introduction</a>
       <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
     </nav>
   </header>
+    <!-- /site:header -->
 
-  <p class="crumbs"><a href="/#notes">Notes</a> / Retrieval</p>
+  <div class="layout">
+  <aside class="sidenav" id="sidenav" aria-label="All notes">
+    <!-- site:nav -->
+    <div class="nav-group">
+      <p class="nav-title">Start here</p>
+      <ul>
+            <li><a href="/" data-path="/">Introduction</a></li>
+          </ul>
+    </div>
+    <div class="nav-group">
+      <p class="nav-title">Core concepts</p>
+      <ul>
+            <li><a href="/articles/chunk-size-recall-vs-faithfulness/" data-path="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall falls, faithfulness rises</a></li>
+            <li><a href="/articles/chunk-is-not-the-embedding/" data-path="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve</a></li>
+            <li><a href="/articles/chunk-metadata-and-llm-extraction/" data-path="/articles/chunk-metadata-and-llm-extraction/">Metadata on chunks, and the care needed when a model writes it</a></li>
+          </ul>
+    </div>
+    <div class="nav-group">
+      <p class="nav-title">Chunking patterns</p>
+      <ul>
+            <li><a href="/articles/chunking-wiki-pages/" class="current" aria-current="page" data-path="/articles/chunking-wiki-pages/">How to chunk wiki pages</a></li>
+            <li><a href="/articles/semantic-chunking-regression/" data-path="/articles/semantic-chunking-regression/">Semantic chunking made my retrieval evals worse</a></li>
+          </ul>
+    </div>
+    <div class="nav-group">
+      <p class="nav-title">Security</p>
+      <ul>
+            <li><a href="/articles/cross-tenant-leakage-in-rag/" data-path="/articles/cross-tenant-leakage-in-rag/">Cross-tenant leakage in vector search, and how to test for it</a></li>
+            <li><a href="/articles/chunk-permissions-in-sync/" data-path="/articles/chunk-permissions-in-sync/">Permissions on chunks, and keeping them in sync</a></li>
+          </ul>
+    </div>
+    <div class="nav-group">
+      <p class="nav-title">Build breakdowns</p>
+      <ul>
+            <li><a href="/articles/telugu-gita-rag/" data-path="/articles/telugu-gita-rag/">How I built a RAG on the Bhagavad Gita in Telugu</a></li>
+            <li><a href="/articles/telugu-purana-rag/" data-path="/articles/telugu-purana-rag/">Sanskrit in, Telugu out: a RAG over 17 Puranas</a></li>
+          </ul>
+    </div>
+    <!-- /site:nav -->
+  </aside>
+  <main class="content">
+
+  <p class="crumbs"><!-- site:crumbs -->
+    <a href="/#chunking-patterns">Chunking patterns</a> / How to chunk wiki pages
+    <!-- /site:crumbs --></p>
 
   <article class="post">
     <header>
@@ -169,10 +214,36 @@ generating 1.71 million pounds of thrust at sea level...</pre>
     </div>
   </article>
 
+  <nav class="pager" aria-label="Reading order">
+    <!-- site:pager -->
+    <a class="prev" href="/articles/chunk-metadata-and-llm-extraction/"><small>Previous</small>Metadata on chunks, and the care needed when a model writes it</a>
+    <a class="next" href="/articles/semantic-chunking-regression/"><small>Next</small>Semantic chunking made my retrieval evals worse</a>
+    <!-- /site:pager -->
+  </nav>
+
   <footer>
     © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
   </footer>
+  </main>
+  <aside class="onpage" aria-label="On this page">
+    <!-- site:onpage -->
+    <p class="nav-title">On this page</p>
+    <ol>
+      <li><a href="#why">Why wiki pages are a special case</a></li>
+      <li><a href="#headings">Split on the heading hierarchy</a></li>
+      <li><a href="#long">Fallback: long sections</a></li>
+      <li><a href="#path">Heading path injection</a></li>
+      <li><a href="#tables">Infoboxes and tables</a></li>
+      <li><a href="#parent">Index paragraphs, retrieve sections</a></li>
+      <li><a href="#checklist">Pipeline checklist</a></li>
+      <li><a href="#here">The same shape in the Purana corpus</a></li>
+      <li><a href="#takeaways">Takeaways</a></li>
+    </ol>
+    <!-- /site:onpage -->
+  </aside>
+  </div>
 
 </div>
+<script src="/site.js"></script>
 </body>
 </html>
