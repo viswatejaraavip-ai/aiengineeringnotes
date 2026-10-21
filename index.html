@@ -10,7 +10,7 @@
   <meta property="og:url" content="https://aiengineeringnotes.com/">
   <link rel="canonical" href="https://aiengineeringnotes.com/">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/style.css?v=2">
+  <link rel="stylesheet" href="/style.css?v=3">
 </head>
 <body>
 <div class="wrap">
@@ -29,41 +29,80 @@
   <div class="layout">
   <aside class="sidenav" id="sidenav" aria-label="All notes">
     <!-- site:nav -->
-    <div class="nav-group">
-      <p class="nav-title">Start here</p>
-      <ul>
-            <li><a href="/" class="current" aria-current="page" data-path="/">Introduction</a></li>
+    <a class="nav-home" href="/" class="current" aria-current="page" data-path="/">Introduction</a>
+    <details class="nav-section" data-id="foundations">
+          <summary>Foundations</summary>
+          <ul>
+            <li class="nav-topic empty"><span>LLM fundamentals</span></li>
+            <li class="nav-topic empty"><span>Frontier models and the model landscape</span></li>
+            <li class="nav-topic empty"><span>Prompting and context engineering</span></li>
+            <li class="nav-topic empty"><span>Fine-tuning, alignment and post-training</span></li>
           </ul>
-    </div>
-    <div class="nav-group">
-      <p class="nav-title">Core concepts</p>
-      <ul>
-            <li><a href="/articles/chunk-size-recall-vs-faithfulness/" data-path="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall falls, faithfulness rises</a></li>
-            <li><a href="/articles/chunk-is-not-the-embedding/" data-path="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve</a></li>
-            <li><a href="/articles/chunk-metadata-and-llm-extraction/" data-path="/articles/chunk-metadata-and-llm-extraction/">Metadata on chunks, and the care needed when a model writes it</a></li>
+    </details>
+    <details class="nav-section" data-id="inference">
+          <summary>Inference and reasoning</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Inference scaling and serving</span></li>
+            <li class="nav-topic empty"><span>Test-time compute and reasoning models</span></li>
           </ul>
-    </div>
-    <div class="nav-group">
-      <p class="nav-title">Chunking patterns</p>
-      <ul>
-            <li><a href="/articles/chunking-wiki-pages/" data-path="/articles/chunking-wiki-pages/">How to chunk wiki pages</a></li>
-            <li><a href="/articles/semantic-chunking-regression/" data-path="/articles/semantic-chunking-regression/">Semantic chunking made my retrieval evals worse</a></li>
+    </details>
+    <details class="nav-section" data-id="agents">
+          <summary>Agentic AI</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Agent architectures, tool use and MCP</span></li>
+            <li class="nav-topic empty"><span>Multi-agent systems, orchestration and human-in-the-loop</span></li>
           </ul>
-    </div>
-    <div class="nav-group">
-      <p class="nav-title">Security</p>
-      <ul>
-            <li><a href="/articles/cross-tenant-leakage-in-rag/" data-path="/articles/cross-tenant-leakage-in-rag/">Cross-tenant leakage in vector search, and how to test for it</a></li>
-            <li><a href="/articles/chunk-permissions-in-sync/" data-path="/articles/chunk-permissions-in-sync/">Permissions on chunks, and keeping them in sync</a></li>
+    </details>
+    <details class="nav-section" data-id="rag" open>
+          <summary>RAG</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="rag-ingestion" open>
+              <summary>RAG ingestion, chunking and indexing</summary>
+              <p class="nav-sub">Core concepts</p>
+          <ul>
+                <li><a href="/articles/chunk-size-recall-vs-faithfulness/" data-path="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall falls, faithfulness rises</a></li>
+                <li><a href="/articles/chunk-is-not-the-embedding/" data-path="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve</a></li>
+                <li><a href="/articles/chunk-metadata-and-llm-extraction/" data-path="/articles/chunk-metadata-and-llm-extraction/">Metadata on chunks, and the care needed when a model writes it</a></li>
+              </ul>
+              <p class="nav-sub">Chunking patterns</p>
+          <ul>
+                <li><a href="/articles/chunking-wiki-pages/" data-path="/articles/chunking-wiki-pages/">How to chunk wiki pages</a></li>
+                <li><a href="/articles/semantic-chunking-regression/" data-path="/articles/semantic-chunking-regression/">Semantic chunking made my retrieval evals worse</a></li>
+              </ul>
+              <p class="nav-sub">Multi-tenant indexes</p>
+          <ul>
+                <li><a href="/articles/cross-tenant-leakage-in-rag/" data-path="/articles/cross-tenant-leakage-in-rag/">Cross-tenant leakage in vector search, and how to test for it</a></li>
+                <li><a href="/articles/chunk-permissions-in-sync/" data-path="/articles/chunk-permissions-in-sync/">Permissions on chunks, and keeping them in sync</a></li>
+              </ul>
+              <p class="nav-sub">Build breakdowns</p>
+          <ul>
+                <li><a href="/articles/telugu-gita-rag/" data-path="/articles/telugu-gita-rag/">How I built a RAG on the Bhagavad Gita in Telugu</a></li>
+                <li><a href="/articles/telugu-purana-rag/" data-path="/articles/telugu-purana-rag/">Sanskrit in, Telugu out: a RAG over 17 Puranas</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>RAG retrieval: embeddings, hybrid search and reranking</span></li>
+            <li class="nav-topic empty"><span>RAG generation, grounding and debugging</span></li>
+            <li class="nav-topic empty"><span>Advanced RAG: agentic RAG, GraphRAG, memory and long context</span></li>
           </ul>
-    </div>
-    <div class="nav-group">
-      <p class="nav-title">Build breakdowns</p>
-      <ul>
-            <li><a href="/articles/telugu-gita-rag/" data-path="/articles/telugu-gita-rag/">How I built a RAG on the Bhagavad Gita in Telugu</a></li>
-            <li><a href="/articles/telugu-purana-rag/" data-path="/articles/telugu-purana-rag/">Sanskrit in, Telugu out: a RAG over 17 Puranas</a></li>
+    </details>
+    <details class="nav-section" data-id="evaluation">
+          <summary>Evaluation, observability and ops</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Evaluation fundamentals, benchmarks and LLM-as-judge</span></li>
+            <li class="nav-topic empty"><span>Evaluating RAG, agents and production systems</span></li>
+            <li class="nav-topic empty"><span>Observability, tracing and monitoring</span></li>
+            <li class="nav-topic empty"><span>LLMOps, cost, reliability and product engineering</span></li>
           </ul>
-    </div>
+    </details>
+    <details class="nav-section" data-id="security">
+          <summary>Security, red teaming and governance</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Prompt injection and LLM application security</span></li>
+            <li class="nav-topic empty"><span>Red teaming, adversarial testing and guardrails</span></li>
+            <li class="nav-topic empty"><span>AI governance, risk and compliance</span></li>
+            <li class="nav-topic empty"><span>Responsible AI, safety, alignment and societal risk</span></li>
+          </ul>
+    </details>
     <!-- /site:nav -->
   </aside>
   <main class="content">
@@ -75,97 +114,183 @@
 
   <section id="how-to-read">
     <h2 id="h-how-to-read">How to read these notes</h2>
-    <p>The notes are grouped by what they assume. <strong>Core concepts</strong> are the ideas every retrieval system is built on. <strong>Chunking patterns</strong> apply them to real corpora and to the things that go wrong when a chunker changes. <strong>Security</strong> covers what changes once an index holds documents not every user may read. <strong>Build breakdowns</strong> are two systems built end to end, with the measurements.</p>
-    <p>Read top to bottom if you are new to retrieval. Each page ends with a link to the next one in that order, and the sidebar ticks the pages you have finished, in this browser only. If you already build these systems, jump to the group you need; every note stands on its own.</p>
+    <p>The sidebar is a map of AI engineering in six sections: foundations, inference and reasoning, agentic AI, RAG, evaluation and ops, and security and governance. Each section has a few topics. The notes written so far all sit under one topic, <a href="#rag-ingestion">RAG ingestion, chunking and indexing</a>, in four groups: the core concepts, chunking patterns for real corpora, what changes when an index holds documents not everyone may read, and two systems built end to end with their measurements. The other topics are listed so the shape of the whole is visible, and will fill in.</p>
+    <p>Read top to bottom if you are new to retrieval. Each page ends with a link to the next one in that order, and the sidebar ticks the pages you have finished, in this browser only. If you already build these systems, open the topic you need; every note stands on its own.</p>
   </section>
 
   <!-- site:groups -->
-      <section id="core-concepts">
-    <h2 id="h-core-concepts">Core concepts</h2>
-    <p class="series-desc">The ideas every retrieval system is built on. Read these first; the later groups assume them.</p>
-    <ol class="posts">
-      <li>
-        <a class="post-link" href="/articles/chunk-size-recall-vs-faithfulness/">
-          <span class="post-title">Chunk size: recall falls, faithfulness rises</span>
-        </a>
-        <span class="post-sub">What happens to a RAG system as chunks grow from 128 to 2,000 tokens: vector dilution hurts search while whole paragraphs help the answer, and why the fix is not a size in the middle.</span>
-        <span class="post-meta">19 Oct 2026 · 6 min read</span>
-      </li>
-      <li>
-        <a class="post-link" href="/articles/chunk-is-not-the-embedding/">
-          <span class="post-title">The chunk you embed is not the chunk you retrieve</span>
-        </a>
-        <span class="post-sub">Search wants small text and the model wants big text. Decouple the indexed text from the retrieved text: parent-document retrieval, contextual embeddings, and summary or question indexes.</span>
-        <span class="post-meta">19 Oct 2026 · 7 min read</span>
-      </li>
-      <li>
-        <a class="post-link" href="/articles/chunk-metadata-and-llm-extraction/">
-          <span class="post-title">Metadata on chunks, and the care needed when a model writes it</span>
-        </a>
-        <span class="post-sub">What metadata buys a retrieval system, and the three things that go wrong when a model generates it at ingestion: hallucinated and drifting fields, cost, and injection from the documents. Constrain the schema, validate after, derive security fields from the system.</span>
-        <span class="post-meta">21 Oct 2026 · 10 min read</span>
-      </li>
-    </ol>
+      <section id="foundations">
+    <h2 id="h-foundations">Foundations</h2>
+    <div class="topic" id="llm-fundamentals">
+      <h3>LLM fundamentals</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+    <div class="topic" id="frontier-models">
+      <h3>Frontier models and the model landscape</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+    <div class="topic" id="prompting">
+      <h3>Prompting and context engineering</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+    <div class="topic" id="fine-tuning">
+      <h3>Fine-tuning, alignment and post-training</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
   </section>
-  <section id="chunking-patterns">
-    <h2 id="h-chunking-patterns">Chunking patterns</h2>
-    <p class="series-desc">Applying the core ideas to real corpora, and diagnosing what goes wrong when a chunker changes.</p>
-    <ol class="posts">
-      <li>
-        <a class="post-link" href="/articles/chunking-wiki-pages/">
-          <span class="post-title">How to chunk wiki pages</span>
-        </a>
-        <span class="post-sub">Split on the heading tree, not on token counts. Prepend the page title and heading path, flatten infoboxes to key-value lines, fall back to paragraphs only in long sections, and retrieve the section when a paragraph matches.</span>
-        <span class="post-meta">19 Oct 2026 · 8 min read</span>
-      </li>
-      <li>
-        <a class="post-link" href="/articles/semantic-chunking-regression/">
-          <span class="post-title">Semantic chunking made my retrieval evals worse</span>
-        </a>
-        <span class="post-sub">Five reasons the switch from fixed 512-token chunks lowers MRR, NDCG and hit rate: variable length, lost overlap, tiny chunks starving the top-k budget, one global distance threshold, and ground truth labelled on the old boundaries. A four-step diagnostic that tells them apart.</span>
-        <span class="post-meta">21 Oct 2026 · 10 min read</span>
-      </li>
-    </ol>
+  <section id="inference">
+    <h2 id="h-inference">Inference and reasoning</h2>
+    <div class="topic" id="inference-scaling">
+      <h3>Inference scaling and serving</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+    <div class="topic" id="test-time-compute">
+      <h3>Test-time compute and reasoning models</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+  </section>
+  <section id="agents">
+    <h2 id="h-agents">Agentic AI</h2>
+    <div class="topic" id="agent-architectures">
+      <h3>Agent architectures, tool use and MCP</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+    <div class="topic" id="multi-agent">
+      <h3>Multi-agent systems, orchestration and human-in-the-loop</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+  </section>
+  <section id="rag">
+    <h2 id="h-rag">RAG</h2>
+    <div class="topic" id="rag-ingestion">
+      <h3>RAG ingestion, chunking and indexing</h3>
+      <p class="series-desc">Everything that happens before a query arrives: how text is split, what is embedded, what metadata rides along, and how an index stays correct when it holds documents not everyone may read.</p>
+      <p class="eyebrow">Core concepts</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/chunk-size-recall-vs-faithfulness/">
+            <span class="post-title">Chunk size: recall falls, faithfulness rises</span>
+          </a>
+          <span class="post-sub">What happens to a RAG system as chunks grow from 128 to 2,000 tokens: vector dilution hurts search while whole paragraphs help the answer, and why the fix is not a size in the middle.</span>
+          <span class="post-meta">19 Oct 2026 · 6 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/chunk-is-not-the-embedding/">
+            <span class="post-title">The chunk you embed is not the chunk you retrieve</span>
+          </a>
+          <span class="post-sub">Search wants small text and the model wants big text. Decouple the indexed text from the retrieved text: parent-document retrieval, contextual embeddings, and summary or question indexes.</span>
+          <span class="post-meta">19 Oct 2026 · 7 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/chunk-metadata-and-llm-extraction/">
+            <span class="post-title">Metadata on chunks, and the care needed when a model writes it</span>
+          </a>
+          <span class="post-sub">What metadata buys a retrieval system, and the three things that go wrong when a model generates it at ingestion: hallucinated and drifting fields, cost, and injection from the documents. Constrain the schema, validate after, derive security fields from the system.</span>
+          <span class="post-meta">21 Oct 2026 · 10 min read</span>
+        </li>
+      </ol>
+      <p class="eyebrow">Chunking patterns</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/chunking-wiki-pages/">
+            <span class="post-title">How to chunk wiki pages</span>
+          </a>
+          <span class="post-sub">Split on the heading tree, not on token counts. Prepend the page title and heading path, flatten infoboxes to key-value lines, fall back to paragraphs only in long sections, and retrieve the section when a paragraph matches.</span>
+          <span class="post-meta">19 Oct 2026 · 8 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/semantic-chunking-regression/">
+            <span class="post-title">Semantic chunking made my retrieval evals worse</span>
+          </a>
+          <span class="post-sub">Five reasons the switch from fixed 512-token chunks lowers MRR, NDCG and hit rate: variable length, lost overlap, tiny chunks starving the top-k budget, one global distance threshold, and ground truth labelled on the old boundaries. A four-step diagnostic that tells them apart.</span>
+          <span class="post-meta">21 Oct 2026 · 10 min read</span>
+        </li>
+      </ol>
+      <p class="eyebrow">Multi-tenant indexes</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/cross-tenant-leakage-in-rag/">
+            <span class="post-title">Cross-tenant leakage in vector search, and how to test for it</span>
+          </a>
+          <span class="post-sub">Four ways an ACL-filtered RAG still leaks between tenants: post-filtering after top-k, filters at the prompt layer, a shared semantic cache, and exposed scores. A canary and starvation-probe test plan that finds each one.</span>
+          <span class="post-meta">20 Oct 2026 · 9 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/chunk-permissions-in-sync/">
+            <span class="post-title">Permissions on chunks, and keeping them in sync</span>
+          </a>
+          <span class="post-sub">Put a stable document id on the vector, keep the ACL in a store built for change, pre-filter at query time from the auth token, and let the source system&#x27;s webhooks or change data capture drive the sync. Filter on groups, not users.</span>
+          <span class="post-meta">20 Oct 2026 · 8 min read</span>
+        </li>
+      </ol>
+      <p class="eyebrow">Build breakdowns</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/telugu-gita-rag/">
+            <span class="post-title">How I built a RAG on the Bhagavad Gita in Telugu</span>
+          </a>
+          <span class="post-sub">Preparing the dataset, choosing and fine-tuning the embedding model and reranker, hybrid search, and how it was evaluated.</span>
+          <span class="post-meta">15 Sep 2026 · 20 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/telugu-purana-rag/">
+            <span class="post-title">Sanskrit in, Telugu out: a RAG over 17 Puranas</span>
+          </a>
+          <span class="post-sub">The texts exist only in Sanskrit and the users ask in Telugu. Chapter cards, in-memory retrieval, verse-level citation and on-demand translation, with the measured numbers.</span>
+          <span class="post-meta">16 Sep 2026 · 16 min read</span>
+        </li>
+      </ol>
+    </div>
+    <div class="topic" id="rag-retrieval">
+      <h3>RAG retrieval: embeddings, hybrid search and reranking</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+    <div class="topic" id="rag-generation">
+      <h3>RAG generation, grounding and debugging</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+    <div class="topic" id="rag-advanced">
+      <h3>Advanced RAG: agentic RAG, GraphRAG, memory and long context</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+  </section>
+  <section id="evaluation">
+    <h2 id="h-evaluation">Evaluation, observability and ops</h2>
+    <div class="topic" id="eval-fundamentals">
+      <h3>Evaluation fundamentals, benchmarks and LLM-as-judge</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+    <div class="topic" id="eval-systems">
+      <h3>Evaluating RAG, agents and production systems</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+    <div class="topic" id="observability">
+      <h3>Observability, tracing and monitoring</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+    <div class="topic" id="llmops">
+      <h3>LLMOps, cost, reliability and product engineering</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
   </section>
   <section id="security">
-    <h2 id="h-security">Security</h2>
-    <p class="series-desc">What changes the moment an index holds documents that not every user may read.</p>
-    <ol class="posts">
-      <li>
-        <a class="post-link" href="/articles/cross-tenant-leakage-in-rag/">
-          <span class="post-title">Cross-tenant leakage in vector search, and how to test for it</span>
-        </a>
-        <span class="post-sub">Four ways an ACL-filtered RAG still leaks between tenants: post-filtering after top-k, filters at the prompt layer, a shared semantic cache, and exposed scores. A canary and starvation-probe test plan that finds each one.</span>
-        <span class="post-meta">20 Oct 2026 · 9 min read</span>
-      </li>
-      <li>
-        <a class="post-link" href="/articles/chunk-permissions-in-sync/">
-          <span class="post-title">Permissions on chunks, and keeping them in sync</span>
-        </a>
-        <span class="post-sub">Put a stable document id on the vector, keep the ACL in a store built for change, pre-filter at query time from the auth token, and let the source system&#x27;s webhooks or change data capture drive the sync. Filter on groups, not users.</span>
-        <span class="post-meta">20 Oct 2026 · 8 min read</span>
-      </li>
-    </ol>
-  </section>
-  <section id="build-breakdowns">
-    <h2 id="h-build-breakdowns">Build breakdowns</h2>
-    <p class="series-desc">Two systems built end to end, with the measurements and the experiments that did not work.</p>
-    <ol class="posts">
-      <li>
-        <a class="post-link" href="/articles/telugu-gita-rag/">
-          <span class="post-title">How I built a RAG on the Bhagavad Gita in Telugu</span>
-        </a>
-        <span class="post-sub">Preparing the dataset, choosing and fine-tuning the embedding model and reranker, hybrid search, and how it was evaluated.</span>
-        <span class="post-meta">15 Sep 2026 · 20 min read</span>
-      </li>
-      <li>
-        <a class="post-link" href="/articles/telugu-purana-rag/">
-          <span class="post-title">Sanskrit in, Telugu out: a RAG over 17 Puranas</span>
-        </a>
-        <span class="post-sub">The texts exist only in Sanskrit and the users ask in Telugu. Chapter cards, in-memory retrieval, verse-level citation and on-demand translation, with the measured numbers.</span>
-        <span class="post-meta">16 Sep 2026 · 16 min read</span>
-      </li>
-    </ol>
+    <h2 id="h-security">Security, red teaming and governance</h2>
+    <div class="topic" id="prompt-injection">
+      <h3>Prompt injection and LLM application security</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+    <div class="topic" id="red-teaming">
+      <h3>Red teaming, adversarial testing and guardrails</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+    <div class="topic" id="governance">
+      <h3>AI governance, risk and compliance</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+    <div class="topic" id="responsible-ai">
+      <h3>Responsible AI, safety, alignment and societal risk</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
   </section>
     <!-- /site:groups -->
 
@@ -220,10 +345,12 @@
     <p class="nav-title">On this page</p>
     <ol>
       <li><a href="#h-how-to-read">How to read these notes</a></li>
-      <li><a href="#h-core-concepts">Core concepts</a></li>
-      <li><a href="#h-chunking-patterns">Chunking patterns</a></li>
-      <li><a href="#h-security">Security</a></li>
-      <li><a href="#h-build-breakdowns">Build breakdowns</a></li>
+      <li><a href="#h-foundations">Foundations</a></li>
+      <li><a href="#h-inference">Inference and reasoning</a></li>
+      <li><a href="#h-agents">Agentic AI</a></li>
+      <li><a href="#h-rag">RAG</a></li>
+      <li><a href="#h-evaluation">Evaluation, observability and ops</a></li>
+      <li><a href="#h-security">Security, red teaming and governance</a></li>
       <li><a href="#h-projects">Projects</a></li>
     </ol>
     <!-- /site:onpage -->
@@ -231,6 +358,6 @@
   </div>
 
 </div>
-<script src="/site.js?v=2"></script>
+<script src="/site.js?v=3"></script>
 </body>
 </html>

@@ -30,6 +30,23 @@
   }
   paint();
 
+  // Remember which branches of the sidebar tree the reader opened or closed.
+  // A branch holding the current page always stays open.
+  var TREE = 'aen-tree';
+  var tree = {};
+  try { tree = JSON.parse(localStorage.getItem(TREE) || '{}'); } catch (e) {}
+  var branches = document.querySelectorAll('.sidenav details[data-id]');
+  for (var b = 0; b < branches.length; b++) {
+    (function (d) {
+      var id = d.getAttribute('data-id');
+      if (!d.querySelector('a.current') && Object.prototype.hasOwnProperty.call(tree, id)) d.open = tree[id];
+      d.addEventListener('toggle', function () {
+        tree[id] = d.open;
+        try { localStorage.setItem(TREE, JSON.stringify(tree)); } catch (e) {}
+      });
+    })(branches[b]);
+  }
+
   // Reading progress bar; a page counts as read at ninety percent.
   var bar = document.createElement('div');
   bar.className = 'progress';

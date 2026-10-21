@@ -4,12 +4,13 @@
 The site is plain static HTML. This script is the single source of truth for
 how the pages are grouped and ordered. It fills in, on every page:
 
-  * the left sidebar (groups and pages, current page highlighted)
+  * the left sidebar: a tree of sections > topics > notes, current page marked
   * the breadcrumb under the header
   * the "On this page" rail, built from the page's own <h2 id="..."> headings
   * the Previous / Next pager at the bottom, following the reading order
+  * on the home page, the listing of every section and topic
 
-Run it from the repository root after adding or reordering a page:
+Run it from the repository root after adding or moving a page:
 
     python3 tools/build_site.py
 
@@ -20,28 +21,27 @@ never touched. A page without markers is converted once, on first run.
 
 import html
 import re
-import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
+GITHUB = "https://github.com/viswatejaraavip-ai"
+
+# Bump when style.css or site.js changes, so cached copies are not used with new pages.
+ASSET_VERSION = "3"
+
 # ---------------------------------------------------------------------------
-# The taxonomy. Reading order is top to bottom.
+# The taxonomy: sections > topics > (optional sub-groups of) notes.
+# Reading order is top to bottom. A topic with no notes is listed as empty.
 # ---------------------------------------------------------------------------
 
-NAV = [
+def T(id_, title, groups=None, desc=""):
+    return {"id": id_, "title": title, "groups": groups or [], "desc": desc}
+
+
+RAG_INGESTION_GROUPS = [
     {
-        "id": "start",
-        "title": "Start here",
-        "pages": [
-            {"path": "/", "title": "Introduction",
-             "sub": "What these notes cover, how they are grouped, and the order to read them in."},
-        ],
-    },
-    {
-        "id": "core-concepts",
         "title": "Core concepts",
-        "desc": "The ideas every retrieval system is built on. Read these first; the later groups assume them.",
         "pages": [
             {"path": "/articles/chunk-size-recall-vs-faithfulness/",
              "title": "Chunk size: recall falls, faithfulness rises",
@@ -58,9 +58,7 @@ NAV = [
         ],
     },
     {
-        "id": "chunking-patterns",
         "title": "Chunking patterns",
-        "desc": "Applying the core ideas to real corpora, and diagnosing what goes wrong when a chunker changes.",
         "pages": [
             {"path": "/articles/chunking-wiki-pages/",
              "title": "How to chunk wiki pages",
@@ -73,9 +71,7 @@ NAV = [
         ],
     },
     {
-        "id": "security",
-        "title": "Security",
-        "desc": "What changes the moment an index holds documents that not every user may read.",
+        "title": "Multi-tenant indexes",
         "pages": [
             {"path": "/articles/cross-tenant-leakage-in-rag/",
              "title": "Cross-tenant leakage in vector search, and how to test for it",
@@ -88,9 +84,7 @@ NAV = [
         ],
     },
     {
-        "id": "build-breakdowns",
         "title": "Build breakdowns",
-        "desc": "Two systems built end to end, with the measurements and the experiments that did not work.",
         "pages": [
             {"path": "/articles/telugu-gita-rag/",
              "title": "How I built a RAG on the Bhagavad Gita in Telugu",
@@ -104,10 +98,43 @@ NAV = [
     },
 ]
 
-GITHUB = "https://github.com/viswatejaraavip-ai"
+NAV = [
+    {"id": "foundations", "title": "Foundations", "topics": [
+        T("llm-fundamentals", "LLM fundamentals"),
+        T("frontier-models", "Frontier models and the model landscape"),
+        T("prompting", "Prompting and context engineering"),
+        T("fine-tuning", "Fine-tuning, alignment and post-training"),
+    ]},
+    {"id": "inference", "title": "Inference and reasoning", "topics": [
+        T("inference-scaling", "Inference scaling and serving"),
+        T("test-time-compute", "Test-time compute and reasoning models"),
+    ]},
+    {"id": "agents", "title": "Agentic AI", "topics": [
+        T("agent-architectures", "Agent architectures, tool use and MCP"),
+        T("multi-agent", "Multi-agent systems, orchestration and human-in-the-loop"),
+    ]},
+    {"id": "rag", "title": "RAG", "topics": [
+        T("rag-ingestion", "RAG ingestion, chunking and indexing", RAG_INGESTION_GROUPS,
+          desc="Everything that happens before a query arrives: how text is split, what is embedded, what metadata rides along, and how an index stays correct when it holds documents not everyone may read."),
+        T("rag-retrieval", "RAG retrieval: embeddings, hybrid search and reranking"),
+        T("rag-generation", "RAG generation, grounding and debugging"),
+        T("rag-advanced", "Advanced RAG: agentic RAG, GraphRAG, memory and long context"),
+    ]},
+    {"id": "evaluation", "title": "Evaluation, observability and ops", "topics": [
+        T("eval-fundamentals", "Evaluation fundamentals, benchmarks and LLM-as-judge"),
+        T("eval-systems", "Evaluating RAG, agents and production systems"),
+        T("observability", "Observability, tracing and monitoring"),
+        T("llmops", "LLMOps, cost, reliability and product engineering"),
+    ]},
+    {"id": "security", "title": "Security, red teaming and governance", "topics": [
+        T("prompt-injection", "Prompt injection and LLM application security"),
+        T("red-teaming", "Red teaming, adversarial testing and guardrails"),
+        T("governance", "AI governance, risk and compliance"),
+        T("responsible-ai", "Responsible AI, safety, alignment and societal risk"),
+    ]},
+]
 
-# Bump when style.css or site.js changes, so cached copies are not used with new pages.
-ASSET_VERSION = "2"
+HOME = {"path": "/", "title": "Introduction"}
 
 
 # ---------------------------------------------------------------------------
@@ -115,10 +142,13 @@ ASSET_VERSION = "2"
 # ---------------------------------------------------------------------------
 
 def flat_pages():
-    out = []
-    for g in NAV:
-        for p in g["pages"]:
-            out.append((g, p))
+    """Reading order: (section, topic, group, page). The home page comes first."""
+    out = [(None, None, None, HOME)]
+    for sec in NAV:
+        for topic in sec["topics"]:
+            for group in topic["groups"]:
+                for page in group["pages"]:
+                    out.append((sec, topic, group, page))
     return out
 
 
@@ -143,15 +173,40 @@ def header_html():
     )
 
 
+def topic_has(topic, path):
+    return any(p["path"] == path for g in topic["groups"] for p in g["pages"])
+
+
 def sidebar_html(current):
-    parts = []
-    for g in NAV:
-        parts.append(f'<div class="nav-group">\n      <p class="nav-title">{esc(g["title"])}</p>\n      <ul>')
-        for p in g["pages"]:
-            cls = ' class="current" aria-current="page"' if p["path"] == current else ""
-            parts.append(f'        <li><a href="{p["path"]}"{cls} data-path="{p["path"]}">{esc(p["title"])}</a></li>')
-        parts.append("      </ul>\n    </div>")
-    return "\n    ".join(parts)
+    """A tree: section > topic > (group label) > notes. Open along the current path.
+
+    On the home page the one topic that has notes is opened, so the tree is not
+    a wall of closed sections for a first-time visitor.
+    """
+    cur_cls = ' class="current" aria-current="page"' if current == "/" else ""
+    out = [f'<a class="nav-home" href="/"{cur_cls} data-path="/">Introduction</a>']
+    for sec in NAV:
+        sec_open = any(topic_has(t, current) for t in sec["topics"]) or (
+            current == "/" and any(t["groups"] for t in sec["topics"]))
+        out.append(f'<details class="nav-section" data-id="{sec["id"]}"{" open" if sec_open else ""}>')
+        out.append(f'      <summary>{esc(sec["title"])}</summary>')
+        out.append("      <ul>")
+        for t in sec["topics"]:
+            if not t["groups"]:
+                out.append(f'        <li class="nav-topic empty"><span>{esc(t["title"])}</span></li>')
+                continue
+            t_open = topic_has(t, current) or current == "/"
+            out.append(f'        <li class="nav-topic"><details data-id="{t["id"]}"{" open" if t_open else ""}>')
+            out.append(f'          <summary>{esc(t["title"])}</summary>')
+            for g in t["groups"]:
+                out.append(f'          <p class="nav-sub">{esc(g["title"])}</p>\n          <ul>')
+                for p in g["pages"]:
+                    cls = ' class="current" aria-current="page"' if p["path"] == current else ""
+                    out.append(f'            <li><a href="{p["path"]}"{cls} data-path="{p["path"]}">{esc(p["title"])}</a></li>')
+                out.append("          </ul>")
+            out.append("        </details></li>")
+        out.append("      </ul>\n    </details>")
+    return "\n    ".join(out)
 
 
 H2 = re.compile(r'<h2 id="([^"]+)">(.*?)</h2>', re.S)
@@ -170,8 +225,8 @@ def onpage_html(page_html):
 
 
 def pager_html(idx, pages):
-    prev_ = pages[idx - 1][1] if idx > 0 else None
-    next_ = pages[idx + 1][1] if idx + 1 < len(pages) else None
+    prev_ = pages[idx - 1][3] if idx > 0 else None
+    next_ = pages[idx + 1][3] if idx + 1 < len(pages) else None
     a = []
     if prev_:
         a.append(f'<a class="prev" href="{prev_["path"]}"><small>Previous</small>{esc(prev_["title"])}</a>')
@@ -182,30 +237,38 @@ def pager_html(idx, pages):
     return "\n    ".join(a)
 
 
-def crumbs_html(group, page):
-    if page["path"] == "/":
-        return ""
-    return f'<a href="/#{group["id"]}">{esc(group["title"])}</a> / {esc(page["title"])}'
+def crumbs_html(sec, topic, page):
+    return (f'<a href="/#{sec["id"]}">{esc(sec["title"])}</a> / '
+            f'<a href="/#{topic["id"]}">{esc(topic["title"])}</a> / {esc(page["title"])}')
 
 
 def groups_html():
-    """The group listings for the home page."""
+    """The section and topic listing for the home page."""
     out = []
-    for g in NAV:
-        if g["id"] == "start":
-            continue
-        out.append(f'  <section id="{g["id"]}">\n    <h2 id="h-{g["id"]}">{esc(g["title"])}</h2>\n    <p class="series-desc">{esc(g["desc"])}</p>\n    <ol class="posts">')
-        for p in g["pages"]:
-            out.append(
-                '      <li>\n'
-                f'        <a class="post-link" href="{p["path"]}">\n'
-                f'          <span class="post-title">{esc(p["title"])}</span>\n'
-                '        </a>\n'
-                f'        <span class="post-sub">{esc(p["sub"])}</span>\n'
-                f'        <span class="post-meta">{esc(p.get("meta", ""))}</span>\n'
-                '      </li>'
-            )
-        out.append("    </ol>\n  </section>")
+    for sec in NAV:
+        out.append(f'  <section id="{sec["id"]}">\n    <h2 id="h-{sec["id"]}">{esc(sec["title"])}</h2>')
+        for t in sec["topics"]:
+            out.append(f'    <div class="topic" id="{t["id"]}">\n      <h3>{esc(t["title"])}</h3>')
+            if not t["groups"]:
+                out.append('      <p class="topic-empty">No notes yet.</p>\n    </div>')
+                continue
+            if t["desc"]:
+                out.append(f'      <p class="series-desc">{esc(t["desc"])}</p>')
+            for g in t["groups"]:
+                out.append(f'      <p class="eyebrow">{esc(g["title"])}</p>\n      <ol class="posts">')
+                for p in g["pages"]:
+                    out.append(
+                        '        <li>\n'
+                        f'          <a class="post-link" href="{p["path"]}">\n'
+                        f'            <span class="post-title">{esc(p["title"])}</span>\n'
+                        '          </a>\n'
+                        f'          <span class="post-sub">{esc(p["sub"])}</span>\n'
+                        f'          <span class="post-meta">{esc(p.get("meta", ""))}</span>\n'
+                        '        </li>'
+                    )
+                out.append("      </ol>")
+            out.append("    </div>")
+        out.append("  </section>")
     return "\n".join(out)
 
 
@@ -256,16 +319,16 @@ def convert(page_html):
 
 def build():
     pages = flat_pages()
-    for idx, (group, page) in enumerate(pages):
+    for idx, (sec, topic, group, page) in enumerate(pages):
         f = file_for(page["path"])
         s = f.read_text()
         s = convert(s)
         s = fill(s, "header", header_html())
         s = fill(s, "nav", sidebar_html(page["path"]))
-        if page["path"] != "/":
-            s = fill(s, "crumbs", crumbs_html(group, page))
-        else:
+        if page["path"] == "/":
             s = fill(s, "groups", groups_html())
+        else:
+            s = fill(s, "crumbs", crumbs_html(sec, topic, page))
         s = fill(s, "onpage", onpage_html(s))
         s = fill(s, "pager", pager_html(idx, pages))
         s = re.sub(r'href="/style\.css(\?v=[^"]*)?"', f'href="/style.css?v={ASSET_VERSION}"', s)

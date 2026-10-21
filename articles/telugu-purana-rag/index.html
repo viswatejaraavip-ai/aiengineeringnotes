@@ -11,7 +11,7 @@
   <meta property="og:url" content="https://aiengineeringnotes.com/articles/telugu-purana-rag/">
   <link rel="canonical" href="https://aiengineeringnotes.com/articles/telugu-purana-rag/">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/style.css?v=2">
+  <link rel="stylesheet" href="/style.css?v=3">
   <style>
     .flow-box { fill: var(--surface); stroke: var(--rule); stroke-width: 1.5; }
     .flow-hi  { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
@@ -41,47 +41,86 @@
   <div class="layout">
   <aside class="sidenav" id="sidenav" aria-label="All notes">
     <!-- site:nav -->
-    <div class="nav-group">
-      <p class="nav-title">Start here</p>
-      <ul>
-            <li><a href="/" data-path="/">Introduction</a></li>
+    <a class="nav-home" href="/" data-path="/">Introduction</a>
+    <details class="nav-section" data-id="foundations">
+          <summary>Foundations</summary>
+          <ul>
+            <li class="nav-topic empty"><span>LLM fundamentals</span></li>
+            <li class="nav-topic empty"><span>Frontier models and the model landscape</span></li>
+            <li class="nav-topic empty"><span>Prompting and context engineering</span></li>
+            <li class="nav-topic empty"><span>Fine-tuning, alignment and post-training</span></li>
           </ul>
-    </div>
-    <div class="nav-group">
-      <p class="nav-title">Core concepts</p>
-      <ul>
-            <li><a href="/articles/chunk-size-recall-vs-faithfulness/" data-path="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall falls, faithfulness rises</a></li>
-            <li><a href="/articles/chunk-is-not-the-embedding/" data-path="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve</a></li>
-            <li><a href="/articles/chunk-metadata-and-llm-extraction/" data-path="/articles/chunk-metadata-and-llm-extraction/">Metadata on chunks, and the care needed when a model writes it</a></li>
+    </details>
+    <details class="nav-section" data-id="inference">
+          <summary>Inference and reasoning</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Inference scaling and serving</span></li>
+            <li class="nav-topic empty"><span>Test-time compute and reasoning models</span></li>
           </ul>
-    </div>
-    <div class="nav-group">
-      <p class="nav-title">Chunking patterns</p>
-      <ul>
-            <li><a href="/articles/chunking-wiki-pages/" data-path="/articles/chunking-wiki-pages/">How to chunk wiki pages</a></li>
-            <li><a href="/articles/semantic-chunking-regression/" data-path="/articles/semantic-chunking-regression/">Semantic chunking made my retrieval evals worse</a></li>
+    </details>
+    <details class="nav-section" data-id="agents">
+          <summary>Agentic AI</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Agent architectures, tool use and MCP</span></li>
+            <li class="nav-topic empty"><span>Multi-agent systems, orchestration and human-in-the-loop</span></li>
           </ul>
-    </div>
-    <div class="nav-group">
-      <p class="nav-title">Security</p>
-      <ul>
-            <li><a href="/articles/cross-tenant-leakage-in-rag/" data-path="/articles/cross-tenant-leakage-in-rag/">Cross-tenant leakage in vector search, and how to test for it</a></li>
-            <li><a href="/articles/chunk-permissions-in-sync/" data-path="/articles/chunk-permissions-in-sync/">Permissions on chunks, and keeping them in sync</a></li>
+    </details>
+    <details class="nav-section" data-id="rag" open>
+          <summary>RAG</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="rag-ingestion" open>
+              <summary>RAG ingestion, chunking and indexing</summary>
+              <p class="nav-sub">Core concepts</p>
+          <ul>
+                <li><a href="/articles/chunk-size-recall-vs-faithfulness/" data-path="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall falls, faithfulness rises</a></li>
+                <li><a href="/articles/chunk-is-not-the-embedding/" data-path="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve</a></li>
+                <li><a href="/articles/chunk-metadata-and-llm-extraction/" data-path="/articles/chunk-metadata-and-llm-extraction/">Metadata on chunks, and the care needed when a model writes it</a></li>
+              </ul>
+              <p class="nav-sub">Chunking patterns</p>
+          <ul>
+                <li><a href="/articles/chunking-wiki-pages/" data-path="/articles/chunking-wiki-pages/">How to chunk wiki pages</a></li>
+                <li><a href="/articles/semantic-chunking-regression/" data-path="/articles/semantic-chunking-regression/">Semantic chunking made my retrieval evals worse</a></li>
+              </ul>
+              <p class="nav-sub">Multi-tenant indexes</p>
+          <ul>
+                <li><a href="/articles/cross-tenant-leakage-in-rag/" data-path="/articles/cross-tenant-leakage-in-rag/">Cross-tenant leakage in vector search, and how to test for it</a></li>
+                <li><a href="/articles/chunk-permissions-in-sync/" data-path="/articles/chunk-permissions-in-sync/">Permissions on chunks, and keeping them in sync</a></li>
+              </ul>
+              <p class="nav-sub">Build breakdowns</p>
+          <ul>
+                <li><a href="/articles/telugu-gita-rag/" data-path="/articles/telugu-gita-rag/">How I built a RAG on the Bhagavad Gita in Telugu</a></li>
+                <li><a href="/articles/telugu-purana-rag/" class="current" aria-current="page" data-path="/articles/telugu-purana-rag/">Sanskrit in, Telugu out: a RAG over 17 Puranas</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>RAG retrieval: embeddings, hybrid search and reranking</span></li>
+            <li class="nav-topic empty"><span>RAG generation, grounding and debugging</span></li>
+            <li class="nav-topic empty"><span>Advanced RAG: agentic RAG, GraphRAG, memory and long context</span></li>
           </ul>
-    </div>
-    <div class="nav-group">
-      <p class="nav-title">Build breakdowns</p>
-      <ul>
-            <li><a href="/articles/telugu-gita-rag/" data-path="/articles/telugu-gita-rag/">How I built a RAG on the Bhagavad Gita in Telugu</a></li>
-            <li><a href="/articles/telugu-purana-rag/" class="current" aria-current="page" data-path="/articles/telugu-purana-rag/">Sanskrit in, Telugu out: a RAG over 17 Puranas</a></li>
+    </details>
+    <details class="nav-section" data-id="evaluation">
+          <summary>Evaluation, observability and ops</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Evaluation fundamentals, benchmarks and LLM-as-judge</span></li>
+            <li class="nav-topic empty"><span>Evaluating RAG, agents and production systems</span></li>
+            <li class="nav-topic empty"><span>Observability, tracing and monitoring</span></li>
+            <li class="nav-topic empty"><span>LLMOps, cost, reliability and product engineering</span></li>
           </ul>
-    </div>
+    </details>
+    <details class="nav-section" data-id="security">
+          <summary>Security, red teaming and governance</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Prompt injection and LLM application security</span></li>
+            <li class="nav-topic empty"><span>Red teaming, adversarial testing and guardrails</span></li>
+            <li class="nav-topic empty"><span>AI governance, risk and compliance</span></li>
+            <li class="nav-topic empty"><span>Responsible AI, safety, alignment and societal risk</span></li>
+          </ul>
+    </details>
     <!-- /site:nav -->
   </aside>
   <main class="content">
 
   <p class="crumbs"><!-- site:crumbs -->
-    <a href="/#build-breakdowns">Build breakdowns</a> / Sanskrit in, Telugu out: a RAG over 17 Puranas
+    <a href="/#rag">RAG</a> / <a href="/#rag-ingestion">RAG ingestion, chunking and indexing</a> / Sanskrit in, Telugu out: a RAG over 17 Puranas
     <!-- /site:crumbs --></p>
 
   <article class="post">
@@ -420,6 +459,6 @@
   </div>
 
 </div>
-<script src="/site.js?v=2"></script>
+<script src="/site.js?v=3"></script>
 </body>
 </html>
