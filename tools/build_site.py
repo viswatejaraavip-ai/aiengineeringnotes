@@ -175,6 +175,15 @@ AGENT_ARCHITECTURES_GROUPS = [
              "meta": "25 Oct 2026 · 9 min read"},
         ],
     },
+    {
+        "title": "MCP",
+        "pages": [
+            {"path": "/articles/model-context-protocol/",
+             "title": "The Model Context Protocol: hosts, clients, servers, and where the adapter work went",
+             "sub": "What the protocol fixes and what it leaves alone. Host, client and server; tools, resources and prompts told apart by who triggers them; discovery at connection time; the N×M problem and why it was N×M. Then the question that confuses people: the adapter work did not disappear, it moved into the server once per service and the host once per app.",
+             "meta": "25 Oct 2026 · 11 min read"},
+        ],
+    },
 ]
 
 NAV = [

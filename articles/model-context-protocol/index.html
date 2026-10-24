@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The Model Context Protocol: hosts, clients, servers, and where the adapter work went · AI Engineering Notes</title>
+  <meta name="description" content="MCP is a wire protocol between an AI application and a program that provides tools or context. What it fixes and what it leaves alone; the host, client and server roles; tools, resources and prompts told apart by who triggers them; the N×M integration problem it replaces with N+M; and the question that confuses people, why adapter work still exists after MCP: it did not disappear, it moved into the server on the service side and the host on the app side.">
+  <meta property="og:title" content="The Model Context Protocol: hosts, clients, servers, and where the adapter work went">
+  <meta property="og:description" content="What MCP standardises, what it does not, and why N×M became N+M.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://aiengineeringnotes.com/articles/model-context-protocol/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/articles/model-context-protocol/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css?v=3">
+  <style>
+    .tree { font-family: var(--mono); font-size: 14px; line-height: 1.5; }
+    .tree .k { color: var(--accent); font-weight: 600; }
+    .tree .c { color: var(--muted); }
+    .num { text-align: right; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- site:header -->
+    <header class="site">
+    <button class="menu" type="button" aria-controls="sidenav" aria-expanded="false">Contents</button>
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/">Introduction</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+    <!-- /site:header -->
+
+  <div class="layout">
+  <aside class="sidenav" id="sidenav" aria-label="All notes">
+    <!-- site:nav -->
+    <a class="nav-home" href="/" data-path="/">Introduction</a>
+    <details class="nav-section" data-id="foundations">
+          <summary>Foundations</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="llm-fundamentals">
+              <summary>LLM fundamentals</summary>
+              <p class="nav-sub">Tokenization</p>
+          <ul>
+                <li><a href="/articles/byte-pair-encoding/" data-path="/articles/byte-pair-encoding/">Byte-pair encoding, and why tokenizers work on bytes</a></li>
+              </ul>
+              <p class="nav-sub">Transformer internals</p>
+          <ul>
+                <li><a href="/articles/attention-qkv-and-scaling/" data-path="/articles/attention-qkv-and-scaling/">Why attention has separate Q, K and V, and why it divides by √d_k</a></li>
+                <li><a href="/articles/mixture-of-experts-active-vs-total/" data-path="/articles/mixture-of-experts-active-vs-total/">Mixture of experts: active parameters versus total parameters</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Frontier models and the model landscape</span></li>
+            <li class="nav-topic empty"><span>Prompting and context engineering</span></li>
+            <li class="nav-topic empty"><span>Fine-tuning, alignment and post-training</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="inference">
+          <summary>Inference and reasoning</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="inference-scaling">
+              <summary>Inference scaling and serving</summary>
+              <p class="nav-sub">Serving fundamentals</p>
+          <ul>
+                <li><a href="/articles/kv-cache-memory-bound-decoding/" data-path="/articles/kv-cache-memory-bound-decoding/">The KV cache, and why decoding is memory-bound</a></li>
+                <li><a href="/articles/grouped-query-attention/" data-path="/articles/grouped-query-attention/">Grouped-query attention: the middle ground between MHA and MQA</a></li>
+              </ul>
+              <p class="nav-sub">Decoding</p>
+          <ul>
+                <li><a href="/articles/temperature-top-k-top-p-and-t0/" data-path="/articles/temperature-top-k-top-p-and-t0/">Temperature, top-k, top-p, and why T = 0 is not deterministic</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Test-time compute and reasoning models</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="agents" open>
+          <summary>Agentic AI</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="agent-architectures" open>
+              <summary>Agent architectures, tool use and MCP</summary>
+              <p class="nav-sub">Agent loops</p>
+          <ul>
+                <li><a href="/articles/function-calling-model-and-application/" data-path="/articles/function-calling-model-and-application/">Function calling: how the model decides, and what your code must do</a></li>
+                <li><a href="/articles/react-pattern-and-function-calling/" data-path="/articles/react-pattern-and-function-calling/">The ReAct pattern as a loop of function calls</a></li>
+                <li><a href="/articles/react-vs-plan-and-execute/" data-path="/articles/react-vs-plan-and-execute/">ReAct versus plan-and-execute, and the hybrid that production uses</a></li>
+              </ul>
+              <p class="nav-sub">Tool design</p>
+          <ul>
+                <li><a href="/articles/tool-schema-design/" data-path="/articles/tool-schema-design/">What makes a good tool schema, and why the description outranks the name</a></li>
+              </ul>
+              <p class="nav-sub">MCP</p>
+          <ul>
+                <li><a href="/articles/model-context-protocol/" class="current" aria-current="page" data-path="/articles/model-context-protocol/">The Model Context Protocol: hosts, clients, servers, and where the adapter work went</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Multi-agent systems, orchestration and human-in-the-loop</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="rag">
+          <summary>RAG</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="rag-ingestion">
+              <summary>RAG ingestion, chunking and indexing</summary>
+              <p class="nav-sub">Core concepts</p>
+          <ul>
+                <li><a href="/articles/chunk-size-recall-vs-faithfulness/" data-path="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall falls, faithfulness rises</a></li>
+                <li><a href="/articles/chunk-is-not-the-embedding/" data-path="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve</a></li>
+                <li><a href="/articles/chunk-metadata-and-llm-extraction/" data-path="/articles/chunk-metadata-and-llm-extraction/">Metadata on chunks, and the care needed when a model writes it</a></li>
+              </ul>
+              <p class="nav-sub">Chunking patterns</p>
+          <ul>
+                <li><a href="/articles/chunking-wiki-pages/" data-path="/articles/chunking-wiki-pages/">How to chunk wiki pages</a></li>
+                <li><a href="/articles/semantic-chunking-regression/" data-path="/articles/semantic-chunking-regression/">Semantic chunking made my retrieval evals worse</a></li>
+              </ul>
+              <p class="nav-sub">Multi-tenant indexes</p>
+          <ul>
+                <li><a href="/articles/cross-tenant-leakage-in-rag/" data-path="/articles/cross-tenant-leakage-in-rag/">Cross-tenant leakage in vector search, and how to test for it</a></li>
+                <li><a href="/articles/chunk-permissions-in-sync/" data-path="/articles/chunk-permissions-in-sync/">Permissions on chunks, and keeping them in sync</a></li>
+              </ul>
+              <p class="nav-sub">Build breakdowns</p>
+          <ul>
+                <li><a href="/articles/telugu-gita-rag/" data-path="/articles/telugu-gita-rag/">How I built a RAG on the Bhagavad Gita in Telugu</a></li>
+                <li><a href="/articles/telugu-purana-rag/" data-path="/articles/telugu-purana-rag/">Sanskrit in, Telugu out: a RAG over 17 Puranas</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>RAG retrieval: embeddings, hybrid search and reranking</span></li>
+            <li class="nav-topic empty"><span>RAG generation, grounding and debugging</span></li>
+            <li class="nav-topic empty"><span>Advanced RAG: agentic RAG, GraphRAG, memory and long context</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="evaluation">
+          <summary>Evaluation, observability and ops</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Evaluation fundamentals, benchmarks and LLM-as-judge</span></li>
+            <li class="nav-topic empty"><span>Evaluating RAG, agents and production systems</span></li>
+            <li class="nav-topic empty"><span>Observability, tracing and monitoring</span></li>
+            <li class="nav-topic empty"><span>LLMOps, cost, reliability and product engineering</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="security">
+          <summary>Security, red teaming and governance</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Prompt injection and LLM application security</span></li>
+            <li class="nav-topic empty"><span>Red teaming, adversarial testing and guardrails</span></li>
+            <li class="nav-topic empty"><span>AI governance, risk and compliance</span></li>
+            <li class="nav-topic empty"><span>Responsible AI, safety, alignment and societal risk</span></li>
+          </ul>
+    </details>
+    <!-- /site:nav -->
+  </aside>
+  <main class="content">
+
+  <p class="crumbs"><!-- site:crumbs -->
+    <a href="/#agents">Agentic AI</a> / <a href="/#agent-architectures">Agent architectures, tool use and MCP</a> / The Model Context Protocol: hosts, clients, servers, and where the adapter work went
+    <!-- /site:crumbs --></p>
+
+  <article class="post">
+    <header>
+      <h1>The Model Context Protocol: hosts, clients, servers, and where the adapter work went</h1>
+      <p class="lede">MCP is usually introduced with an analogy, USB-C for AI, and a claim, that it turns N×M integrations into N+M. Both are true and neither explains much. This note says precisely what the protocol fixes and what it leaves alone, names the three parties and the three primitives in a way that is hard to forget, and answers the question that trips most people up after the introduction: if MCP removed the custom glue, why is there still an adapter layer?</p>
+      <div class="byline"><span>25 Oct 2026</span><span>11 min read</span></div>
+    </header>
+
+    <div class="concept">
+      <span class="label">The short version</span>
+      <p>MCP is a wire protocol between an AI application and a program that offers it tools or context. It standardises the message format, the handshake, how capabilities are discovered, and the shapes of calls and results. It says nothing about which model is used, how the model decides to call, what a tool does inside, or who is allowed to call it. The host is the app, the client is the host's connection to one server, and the server wraps one service. Tools are triggered by the model, resources by the application, prompts by the user. One server per service and one client per app replaces one integration per pair. The adapter work did not vanish: the service-specific part moved into the server, written once per service, and the policy part moved into the host, written once per app.</p>
+    </div>
+
+    <div class="toc">
+      <p>Contents</p>
+      <ol>
+        <li><a href="#what">What the protocol fixes, and what it does not</a></li>
+        <li><a href="#parties">Host, client, server</a></li>
+        <li><a href="#transports">Transports</a></li>
+        <li><a href="#primitives">Tools, resources, prompts: who triggers what</a></li>
+        <li><a href="#lifecycle">Lifecycle and discovery</a></li>
+        <li><a href="#nxm">The N×M problem and why it was N×M</a></li>
+        <li><a href="#adapter">Where the adapter work went</a></li>
+        <li><a href="#boundaries">What MCP leaves to you</a></li>
+        <li><a href="#takeaways">Takeaways</a></li>
+      </ol>
+    </div>
+
+    <h2 id="what"><span class="num">01</span>What the protocol fixes, and what it does not</h2>
+
+    <p>The Model Context Protocol, published by Anthropic in late 2024 as an open specification, is a protocol in the ordinary networking sense: a fixed format for messages exchanged between two programs. The two programs are an AI application and something that can give it tools, data or templates. The messages are JSON-RPC 2.0, the same request-and-response convention the Language Server Protocol uses between editors and language tooling, which is the closer of the two usual analogies.</p>
+
+    <p>Being clear about the boundary is most of understanding MCP.</p>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>MCP standardises</th><th>MCP does not standardise</th></tr>
+        <tr><td>The message envelope and error format</td><td>Which model is on the other side, or that there is a model at all</td></tr>
+        <tr><td>The handshake: each side declares what it supports</td><td>How the model decides whether to call a tool</td></tr>
+        <tr><td>Discovery: list the tools, resources and prompts on offer</td><td>What a tool does when called</td></tr>
+        <tr><td>The shape of a tool call and its result</td><td>Who is allowed to call it, or with what arguments</td></tr>
+        <tr><td>How a resource is addressed and read</td><td>How credentials for the underlying service are obtained</td></tr>
+        <tr><td>Notifications when the offer changes</td><td>Logging, rate limits, retries against the service</td></tr>
+      </table>
+        </div>
+
+    <p>Everything in the right column still has to exist. The protocol decides where it lives, which is the subject of section 07.</p>
+
+    <h2 id="parties"><span class="num">02</span>Host, client, server</h2>
+
+    <pre class="tree">┌─────────────────────────────────────────────────────────┐
+│  <span class="k">HOST</span>   the application the person is using            │
+│         owns the model, the conversation, the UI,       │
+│         and every permission decision                   │
+│                                                         │
+│   ┌───────────────┐          ┌───────────────┐          │
+│   │ <span class="k">client</span> A      │          │ <span class="k">client</span> B      │          │
+│   │ one connection│          │ one connection│          │
+│   └───────┬───────┘          └───────┬───────┘          │
+└───────────┼──────────────────────────┼──────────────────┘
+            │ stdio                    │ HTTP
+            ▼                          ▼
+   ┌─────────────────┐        ┌─────────────────┐
+   │ <span class="k">SERVER</span>          │        │ <span class="k">SERVER</span>          │
+   │ wraps the local │        │ wraps GitHub,   │
+   │ filesystem      │        │ runs remotely   │
+   └─────────────────┘        └─────────────────┘</pre>
+
+    <ul>
+      <li><strong>The host</strong> is the program with the person in front of it: Claude Desktop, an IDE, a chat product, your own agent. It runs the model loop, holds the conversation, shows the user what is happening, and decides what the model is allowed to do. It is also the only party that knows the user.</li>
+      <li><strong>The client</strong> is a component inside the host, one per server the host connects to. It performs the handshake, sends requests, receives results and notifications, and nothing else. You do not interact with it; the host creates one when you add a server. "Client" in MCP never means the end user.</li>
+      <li><strong>The server</strong> is a separate program that wraps one service or capability. It knows how to talk to Postgres, or the filesystem, or GitHub, and presents that as MCP primitives. It knows nothing about the model or the user beyond what arrives in requests.</li>
+    </ul>
+
+    <p>The naming confuses people because the server is often a tiny local process and the host is the big application, the reverse of the usual intuition. Think of it as the editor-and-language-server relationship: the editor is the host, and it spawns a small server per language.</p>
+
+    <h2 id="transports"><span class="num">03</span>Transports</h2>
+
+    <p>The protocol is the same over any transport; the transport only moves the bytes.</p>
+
+    <ul>
+      <li><strong>Standard input and output</strong>, for a local server. The host launches the server as a child process and the two exchange JSON lines over the process's stdin and stdout. Simple, fast, no network, and the server inherits whatever the host's user can access.</li>
+      <li><strong>HTTP</strong>, for a remote server. The current specification calls this Streamable HTTP: a single endpoint that accepts requests and can stream responses and notifications back using server-sent events. Older material describes a separate "SSE transport" with two endpoints; that was the original design and was superseded in 2025. Remote servers carry their own authentication, typically OAuth, which is specified alongside the protocol.</li>
+    </ul>
+
+    <h2 id="primitives"><span class="num">04</span>Tools, resources, prompts: who triggers what</h2>
+
+    <p>A server can offer three kinds of thing. They are easiest to tell apart by asking who decides to use them.</p>
+
+    <pre class="tree">                 ┌──────────────┐
+                 │    SERVER    │
+                 └──────┬───────┘
+          ┌─────────────┼─────────────┐
+          ▼             ▼             ▼
+     ┌─────────┐  ┌───────────┐  ┌─────────┐
+     │ <span class="k">tools</span>   │  │ <span class="k">resources</span> │  │ <span class="k">prompts</span> │
+     │ actions │  │ data      │  │ templates│
+     └─────────┘  └───────────┘  └─────────┘
+     triggered    triggered       triggered
+     by the       by the app      by the
+     <span class="k">model</span>        or user         <span class="k">user</span></pre>
+
+    <h3>Tools: the model decides</h3>
+
+    <p>Tools are function calling carried over the protocol. The server advertises each tool with a name, a description and a JSON schema, exactly as in the <a href="/articles/tool-schema-design/">tool schema note</a>. The host passes those definitions to the model; the model emits a call; the host routes it to the right client, which sends it to the server, which runs it and returns a result; the host appends the result as an observation. Tools do things: run a query, post a message, create an issue. Because the model triggers them, the host is expected to ask the user before letting a tool with side effects run.</p>
+
+    <h3>Resources: the application decides</h3>
+
+    <p>Resources are read-only content addressed by URI, such as <code>file:///project/README.md</code> or <code>postgres://main/schema</code>. The host lists them and can read one and attach it to the model's context, or let the user pick one from a menu. No tool call is involved and the model does not choose; it is the "attach a file" action made standard, where the file can come from any server. A server can also notify the client when a resource changes, so a host can keep a view current.</p>
+
+    <h3>Prompts: the user decides</h3>
+
+    <p>Prompts are templates the server offers, which hosts usually surface as slash commands or menu entries. Choosing one expands it into a structured request, possibly after asking the user for arguments and possibly pulling in resources. A database server might offer <code>/explain-slow-query</code>, which asks for the query, attaches the schema resource and frames an analysis request. They encode a workflow the server's author knows well, so every host gets it without writing it.</p>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Primitive</th><th>Triggered by</th><th>Direction</th><th>Closest everyday analogy</th></tr>
+        <tr><td>Tools</td><td>The model</td><td>Does something, returns a result</td><td>An API endpoint</td></tr>
+        <tr><td>Resources</td><td>The application or user</td><td>Reads content into context</td><td>A file you attach</td></tr>
+        <tr><td>Prompts</td><td>The user</td><td>Starts a structured interaction</td><td>A form template or slash command</td></tr>
+      </table>
+    </div>
+
+    <p>The protocol also defines a few things in the other direction, where the server asks something of the host: sampling, which lets a server request a model completion through the host; elicitation, which lets it ask the user a question; and roots, which tell a server which directories it may work in. They are less used, and the three primitives above are what most servers offer.</p>
+
+    <h2 id="lifecycle"><span class="num">05</span>Lifecycle and discovery</h2>
+
+    <p>A connection follows a fixed sequence, which is what lets a host work with a server it has never seen.</p>
+
+    <pre class="tree">host → server   initialize        <span class="c">protocol version, what the host supports</span>
+server → host   initialize result <span class="c">what the server supports: tools? resources? prompts?</span>
+host → server   initialized       <span class="c">ready</span>
+
+host → server   tools/list        <span class="c">names, descriptions, schemas</span>
+host → server   resources/list    <span class="c">URIs and descriptions</span>
+host → server   prompts/list      <span class="c">names and arguments</span>
+
+… the model works …
+
+host → server   tools/call        <span class="c">name + arguments → result</span>
+server → host   notifications/tools/list_changed   <span class="c">the offer changed; list again</span></pre>
+
+    <p>Discovery is the part that matters. Nothing about a server's tools is hard-coded in the host. The host asks, at connection time, and asks again when told the list changed. That is why a new server works in every host the day it is written, and why a host that supports MCP gains every server that exists.</p>
+
+    <h2 id="nxm"><span class="num">06</span>The N×M problem and why it was N×M</h2>
+
+    <p>Before a shared protocol, every AI application defined its own way of plugging in tools. One had a plugin manifest format, another had a function-registration API in its own SDK, an IDE had its own extension interface. The formats differed, the way tools were executed differed, local process versus hosted sandbox, and authentication and error handling differed. A team that wanted their service, say GitHub, available in five applications wrote five integrations, each against a different convention, and maintained all five as each application's format evolved.</p>
+
+    <pre class="tree"><span class="k">before</span>  N apps × M services = N×M integrations
+
+  app 1 ──custom──► GitHub      app 1 ──custom──► Postgres
+  app 2 ──custom──► GitHub      app 2 ──custom──► Postgres
+  app 3 ──custom──► GitHub      app 3 ──custom──► Postgres
+  <span class="c">3 apps, 2 services, 6 integrations; a seventh for every new pair</span>
+
+<span class="k">after</span>   N clients + M servers = N+M
+
+  app 1 ──client──┐              ┌──server──► GitHub
+  app 2 ──client──┼──── MCP ─────┤
+  app 3 ──client──┘              └──server──► Postgres
+  <span class="c">3 clients, 2 servers, 5 pieces; one more for every new app or service</span></pre>
+
+    <p>The multiplication came from the absence of a shared contract: each pair had to agree privately. A protocol replaces the private agreements with one public one, so each party implements it once. The service's author writes one server, the application's author writes one client, and every combination works without either having heard of the other.</p>
+
+    <h2 id="adapter"><span class="num">07</span>Where the adapter work went</h2>
+
+    <p>This is the point at which explanations usually contradict themselves. Having said that MCP removes the custom glue, they go on to list everything an "adapter layer" must still do: translate the model's arguments into native API calls, hold credentials, check permissions, retry on failure, log every call. All of that is real. The resolution is that MCP did not eliminate the work; it decided where it lives, and in doing so changed how many copies there are.</p>
+
+    <pre class="tree">┌────────────────────────────────────────────────────────┐
+│ <span class="k">HOST</span>  app-side responsibilities, written once per app  │
+│  · which servers to connect and which tools to expose  │
+│  · ask the user before a side-effecting call           │
+│  · who the user is; what this user may do              │
+│  · log every call on whose behalf it ran               │
+│  · manage context: what results to keep, truncate      │
+└───────────────────────────┬────────────────────────────┘
+                            │  MCP: standard calls and results
+┌───────────────────────────┴────────────────────────────┐
+│ <span class="k">SERVER</span>  service-side responsibilities, once per service│
+│  · translate tool arguments into the native API call   │
+│  · hold the service credentials; refresh tokens        │
+│  · retries, backoff, timeouts against the service      │
+│  · shape messy responses into compact results          │
+│  · know the service's quirks, limits, pagination       │
+└───────────────────────────┬────────────────────────────┘
+                            │  native API, SDK, driver
+                     ┌──────┴──────┐
+                     │   service   │
+                     └─────────────┘</pre>
+
+    <ul>
+      <li><strong>Service-specific adapter work moved into the server.</strong> Knowing that the GitHub API paginates this way, that Postgres needs a connection pool, that this endpoint rate-limits at sixty a minute, which fields of the response the model actually needs. Written once by whoever knows the service, and every app benefits. This is the glue that used to be written N times.</li>
+      <li><strong>Policy and identity work moved into the host.</strong> Only the host knows the user, so only the host can decide what this user may do, ask before a destructive call, and log on whose behalf a call ran. Written once per app, and it applies uniformly to every server the app connects to. This work was never per-service and never should have been.</li>
+    </ul>
+
+    <p>So the phrase "an adapter layer for each AI app" is half right and misleading. Each app has one policy layer that covers all servers. Each service has one server that covers all apps. The two ends of the protocol each carry their own share, and the multiplication is gone. What a protocol can standardise is the conversation between the two ends; what the ends do internally is their own business, and that is exactly where the remaining work sits.</p>
+
+    <div class="lesson">
+      <span class="label">A test for where something belongs</span>
+      <p>Ask whether the logic depends on the service or on the user. "How do I call this API and read its response" depends on the service, so it belongs in the server. "Is this person allowed to do this, and should they be asked first" depends on the user, so it belongs in the host. Credentials are the one that splits: the service credential lives with the server; the user's identity and session live with the host, and a server that acts on a user's behalf receives a token from the host rather than holding user secrets itself.</p>
+    </div>
+
+    <h2 id="boundaries"><span class="num">08</span>What MCP leaves to you</h2>
+
+    <ul>
+      <li><strong>Tool selection quality.</strong> The model still chooses by reading descriptions. A badly described MCP tool is a badly described tool; the protocol does not improve it.</li>
+      <li><strong>Trust.</strong> A server's tool descriptions and results enter the model's context. A malicious or compromised server can inject instructions through either. Hosts should treat server output as data and show the user what a tool is about to do.</li>
+      <li><strong>Context budget.</strong> Connecting many servers means many tool definitions in every request. Hosts that expose only the relevant tools, or load them on demand, do better than ones that pass everything through.</li>
+      <li><strong>Authorisation.</strong> MCP specifies how a remote server authenticates a connection. It does not specify, and cannot, whether this user may run this tool with these arguments. That remains the host's decision and the server's enforcement, as it was before.</li>
+    </ul>
+
+    <h2 id="takeaways"><span class="num">09</span>Takeaways</h2>
+    <ol>
+      <li><strong>MCP is a wire protocol</strong>: JSON-RPC messages, a handshake, discovery, call and result shapes. Nothing about models, decisions or permissions.</li>
+      <li><strong>Host is the app, client is one connection inside it, server wraps one service.</strong> The small process is the server.</li>
+      <li><strong>Tools are triggered by the model, resources by the application, prompts by the user.</strong> That is the whole distinction.</li>
+      <li><strong>Discovery at connection time</strong> is what makes any server work in any host.</li>
+      <li><strong>N×M came from private agreements between pairs</strong>; one public contract makes it N+M.</li>
+      <li><strong>The adapter work did not disappear.</strong> Service-specific work moved into the server, once per service; policy and identity moved into the host, once per app.</li>
+      <li><strong>Descriptions, trust, context and authorisation are still yours.</strong> The protocol standardises the conversation, not the judgement at either end.</li>
+    </ol>
+
+    <div class="cta">
+      <a class="btn primary" href="/articles/tool-schema-design/">What makes a good tool schema →</a>
+      <a class="btn" href="/articles/function-calling-model-and-application/">Function calling: how the model decides →</a>
+    </div>
+  </article>
+
+  <nav class="pager" aria-label="Reading order">
+    <!-- site:pager -->
+    <a class="prev" href="/articles/tool-schema-design/"><small>Previous</small>What makes a good tool schema, and why the description outranks the name</a>
+    <a class="next" href="/articles/chunk-size-recall-vs-faithfulness/"><small>Next</small>Chunk size: recall falls, faithfulness rises</a>
+    <!-- /site:pager -->
+  </nav>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+  </main>
+  <aside class="onpage" aria-label="On this page">
+    <!-- site:onpage -->
+    <p class="nav-title">On this page</p>
+    <ol>
+      <li><a href="#what">What the protocol fixes, and what it does not</a></li>
+      <li><a href="#parties">Host, client, server</a></li>
+      <li><a href="#transports">Transports</a></li>
+      <li><a href="#primitives">Tools, resources, prompts: who triggers what</a></li>
+      <li><a href="#lifecycle">Lifecycle and discovery</a></li>
+      <li><a href="#nxm">The N×M problem and why it was N×M</a></li>
+      <li><a href="#adapter">Where the adapter work went</a></li>
+      <li><a href="#boundaries">What MCP leaves to you</a></li>
+      <li><a href="#takeaways">Takeaways</a></li>
+    </ol>
+    <!-- /site:onpage -->
+  </aside>
+  </div>
+
+</div>
+<script src="/site.js?v=3"></script>
+</body>
+</html>
