@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Why attention has separate Q, K and V, and why it divides by √d_k · AI Engineering Notes</title>
+  <meta name="description" content="Two questions about scaled dot-product attention. Separate query, key and value projections give the model asymmetric routing: who looks, who is found, and what is passed are three different jobs. The 1/√d_k factor keeps dot products at unit variance so the softmax does not saturate and its gradient does not vanish.">
+  <meta property="og:title" content="Why attention has separate Q, K and V, and why it divides by √d_k">
+  <meta property="og:description" content="Asymmetric routing from three projections, and a variance argument for the scaling factor.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://aiengineeringnotes.com/articles/attention-qkv-and-scaling/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/articles/attention-qkv-and-scaling/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css?v=3">
+  <style>
+    .formula { font-family: var(--serif); font-size: 19px; text-align: center; margin: 22px 0; padding: 12px 16px; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+    .formula var, var { font-style: italic; font-family: var(--serif); }
+    .formula sup, .formula sub { font-size: .7em; }
+    .num { text-align: right; }
+    .bar { display: inline-block; vertical-align: middle; text-align: center; }
+    .bar span { display: block; padding: 0 4px; }
+    .bar span:first-child { border-bottom: 1px solid currentColor; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- site:header -->
+    <header class="site">
+    <button class="menu" type="button" aria-controls="sidenav" aria-expanded="false">Contents</button>
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/">Introduction</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+    <!-- /site:header -->
+
+  <div class="layout">
+  <aside class="sidenav" id="sidenav" aria-label="All notes">
+    <!-- site:nav -->
+    <a class="nav-home" href="/" data-path="/">Introduction</a>
+    <details class="nav-section" data-id="foundations" open>
+          <summary>Foundations</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="llm-fundamentals" open>
+              <summary>LLM fundamentals</summary>
+              <p class="nav-sub">Tokenization</p>
+          <ul>
+                <li><a href="/articles/byte-pair-encoding/" data-path="/articles/byte-pair-encoding/">Byte-pair encoding, and why tokenizers work on bytes</a></li>
+              </ul>
+              <p class="nav-sub">Transformer internals</p>
+          <ul>
+                <li><a href="/articles/attention-qkv-and-scaling/" class="current" aria-current="page" data-path="/articles/attention-qkv-and-scaling/">Why attention has separate Q, K and V, and why it divides by √d_k</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Frontier models and the model landscape</span></li>
+            <li class="nav-topic empty"><span>Prompting and context engineering</span></li>
+            <li class="nav-topic empty"><span>Fine-tuning, alignment and post-training</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="inference">
+          <summary>Inference and reasoning</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Inference scaling and serving</span></li>
+            <li class="nav-topic empty"><span>Test-time compute and reasoning models</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="agents">
+          <summary>Agentic AI</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Agent architectures, tool use and MCP</span></li>
+            <li class="nav-topic empty"><span>Multi-agent systems, orchestration and human-in-the-loop</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="rag">
+          <summary>RAG</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="rag-ingestion">
+              <summary>RAG ingestion, chunking and indexing</summary>
+              <p class="nav-sub">Core concepts</p>
+          <ul>
+                <li><a href="/articles/chunk-size-recall-vs-faithfulness/" data-path="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall falls, faithfulness rises</a></li>
+                <li><a href="/articles/chunk-is-not-the-embedding/" data-path="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve</a></li>
+                <li><a href="/articles/chunk-metadata-and-llm-extraction/" data-path="/articles/chunk-metadata-and-llm-extraction/">Metadata on chunks, and the care needed when a model writes it</a></li>
+              </ul>
+              <p class="nav-sub">Chunking patterns</p>
+          <ul>
+                <li><a href="/articles/chunking-wiki-pages/" data-path="/articles/chunking-wiki-pages/">How to chunk wiki pages</a></li>
+                <li><a href="/articles/semantic-chunking-regression/" data-path="/articles/semantic-chunking-regression/">Semantic chunking made my retrieval evals worse</a></li>
+              </ul>
+              <p class="nav-sub">Multi-tenant indexes</p>
+          <ul>
+                <li><a href="/articles/cross-tenant-leakage-in-rag/" data-path="/articles/cross-tenant-leakage-in-rag/">Cross-tenant leakage in vector search, and how to test for it</a></li>
+                <li><a href="/articles/chunk-permissions-in-sync/" data-path="/articles/chunk-permissions-in-sync/">Permissions on chunks, and keeping them in sync</a></li>
+              </ul>
+              <p class="nav-sub">Build breakdowns</p>
+          <ul>
+                <li><a href="/articles/telugu-gita-rag/" data-path="/articles/telugu-gita-rag/">How I built a RAG on the Bhagavad Gita in Telugu</a></li>
+                <li><a href="/articles/telugu-purana-rag/" data-path="/articles/telugu-purana-rag/">Sanskrit in, Telugu out: a RAG over 17 Puranas</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>RAG retrieval: embeddings, hybrid search and reranking</span></li>
+            <li class="nav-topic empty"><span>RAG generation, grounding and debugging</span></li>
+            <li class="nav-topic empty"><span>Advanced RAG: agentic RAG, GraphRAG, memory and long context</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="evaluation">
+          <summary>Evaluation, observability and ops</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Evaluation fundamentals, benchmarks and LLM-as-judge</span></li>
+            <li class="nav-topic empty"><span>Evaluating RAG, agents and production systems</span></li>
+            <li class="nav-topic empty"><span>Observability, tracing and monitoring</span></li>
+            <li class="nav-topic empty"><span>LLMOps, cost, reliability and product engineering</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="security">
+          <summary>Security, red teaming and governance</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Prompt injection and LLM application security</span></li>
+            <li class="nav-topic empty"><span>Red teaming, adversarial testing and guardrails</span></li>
+            <li class="nav-topic empty"><span>AI governance, risk and compliance</span></li>
+            <li class="nav-topic empty"><span>Responsible AI, safety, alignment and societal risk</span></li>
+          </ul>
+    </details>
+    <!-- /site:nav -->
+  </aside>
+  <main class="content">
+
+  <p class="crumbs"><!-- site:crumbs -->
+    <a href="/#foundations">Foundations</a> / <a href="/#llm-fundamentals">LLM fundamentals</a> / Why attention has separate Q, K and V, and why it divides by √d_k
+    <!-- /site:crumbs --></p>
+
+  <article class="post">
+    <header>
+      <h1>Why attention has separate Q, K and V, and why it divides by √d<sub>k</sub></h1>
+      <p class="lede">Two questions that come up as soon as someone reads the attention equation for the first time. Why three projection matrices rather than one similarity matrix? And what is the square root doing in the denominator? The first answer is about routing. The second is a short variance calculation that ends in the softmax gradient.</p>
+      <div class="byline"><span>24 Oct 2026</span><span>8 min read</span></div>
+    </header>
+
+    <div class="concept">
+      <span class="label">The short version</span>
+      <p>A single learned matrix makes the interaction between two tokens symmetric and static. Separate query, key and value projections let a token ask one thing, advertise another, and hand over a third, in spaces of different sizes, which is what multi-head attention needs. The dot product of two <var>d<sub>k</sub></var>-dimensional vectors has variance <var>d<sub>k</sub></var>, so without scaling the softmax inputs grow with the model width, the softmax saturates to a near one-hot distribution, and its gradient goes to zero. Dividing by √<var>d<sub>k</sub></var> brings the variance back to 1.</p>
+    </div>
+
+    <div class="toc">
+      <p>Contents</p>
+      <ol>
+        <li><a href="#equation">The equation, with the parts named</a></li>
+        <li><a href="#single-matrix">What one matrix cannot do</a></li>
+        <li><a href="#asymmetric">Asymmetric roles: addressing versus content</a></li>
+        <li><a href="#routing">Where to look, separated from what to pass</a></li>
+        <li><a href="#dimensions">Different dimensions, and multi-head attention</a></li>
+        <li><a href="#variance">The dot product grows with d<sub>k</sub></a></li>
+        <li><a href="#saturation">Softmax saturation and the vanishing gradient</a></li>
+        <li><a href="#scaling">What the scaling does, and what it does not</a></li>
+        <li><a href="#takeaways">Takeaways</a></li>
+      </ol>
+    </div>
+
+    <h2 id="equation"><span class="num">01</span>The equation, with the parts named</h2>
+
+    <p>Scaled dot-product attention, as written in the Transformer paper, is:</p>
+
+    <p class="formula">Attention(<var>Q</var>, <var>K</var>, <var>V</var>) = softmax<span class="bar"><span><var>Q K</var><sup>T</sup></span><span>√<var>d<sub>k</sub></var></span></span> <var>V</var></p>
+
+    <p>Every token in the sequence starts as one vector <var>x</var>. Three learned matrices turn it into three different vectors:</p>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Vector</th><th>Computed as</th><th>Role</th><th>Lives in</th></tr>
+        <tr><td>Query <var>q</var></td><td><var>x W<sub>Q</sub></var></td><td>What this token is looking for</td><td>ℝ<sup><var>d<sub>k</sub></var></sup></td></tr>
+        <tr><td>Key <var>k</var></td><td><var>x W<sub>K</sub></var></td><td>How this token can be found by others</td><td>ℝ<sup><var>d<sub>k</sub></var></sup></td></tr>
+        <tr><td>Value <var>v</var></td><td><var>x W<sub>V</sub></var></td><td>What this token hands over once found</td><td>ℝ<sup><var>d<sub>v</sub></var></sup></td></tr>
+      </table>
+    </div>
+
+    <p>The query of token <var>i</var> is dotted with the key of every token <var>j</var>. Those scores are divided by √<var>d<sub>k</sub></var>, passed through a softmax so they sum to 1 across <var>j</var>, and used as weights on the values. The output for token <var>i</var> is a weighted average of other tokens' values, where the weights say how much <var>i</var> cares about each <var>j</var>.</p>
+
+    <p>Both questions in this note are about choices in that one line: why <var>W<sub>Q</sub></var>, <var>W<sub>K</sub></var> and <var>W<sub>V</sub></var> are three matrices rather than one, and why √<var>d<sub>k</sub></var> is there at all.</p>
+
+    <h2 id="single-matrix"><span class="num">02</span>What one matrix cannot do</h2>
+
+    <p>Suppose attention used a single learned matrix <var>W</var> to score how much token <var>i</var> should attend to token <var>j</var>:</p>
+
+    <p class="formula">score(<var>i</var>, <var>j</var>) = <var>x<sub>i</sub></var><sup>T</sup> <var>W x<sub>j</sub></var></p>
+
+    <p>This is a bilinear form, and for a symmetric <var>W</var> it is exactly symmetric: <var>x<sub>i</sub></var><sup>T</sup> <var>W x<sub>j</sub></var> = <var>x<sub>j</sub></var><sup>T</sup> <var>W x<sub>i</sub></var>. Even for a general <var>W</var>, the score is a fixed function of the pair, with no way for a token to behave differently as the one asking and as the one being asked about. And if the same vectors were then averaged as the output, the thing that decides relevance and the thing that gets passed along would be the same object.</p>
+
+    <p>That rules out three things a language model needs, and the three projections exist to supply them.</p>
+
+    <h2 id="asymmetric"><span class="num">03</span>Asymmetric roles: addressing versus content</h2>
+
+    <p>Attention between two tokens is not a symmetric relationship. A verb looking for its direct object has a question to ask. The noun that is the direct object has a property that answers it. The verb should attend strongly to the noun; there is no reason the noun should attend equally strongly back to the verb.</p>
+
+    <p>Separate projections make that asymmetry learnable. <var>W<sub>Q</sub></var> maps the verb's vector into a query that says, in effect, "I need an object". <var>W<sub>K</sub></var> maps the noun's vector into a key that says "I am a noun phrase in object position". The dot product between those two is high. The noun's query and the verb's key are produced by the same matrices from different inputs, and nothing forces their dot product to match.</p>
+
+    <p>So a token can advertise itself differently from how it searches. The key is a token's address; the query is the address a token is looking for. One matrix cannot express an address and a search as different things.</p>
+
+    <h2 id="routing"><span class="num">04</span>Where to look, separated from what to pass</h2>
+
+    <p>The second split is between <var>Q</var> and <var>K</var> on one side and <var>V</var> on the other.</p>
+
+    <p><var>Q</var> and <var>K</var> together decide the attention weights: the pattern of who attends to whom. <var>V</var> decides what actually travels along those connections. Return to the verb and its object. The matching is done on grammatical role, but the payload the verb wants is the noun's meaning, its tense-agreement features, whatever the next layer needs to know about that object. The thing that makes the noun findable and the thing worth transmitting once it is found are different pieces of information, and in a single-matrix design they would have to be the same vector.</p>
+
+    <p>There is also a training reason. If the vector used for matching were also the vector used as output, every gradient that said "be easier to find for this kind of query" would also be a gradient on "carry this content", and the two signals would fight. With <var>W<sub>K</sub></var> and <var>W<sub>V</sub></var> separate, the routing can improve without disturbing the payload and the payload can improve without disturbing the routing. The decoupling is what lets both be learned cleanly.</p>
+
+    <h2 id="dimensions"><span class="num">05</span>Different dimensions, and multi-head attention</h2>
+
+    <p>Because the value projection is its own matrix, the values can live in a different space from the queries and keys. Queries and keys must share a dimension, <var>d<sub>k</sub></var>, since they are dotted together. Values have their own dimension, <var>d<sub>v</sub></var>, and the output of attention has that dimension too. Nothing ties the matching space to the output space.</p>
+
+    <p>That freedom is what makes multi-head attention cheap. With a model width of 512 and 8 heads, each head projects the tokens down to <var>d<sub>k</sub></var> = <var>d<sub>v</sub></var> = 64, runs attention in that small space, and the 8 outputs are concatenated back to 512. Each head gets its own <var>W<sub>Q</sub></var>, <var>W<sub>K</sub></var> and <var>W<sub>V</sub></var>, so each head can learn a different notion of relevance: one head tracks syntactic dependencies, another tracks coreference, another attends to the previous token. The total parameter count is about the same as one full-width head, and the model gets several relationship types in parallel instead of one.</p>
+
+    <div class="lesson">
+      <span class="label">Why this matters for the second question</span>
+      <p>Multi-head attention is also why <var>d<sub>k</sub></var> is a number worth keeping track of. It is the per-head dimension, not the model width, and it is the quantity the scaling factor is built from.</p>
+    </div>
+
+    <h2 id="variance"><span class="num">06</span>The dot product grows with d<sub>k</sub></h2>
+
+    <p>Take a query <var>q</var> and a key <var>k</var>, both in ℝ<sup><var>d<sub>k</sub></var></sup>, and assume their components are independent random variables with mean 0 and variance 1. That is a fair description of what the projections produce at initialisation, and roughly what layer normalisation keeps them near during training.</p>
+
+    <p>The dot product is a sum of <var>d<sub>k</sub></var> products:</p>
+
+    <p class="formula"><var>q</var> · <var>k</var> = ∑<sub><var>i</var>=1</sub><sup><var>d<sub>k</sub></var></sup> <var>q<sub>i</sub> k<sub>i</sub></var></p>
+
+    <p>Each product <var>q<sub>i</sub> k<sub>i</sub></var> has mean 0, because <var>q<sub>i</sub></var> and <var>k<sub>i</sub></var> are independent with mean 0. Its variance is Var(<var>q<sub>i</sub></var>) · Var(<var>k<sub>i</sub></var>) = 1. The products are independent of each other, so variances add:</p>
+
+    <p class="formula">𝔼[<var>q</var> · <var>k</var>] = 0, &nbsp;&nbsp; Var(<var>q</var> · <var>k</var>) = ∑<sub><var>i</var>=1</sub><sup><var>d<sub>k</sub></var></sup> Var(<var>q<sub>i</sub> k<sub>i</sub></var>) = <var>d<sub>k</sub></var></p>
+
+    <p>So the standard deviation of a raw attention score is √<var>d<sub>k</sub></var>. The scores are not on a fixed scale; they get wider as the head gets wider.</p>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Per-head dimension <var>d<sub>k</sub></var></th><th>Std dev of <var>q</var> · <var>k</var></th><th>Typical spread between two scores</th></tr>
+        <tr><td class="num">8</td><td class="num">2.8</td><td class="num">about 4</td></tr>
+        <tr><td class="num">64</td><td class="num">8</td><td class="num">about 11</td></tr>
+        <tr><td class="num">128</td><td class="num">11.3</td><td class="num">about 16</td></tr>
+        <tr><td class="num">512</td><td class="num">22.6</td><td class="num">about 32</td></tr>
+      </table>
+    </div>
+
+    <p>The right column is the typical gap between two scores drawn from that distribution, which is what the softmax compares. A gap of 11 means one weight is <var>e</var><sup>11</sup>, about 60,000, times the other. A gap of 32 is a ratio of about 10<sup>14</sup>. At that point the softmax is not weighting; it is picking.</p>
+
+    <h2 id="saturation"><span class="num">07</span>Softmax saturation and the vanishing gradient</h2>
+
+    <p>Softmax turns a vector of scores <var>z</var> into probabilities <var>s<sub>i</sub></var> = <var>e</var><sup><var>z<sub>i</sub></var></sup> / ∑<sub><var>j</var></sub> <var>e</var><sup><var>z<sub>j</sub></var></sup>. When the scores are spread over tens of units, the largest one takes almost all the mass and every other probability is close to 0. The output looks one-hot.</p>
+
+    <p>That is bad for the model, because attention is supposed to blend several tokens, but it is worse for training. The derivative of the softmax is:</p>
+
+    <p class="formula"><span class="bar"><span>∂<var>s<sub>i</sub></var></span><span>∂<var>z<sub>j</sub></var></span></span> = <var>s<sub>i</sub></var> (<var>δ<sub>ij</sub></var> − <var>s<sub>j</sub></var>)</p>
+
+    <p>Read it for the saturated case. For the winning token, <var>s<sub>i</sub></var> ≈ 1, so the diagonal term is <var>s<sub>i</sub></var>(1 − <var>s<sub>i</sub></var>) ≈ 0. For every other token, <var>s<sub>i</sub></var> ≈ 0, so every term involving it is ≈ 0 as well. The whole Jacobian is close to zero. Whatever gradient arrives at the attention weights from the loss, almost none of it passes back through the softmax to the scores, and from there to <var>W<sub>Q</sub></var> and <var>W<sub>K</sub></var>.</p>
+
+    <p>The attention pattern is then frozen at whatever it was at initialisation, which was random. The head cannot learn where to look, because the signal that would teach it is multiplied by a number near zero at every step. Deeper models make it worse: the vanishing compounds through layers.</p>
+
+    <h2 id="scaling"><span class="num">08</span>What the scaling does, and what it does not</h2>
+
+    <p>Dividing the scores by √<var>d<sub>k</sub></var> divides their standard deviation by √<var>d<sub>k</sub></var>, which takes it from √<var>d<sub>k</sub></var> back to 1:</p>
+
+    <p class="formula">Var<span class="bar"><span><var>q</var> · <var>k</var></span><span>√<var>d<sub>k</sub></var></span></span> = <span class="bar"><span><var>d<sub>k</sub></var></span><span><var>d<sub>k</sub></var></span></span> = 1</p>
+
+    <p>Now the softmax inputs sit at unit scale no matter how wide the head is. Score gaps are of order 1, probabilities are spread rather than one-hot, the softmax Jacobian has meaningful entries, and gradients flow to the query and key projections. The same architecture can be scaled from <var>d<sub>k</sub></var> = 64 to <var>d<sub>k</sub></var> = 256 without retuning anything about attention, which is a large part of why the Transformer scaled at all.</p>
+
+    <p>A few things worth being precise about:</p>
+
+    <ul>
+      <li><strong>It is a temperature.</strong> Dividing the logits by a constant is exactly a softmax temperature of √<var>d<sub>k</sub></var>. The choice is principled rather than tuned: it is the one value that makes the variance independent of width.</li>
+      <li><strong>It assumes unit-variance inputs.</strong> The derivation needs <var>q</var> and <var>k</var> components to have variance about 1. Initialisation schemes and layer normalisation are what make that true in practice. If the projections drift to large norms during training, scores can still grow, which is why some later models add normalisation on queries and keys directly.</li>
+      <li><strong>It does not change the argmax.</strong> Scaling is monotone, so the most-attended token is the same with or without it. What changes is how sharply the mass concentrates, and therefore whether anything can be learned about it.</li>
+      <li><strong>Sharp attention is not always wrong.</strong> A trained model does produce near one-hot attention where that is correct, for example a head that copies the previous token. The scaling prevents that from being the starting point for every head before any learning has happened.</li>
+    </ul>
+
+    <h2 id="takeaways"><span class="num">09</span>Takeaways</h2>
+    <ol>
+      <li><strong>One matrix gives a symmetric, static score.</strong> A token could not ask for one thing and advertise another.</li>
+      <li><strong>Query and key split addressing from being addressed.</strong> The key is a token's address; the query is the address it is looking for.</li>
+      <li><strong>Value splits routing from payload.</strong> What makes a token findable and what it hands over are different, and separating them keeps their gradients from fighting.</li>
+      <li><strong>Separate projections allow separate dimensions.</strong> That is what lets multi-head attention run several small heads for the price of one wide one.</li>
+      <li><strong>A dot product of unit-variance vectors has variance <var>d<sub>k</sub></var>.</strong> Raw scores spread with the square root of the head width.</li>
+      <li><strong>Wide scores saturate the softmax, and a saturated softmax has zero gradient.</strong> The attention pattern would never move from its random start.</li>
+      <li><strong>Dividing by √<var>d<sub>k</sub></var> restores unit variance.</strong> It is a fixed temperature chosen so that width does not change the learning dynamics.</li>
+    </ol>
+
+    <div class="cta">
+      <a class="btn primary" href="/">All notes →</a>
+    </div>
+  </article>
+
+  <nav class="pager" aria-label="Reading order">
+    <!-- site:pager -->
+    <a class="prev" href="/articles/byte-pair-encoding/"><small>Previous</small>Byte-pair encoding, and why tokenizers work on bytes</a>
+    <a class="next" href="/articles/chunk-size-recall-vs-faithfulness/"><small>Next</small>Chunk size: recall falls, faithfulness rises</a>
+    <!-- /site:pager -->
+  </nav>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+  </main>
+  <aside class="onpage" aria-label="On this page">
+    <!-- site:onpage -->
+    <p class="nav-title">On this page</p>
+    <ol>
+      <li><a href="#equation">The equation, with the parts named</a></li>
+      <li><a href="#single-matrix">What one matrix cannot do</a></li>
+      <li><a href="#asymmetric">Asymmetric roles: addressing versus content</a></li>
+      <li><a href="#routing">Where to look, separated from what to pass</a></li>
+      <li><a href="#dimensions">Different dimensions, and multi-head attention</a></li>
+      <li><a href="#variance">The dot product grows with dk</a></li>
+      <li><a href="#saturation">Softmax saturation and the vanishing gradient</a></li>
+      <li><a href="#scaling">What the scaling does, and what it does not</a></li>
+      <li><a href="#takeaways">Takeaways</a></li>
+    </ol>
+    <!-- /site:onpage -->
+  </aside>
+  </div>
+
+</div>
+<script src="/site.js?v=3"></script>
+</body>
+</html>

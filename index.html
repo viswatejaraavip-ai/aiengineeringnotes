@@ -30,10 +30,20 @@
   <aside class="sidenav" id="sidenav" aria-label="All notes">
     <!-- site:nav -->
     <a class="nav-home current" aria-current="page" href="/" data-path="/">Introduction</a>
-    <details class="nav-section" data-id="foundations">
+    <details class="nav-section" data-id="foundations" open>
           <summary>Foundations</summary>
           <ul>
-            <li class="nav-topic empty"><span>LLM fundamentals</span></li>
+            <li class="nav-topic"><details data-id="llm-fundamentals" open>
+              <summary>LLM fundamentals</summary>
+              <p class="nav-sub">Tokenization</p>
+          <ul>
+                <li><a href="/articles/byte-pair-encoding/" data-path="/articles/byte-pair-encoding/">Byte-pair encoding, and why tokenizers work on bytes</a></li>
+              </ul>
+              <p class="nav-sub">Transformer internals</p>
+          <ul>
+                <li><a href="/articles/attention-qkv-and-scaling/" data-path="/articles/attention-qkv-and-scaling/">Why attention has separate Q, K and V, and why it divides by √d_k</a></li>
+              </ul>
+            </details></li>
             <li class="nav-topic empty"><span>Frontier models and the model landscape</span></li>
             <li class="nav-topic empty"><span>Prompting and context engineering</span></li>
             <li class="nav-topic empty"><span>Fine-tuning, alignment and post-training</span></li>
@@ -114,7 +124,7 @@
 
   <section id="how-to-read">
     <h2 id="h-how-to-read">How to read these notes</h2>
-    <p>The sidebar is a map of AI engineering in six sections: foundations, inference and reasoning, agentic AI, RAG, evaluation and ops, and security and governance. Each section has a few topics. The notes written so far all sit under one topic, <a href="#rag-ingestion">RAG ingestion, chunking and indexing</a>, in four groups: the core concepts, chunking patterns for real corpora, what changes when an index holds documents not everyone may read, and two systems built end to end with their measurements. The other topics are listed so the shape of the whole is visible, and will fill in.</p>
+    <p>The sidebar is a map of AI engineering in six sections: foundations, inference and reasoning, agentic AI, RAG, evaluation and ops, and security and governance. Each section has a few topics. Most of the notes written so far sit under one topic, <a href="#rag-ingestion">RAG ingestion, chunking and indexing</a>, in four groups: the core concepts, chunking patterns for real corpora, what changes when an index holds documents not everyone may read, and two systems built end to end with their measurements. <a href="#llm-fundamentals">LLM fundamentals</a> has started with tokenization and the Transformer’s attention mechanism. The other topics are listed so the shape of the whole is visible, and will fill in.</p>
     <p>Read top to bottom if you are new to retrieval. Each page ends with a link to the next one in that order, and the sidebar ticks the pages you have finished, in this browser only. If you already build these systems, open the topic you need; every note stands on its own.</p>
   </section>
 
@@ -123,7 +133,27 @@
     <h2 id="h-foundations">Foundations</h2>
     <div class="topic" id="llm-fundamentals">
       <h3>LLM fundamentals</h3>
-      <p class="topic-empty">No notes yet.</p>
+      <p class="series-desc">How the models themselves work: how text becomes tokens, the pieces of the Transformer, and the reasons behind the choices in them.</p>
+      <p class="eyebrow">Tokenization</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/byte-pair-encoding/">
+            <span class="post-title">Byte-pair encoding, and why tokenizers work on bytes</span>
+          </a>
+          <span class="post-sub">Merge the most frequent adjacent pair until the vocabulary is full, with the classic four-word example worked by hand. Then why the base alphabet is the 256 UTF-8 bytes: no unknown token, a tiny base vocabulary, one pipeline for every script and for code, at the cost of more tokens for scripts the corpus is thin on.</span>
+          <span class="post-meta">24 Oct 2026 · 9 min read</span>
+        </li>
+      </ol>
+      <p class="eyebrow">Transformer internals</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/attention-qkv-and-scaling/">
+            <span class="post-title">Why attention has separate Q, K and V, and why it divides by √d_k</span>
+          </a>
+          <span class="post-sub">Three projections let a token ask one thing, advertise another and hand over a third, which one similarity matrix cannot express. The dot product of two d_k-dimensional vectors has variance d_k, so without scaling the softmax saturates and its gradient vanishes.</span>
+          <span class="post-meta">24 Oct 2026 · 8 min read</span>
+        </li>
+      </ol>
     </div>
     <div class="topic" id="frontier-models">
       <h3>Frontier models and the model landscape</h3>
@@ -332,7 +362,7 @@
   <nav class="pager" aria-label="Reading order">
     <!-- site:pager -->
     <span></span>
-    <a class="next" href="/articles/chunk-size-recall-vs-faithfulness/"><small>Next</small>Chunk size: recall falls, faithfulness rises</a>
+    <a class="next" href="/articles/byte-pair-encoding/"><small>Next</small>Byte-pair encoding, and why tokenizers work on bytes</a>
     <!-- /site:pager -->
   </nav>
 

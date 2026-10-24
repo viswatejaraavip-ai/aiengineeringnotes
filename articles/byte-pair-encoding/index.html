@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Byte-pair encoding, and why tokenizers work on bytes · AI Engineering Notes</title>
+  <meta name="description" content="How byte-pair encoding builds a subword vocabulary by merging the most frequent adjacent pair, with the classic worked example, and why modern tokenizers start from the 256 UTF-8 bytes rather than Unicode characters or whitespace-separated words: no unknown token, a 256-entry base vocabulary, and one pipeline for every script, code and emoji.">
+  <meta property="og:title" content="Byte-pair encoding, and why tokenizers work on bytes">
+  <meta property="og:description" content="The merge algorithm, a worked example, and the case for a 256-byte base vocabulary.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://aiengineeringnotes.com/articles/byte-pair-encoding/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/articles/byte-pair-encoding/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css?v=3">
+  <style>
+    .tree { font-family: var(--mono); font-size: 14px; line-height: 1.5; }
+    .tree .k { color: var(--accent); font-weight: 600; }
+    .num { text-align: right; }
+    .merge td:first-child { font-family: var(--mono); font-size: 14px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- site:header -->
+    <header class="site">
+    <button class="menu" type="button" aria-controls="sidenav" aria-expanded="false">Contents</button>
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/">Introduction</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+    <!-- /site:header -->
+
+  <div class="layout">
+  <aside class="sidenav" id="sidenav" aria-label="All notes">
+    <!-- site:nav -->
+    <a class="nav-home" href="/" data-path="/">Introduction</a>
+    <details class="nav-section" data-id="foundations" open>
+          <summary>Foundations</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="llm-fundamentals" open>
+              <summary>LLM fundamentals</summary>
+              <p class="nav-sub">Tokenization</p>
+          <ul>
+                <li><a href="/articles/byte-pair-encoding/" class="current" aria-current="page" data-path="/articles/byte-pair-encoding/">Byte-pair encoding, and why tokenizers work on bytes</a></li>
+              </ul>
+              <p class="nav-sub">Transformer internals</p>
+          <ul>
+                <li><a href="/articles/attention-qkv-and-scaling/" data-path="/articles/attention-qkv-and-scaling/">Why attention has separate Q, K and V, and why it divides by √d_k</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Frontier models and the model landscape</span></li>
+            <li class="nav-topic empty"><span>Prompting and context engineering</span></li>
+            <li class="nav-topic empty"><span>Fine-tuning, alignment and post-training</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="inference">
+          <summary>Inference and reasoning</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Inference scaling and serving</span></li>
+            <li class="nav-topic empty"><span>Test-time compute and reasoning models</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="agents">
+          <summary>Agentic AI</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Agent architectures, tool use and MCP</span></li>
+            <li class="nav-topic empty"><span>Multi-agent systems, orchestration and human-in-the-loop</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="rag">
+          <summary>RAG</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="rag-ingestion">
+              <summary>RAG ingestion, chunking and indexing</summary>
+              <p class="nav-sub">Core concepts</p>
+          <ul>
+                <li><a href="/articles/chunk-size-recall-vs-faithfulness/" data-path="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall falls, faithfulness rises</a></li>
+                <li><a href="/articles/chunk-is-not-the-embedding/" data-path="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve</a></li>
+                <li><a href="/articles/chunk-metadata-and-llm-extraction/" data-path="/articles/chunk-metadata-and-llm-extraction/">Metadata on chunks, and the care needed when a model writes it</a></li>
+              </ul>
+              <p class="nav-sub">Chunking patterns</p>
+          <ul>
+                <li><a href="/articles/chunking-wiki-pages/" data-path="/articles/chunking-wiki-pages/">How to chunk wiki pages</a></li>
+                <li><a href="/articles/semantic-chunking-regression/" data-path="/articles/semantic-chunking-regression/">Semantic chunking made my retrieval evals worse</a></li>
+              </ul>
+              <p class="nav-sub">Multi-tenant indexes</p>
+          <ul>
+                <li><a href="/articles/cross-tenant-leakage-in-rag/" data-path="/articles/cross-tenant-leakage-in-rag/">Cross-tenant leakage in vector search, and how to test for it</a></li>
+                <li><a href="/articles/chunk-permissions-in-sync/" data-path="/articles/chunk-permissions-in-sync/">Permissions on chunks, and keeping them in sync</a></li>
+              </ul>
+              <p class="nav-sub">Build breakdowns</p>
+          <ul>
+                <li><a href="/articles/telugu-gita-rag/" data-path="/articles/telugu-gita-rag/">How I built a RAG on the Bhagavad Gita in Telugu</a></li>
+                <li><a href="/articles/telugu-purana-rag/" data-path="/articles/telugu-purana-rag/">Sanskrit in, Telugu out: a RAG over 17 Puranas</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>RAG retrieval: embeddings, hybrid search and reranking</span></li>
+            <li class="nav-topic empty"><span>RAG generation, grounding and debugging</span></li>
+            <li class="nav-topic empty"><span>Advanced RAG: agentic RAG, GraphRAG, memory and long context</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="evaluation">
+          <summary>Evaluation, observability and ops</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Evaluation fundamentals, benchmarks and LLM-as-judge</span></li>
+            <li class="nav-topic empty"><span>Evaluating RAG, agents and production systems</span></li>
+            <li class="nav-topic empty"><span>Observability, tracing and monitoring</span></li>
+            <li class="nav-topic empty"><span>LLMOps, cost, reliability and product engineering</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="security">
+          <summary>Security, red teaming and governance</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Prompt injection and LLM application security</span></li>
+            <li class="nav-topic empty"><span>Red teaming, adversarial testing and guardrails</span></li>
+            <li class="nav-topic empty"><span>AI governance, risk and compliance</span></li>
+            <li class="nav-topic empty"><span>Responsible AI, safety, alignment and societal risk</span></li>
+          </ul>
+    </details>
+    <!-- /site:nav -->
+  </aside>
+  <main class="content">
+
+  <p class="crumbs"><!-- site:crumbs -->
+    <a href="/#foundations">Foundations</a> / <a href="/#llm-fundamentals">LLM fundamentals</a> / Byte-pair encoding, and why tokenizers work on bytes
+    <!-- /site:crumbs --></p>
+
+  <article class="post">
+    <header>
+      <h1>Byte-pair encoding, and why tokenizers work on bytes</h1>
+      <p class="lede">Every token a language model sees comes out of a tokenizer, and almost every modern tokenizer is some form of byte-pair encoding run over UTF-8 bytes. This note covers what the algorithm does, walks the classic four-word example by hand, and then answers the question that follows: why bytes, rather than characters or words?</p>
+      <div class="byline"><span>24 Oct 2026</span><span>9 min read</span></div>
+    </header>
+
+    <div class="concept">
+      <span class="label">The short version</span>
+      <p>Byte-pair encoding starts from a small base alphabet, counts every adjacent pair of units in the corpus, merges the most frequent pair into a new token, and repeats until the vocabulary is the size you asked for. Common words become single tokens; rare words become a few subwords. Using the 256 UTF-8 byte values as the base alphabet means every possible input can be tokenized, there is no unknown token, the base vocabulary is tiny, and one pipeline serves every script, code and emoji. The cost is that text outside the training mix, especially non-Latin scripts, takes more tokens.</p>
+    </div>
+
+    <div class="toc">
+      <p>Contents</p>
+      <ol>
+        <li><a href="#between">Between words and characters</a></li>
+        <li><a href="#algorithm">The training algorithm</a></li>
+        <li><a href="#example">A worked example</a></li>
+        <li><a href="#encoding">Encoding new text with the merges</a></li>
+        <li><a href="#words">Why not whitespace-separated words</a></li>
+        <li><a href="#characters">Why not Unicode characters</a></li>
+        <li><a href="#bytes">Why bytes</a></li>
+        <li><a href="#cost">What bytes cost</a></li>
+        <li><a href="#takeaways">Takeaways</a></li>
+      </ol>
+    </div>
+
+    <h2 id="between"><span class="num">01</span>Between words and characters</h2>
+
+    <p>A tokenizer has to pick a unit. The two obvious choices each fail in an obvious way.</p>
+
+    <ul>
+      <li><strong>Words.</strong> The vocabulary is huge and still never complete. Any word not seen in training has no id, and the model's embedding table grows with every inflection, typo and name.</li>
+      <li><strong>Characters.</strong> The vocabulary is small and complete, but a sentence becomes hundreds of tokens, the model has to spend its early layers reassembling words from letters, and attention cost grows with the square of sequence length.</li>
+    </ul>
+
+    <p>Byte-pair encoding sits between them. It was a 1994 compression technique, adapted for machine translation in 2016, and the idea is to learn the unit from the data: frequent strings get their own token, infrequent strings are spelled out from smaller pieces. The vocabulary size becomes a knob you set, typically 32,000 to 200,000, and the algorithm decides what goes in it.</p>
+
+    <h2 id="algorithm"><span class="num">02</span>The training algorithm</h2>
+
+    <ol>
+      <li><strong>Initialise.</strong> Split the corpus into base units, characters or bytes, and mark word boundaries so that merges do not cross them. The original formulation appends an end-of-word symbol <code>&lt;/w&gt;</code>; later ones attach the leading space to the word instead.</li>
+      <li><strong>Count pairs.</strong> For every adjacent pair of units in the corpus, count how often it occurs.</li>
+      <li><strong>Merge the top pair.</strong> Take the most frequent pair, create a new token for it, and replace every occurrence of the pair with the new token.</li>
+      <li><strong>Repeat.</strong> Recount and merge until the vocabulary reaches the target size. Each merge adds exactly one token, so a 50,000-token vocabulary over a 256-byte base is about 49,700 merges.</li>
+    </ol>
+
+    <p>The output of training is two things: the vocabulary, and the ordered list of merges. The order matters, because it is replayed at encoding time.</p>
+
+    <h2 id="example"><span class="num">03</span>A worked example</h2>
+
+    <p>The standard illustration is a corpus of four words with their counts. Each is split into characters with an end-of-word mark.</p>
+
+    <pre class="tree"><span class="k">l o w &lt;/w&gt;</span>          × 5
+<span class="k">l o w e r &lt;/w&gt;</span>      × 2
+<span class="k">n e w e s t &lt;/w&gt;</span>    × 6
+<span class="k">w i d e s t &lt;/w&gt;</span>    × 3</pre>
+
+    <p>Count every adjacent pair, weighting by word frequency. The pair <code>e s</code> appears in "newest" (6) and "widest" (3), so 9 times. So does <code>s t</code>, and <code>t &lt;/w&gt;</code>. Ties are broken by whatever rule the implementation uses; take <code>e s</code> first.</p>
+
+    <div class="table-wrap">
+      <table class="merge">
+        <tr><th>Merge</th><th>Count</th><th>Corpus after the merge</th></tr>
+        <tr><td>e + s → es</td><td class="num">9</td><td>l o w, l o w e r, n e w <strong>es</strong> t, w i d <strong>es</strong> t</td></tr>
+        <tr><td>es + t → est</td><td class="num">9</td><td>l o w, l o w e r, n e w <strong>est</strong>, w i d <strong>est</strong></td></tr>
+        <tr><td>est + &lt;/w&gt; → est&lt;/w&gt;</td><td class="num">9</td><td>n e w <strong>est&lt;/w&gt;</strong>, w i d <strong>est&lt;/w&gt;</strong></td></tr>
+        <tr><td>l + o → lo</td><td class="num">7</td><td><strong>lo</strong> w, <strong>lo</strong> w e r</td></tr>
+        <tr><td>lo + w → low</td><td class="num">7</td><td><strong>low</strong>, <strong>low</strong> e r</td></tr>
+      </table>
+    </div>
+
+    <p>After five merges the vocabulary holds the base characters plus <code>es</code>, <code>est</code>, <code>est&lt;/w&gt;</code>, <code>lo</code> and <code>low</code>. "low" is now a single token. "newest" is <code>n e w est&lt;/w&gt;</code>. A word the corpus never contained, "lowest", encodes as <code>low est&lt;/w&gt;</code>, two tokens, both meaningful, with no unknown symbol anywhere. That is the whole point: the pieces generalise to words the vocabulary has not seen.</p>
+
+    <h2 id="encoding"><span class="num">04</span>Encoding new text with the merges</h2>
+
+    <p>At inference time the tokenizer does not count anything. It splits the input into base units and applies the learned merges in the order they were learned, each one wherever it applies, until no merge applies. Because the merge list is ordered by training frequency, common strings collapse into single tokens quickly and rare strings stay in pieces.</p>
+
+    <p>Before the merges run, most implementations also pre-tokenize with a regular expression that splits on spaces, punctuation and digit runs, so that a merge never joins "the" to the comma after it, and numbers are not swallowed into words. The regex is a design choice with real consequences; GPT-2's, for instance, keeps the leading space attached to a word, which is why <code>" the"</code> and <code>"the"</code> are different tokens.</p>
+
+    <h2 id="words"><span class="num">05</span>Why not whitespace-separated words</h2>
+
+    <p>Early neural models used words, and a vocabulary of the most frequent 30,000 to 100,000 of them. Three things break.</p>
+
+    <ul>
+      <li><strong>Out-of-vocabulary words.</strong> Anything not in the list maps to a single <code>[UNK]</code> token. A product name, a rare surname, a misspelling or a new word all collapse to the same id, and the model loses whatever that word carried. Replacing one word in a sentence with "unknown" can change its meaning entirely.</li>
+      <li><strong>Morphological explosion.</strong> English has a modest number of word forms. Turkish, Finnish or Telugu attach suffix after suffix, so one stem produces hundreds of surface words, each needing its own vocabulary slot and its own embedding row, and most of them rare. Typos add an infinite tail on top.</li>
+      <li><strong>No spaces to split on.</strong> Chinese, Japanese and Thai do not separate words with whitespace. Word tokenization needs a language-specific segmenter before it can even begin, and that segmenter has its own errors.</li>
+    </ul>
+
+    <h2 id="characters"><span class="num">06</span>Why not Unicode characters</h2>
+
+    <p>Characters fix the unknown-word problem for text in scripts the tokenizer has seen. They have two problems of their own.</p>
+
+    <ul>
+      <li><strong>The alphabet is enormous.</strong> Unicode defines about 150,000 characters: every script, every emoji, mathematical and musical symbols, historic alphabets. A character-based tokenizer either reserves a base vocabulary that large, mostly for symbols it will almost never see, or it keeps a subset and is back to <code>[UNK]</code> for the rest.</li>
+      <li><strong>Unseen characters still fail.</strong> A new emoji, a rare CJK ideograph or a character from a script absent from training has no id. The failure is rarer than with words, but it is the same failure.</li>
+    </ul>
+
+    <p>So character-level BPE has a large, still-incomplete base alphabet, and the merges built on it are spent partly on rare symbols rather than on frequent strings.</p>
+
+    <h2 id="bytes"><span class="num">07</span>Why bytes</h2>
+
+    <p>GPT-2 made the move that most tokenizers since have followed: run BPE not on characters but on the bytes of the text's UTF-8 encoding.</p>
+
+    <pre class="tree">text  ──►  UTF-8 bytes  ──►  <span class="k">base vocabulary of 256</span>  ──►  learned merges  ──►  subword tokens</pre>
+
+    <p>Three properties follow directly.</p>
+
+    <h3>No unknown token, ever</h3>
+
+    <p>UTF-8 encodes every string as a sequence of bytes, and a byte has 256 possible values. If all 256 are in the base vocabulary, any input at all, in any script, any emoji, source code, even binary garbage, has a valid tokenization. The worst case is one token per byte. There is no input the tokenizer cannot represent, so there is no <code>[UNK]</code> and no code path for it.</p>
+
+    <h3>A base vocabulary of 256</h3>
+
+    <p>Instead of tens of thousands of slots reserved for rare symbols, the base costs 256 slots. Everything above that is earned by frequency. A common Chinese character is three bytes in UTF-8; if it is common in the training corpus, BPE merges those three bytes into one token within the first few thousand merges. A rare one stays as three byte tokens. Vocabulary space goes to what the corpus actually contains, not to what Unicode defines.</p>
+
+    <h3>One pipeline for everything</h3>
+
+    <p>Because bytes are below the level of script, the same tokenizer handles English, Telugu, Python, JSON, tab-indented tables and strings of emoji without a language detector or a per-language segmenter in front of it. Mixed-script text, which is common in practice, needs no special case. Whitespace is just more bytes, so indentation and line breaks survive exactly, which matters for code.</p>
+
+    <div class="lesson">
+      <span class="label">Two implementation details worth knowing</span>
+      <p>GPT-2 style tokenizers map each of the 256 bytes to a printable Unicode character before running BPE, so that the merge table and vocabulary file are plain readable text; the mapping is reversed on decode. SentencePiece-based tokenizers, used by Llama and others, run BPE on characters but keep all 256 bytes as fallback tokens, which gives the same no-unknown guarantee by a different route.</p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th></th><th>Words</th><th>Unicode characters</th><th>Byte-level BPE</th></tr>
+        <tr><td>Base vocabulary</td><td>Unbounded, 100,000+ in practice</td><td>About 150,000</td><td>256</td></tr>
+        <tr><td>Unknown tokens</td><td>Common</td><td>Rare, but possible on unseen scripts</td><td>None</td></tr>
+        <tr><td>Multilingual</td><td>Needs per-language segmentation</td><td>Good</td><td>Uniform</td></tr>
+        <tr><td>Sequence length</td><td>Short</td><td>Very long</td><td>In between, set by the merges</td></tr>
+        <tr><td>Code and whitespace</td><td>Poor</td><td>Exact but long</td><td>Exact, compressed where frequent</td></tr>
+      </table>
+    </div>
+
+    <h2 id="cost"><span class="num">08</span>What bytes cost</h2>
+
+    <p>The guarantee is coverage, not efficiency. BPE spends its merges where the training corpus is dense, and most corpora are dense in English and code. Text in other scripts gets fewer merges, and because those scripts are two to four bytes per character in UTF-8, the starting point is longer too.</p>
+
+    <p>The practical effect is that the same sentence costs different amounts in different languages. An English sentence might be one token per word. The same sentence in Telugu or Hindi, on a tokenizer trained mostly on English, can be three to five times as many tokens, sometimes one token per byte. That means higher cost per request, less of the context window per unit of meaning, and a model that has effectively seen less of that language per token during training. Newer tokenizers with larger vocabularies and more multilingual training data narrow the gap, but do not close it.</p>
+
+    <p>Two smaller costs: a byte-level tokenizer can split a multibyte character across tokens, so a model that stops generating mid-character emits an invalid byte sequence that has to be handled on decode; and numbers tokenize unevenly, with "1000" and "1,000" and "1 000" producing different token patterns, which is one reason arithmetic is harder for language models than it looks.</p>
+
+    <h2 id="takeaways"><span class="num">09</span>Takeaways</h2>
+    <ol>
+      <li><strong>BPE learns the unit from the data.</strong> Merge the most frequent adjacent pair, repeat, stop at the vocabulary size you chose.</li>
+      <li><strong>Frequent strings become tokens; rare strings become pieces.</strong> "low" is one token, "lowest" is "low" plus "est", and nothing is unknown.</li>
+      <li><strong>Encoding replays the merges in order.</strong> After a pre-tokenization regex that decides what merges may never cross.</li>
+      <li><strong>Words fail on coverage and on languages without spaces.</strong> Characters fail on a 150,000-symbol alphabet that is still incomplete.</li>
+      <li><strong>Bytes give a 256-entry base that covers every input.</strong> No unknown token, and one pipeline for every script and for code.</li>
+      <li><strong>Coverage is not efficiency.</strong> Scripts the corpus is thin on cost several times the tokens, and that shows up in price, context and quality.</li>
+    </ol>
+
+    <div class="cta">
+      <a class="btn primary" href="/articles/attention-qkv-and-scaling/">Why attention has separate Q, K and V →</a>
+    </div>
+  </article>
+
+  <nav class="pager" aria-label="Reading order">
+    <!-- site:pager -->
+    <a class="prev" href="/"><small>Previous</small>Introduction</a>
+    <a class="next" href="/articles/attention-qkv-and-scaling/"><small>Next</small>Why attention has separate Q, K and V, and why it divides by √d_k</a>
+    <!-- /site:pager -->
+  </nav>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+  </main>
+  <aside class="onpage" aria-label="On this page">
+    <!-- site:onpage -->
+    <p class="nav-title">On this page</p>
+    <ol>
+      <li><a href="#between">Between words and characters</a></li>
+      <li><a href="#algorithm">The training algorithm</a></li>
+      <li><a href="#example">A worked example</a></li>
+      <li><a href="#encoding">Encoding new text with the merges</a></li>
+      <li><a href="#words">Why not whitespace-separated words</a></li>
+      <li><a href="#characters">Why not Unicode characters</a></li>
+      <li><a href="#bytes">Why bytes</a></li>
+      <li><a href="#cost">What bytes cost</a></li>
+      <li><a href="#takeaways">Takeaways</a></li>
+    </ol>
+    <!-- /site:onpage -->
+  </aside>
+  </div>
+
+</div>
+<script src="/site.js?v=3"></script>
+</body>
+</html>

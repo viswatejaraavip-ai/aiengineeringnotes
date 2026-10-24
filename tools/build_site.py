@@ -98,9 +98,31 @@ RAG_INGESTION_GROUPS = [
     },
 ]
 
+LLM_FUNDAMENTALS_GROUPS = [
+    {
+        "title": "Tokenization",
+        "pages": [
+            {"path": "/articles/byte-pair-encoding/",
+             "title": "Byte-pair encoding, and why tokenizers work on bytes",
+             "sub": "Merge the most frequent adjacent pair until the vocabulary is full, with the classic four-word example worked by hand. Then why the base alphabet is the 256 UTF-8 bytes: no unknown token, a tiny base vocabulary, one pipeline for every script and for code, at the cost of more tokens for scripts the corpus is thin on.",
+             "meta": "24 Oct 2026 · 9 min read"},
+        ],
+    },
+    {
+        "title": "Transformer internals",
+        "pages": [
+            {"path": "/articles/attention-qkv-and-scaling/",
+             "title": "Why attention has separate Q, K and V, and why it divides by √d_k",
+             "sub": "Three projections let a token ask one thing, advertise another and hand over a third, which one similarity matrix cannot express. The dot product of two d_k-dimensional vectors has variance d_k, so without scaling the softmax saturates and its gradient vanishes.",
+             "meta": "24 Oct 2026 · 8 min read"},
+        ],
+    },
+]
+
 NAV = [
     {"id": "foundations", "title": "Foundations", "topics": [
-        T("llm-fundamentals", "LLM fundamentals"),
+        T("llm-fundamentals", "LLM fundamentals", LLM_FUNDAMENTALS_GROUPS,
+          desc="How the models themselves work: how text becomes tokens, the pieces of the Transformer, and the reasons behind the choices in them."),
         T("frontier-models", "Frontier models and the model landscape"),
         T("prompting", "Prompting and context engineering"),
         T("fine-tuning", "Fine-tuning, alignment and post-training"),
