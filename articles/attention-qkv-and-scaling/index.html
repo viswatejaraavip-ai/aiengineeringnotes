@@ -151,7 +151,7 @@
         <li><a href="#asymmetric">Asymmetric roles: addressing versus content</a></li>
         <li><a href="#routing">Where to look, separated from what to pass</a></li>
         <li><a href="#dimensions">Different dimensions, and multi-head attention</a></li>
-        <li><a href="#variance">The dot product grows with d<sub>k</sub></a></li>
+        <li><a href="#variance">The dot product grows with the head width</a></li>
         <li><a href="#saturation">Softmax saturation and the vanishing gradient</a></li>
         <li><a href="#scaling">What the scaling does, and what it does not</a></li>
         <li><a href="#takeaways">Takeaways</a></li>
@@ -216,7 +216,7 @@
       <p>Multi-head attention is also why <var>d<sub>k</sub></var> is a number worth keeping track of. It is the per-head dimension, not the model width, and it is the quantity the scaling factor is built from.</p>
     </div>
 
-    <h2 id="variance"><span class="num">06</span>The dot product grows with d<sub>k</sub></h2>
+    <h2 id="variance"><span class="num">06</span>The dot product grows with the head width</h2>
 
     <p>Take a query <var>q</var> and a key <var>k</var>, both in ℝ<sup><var>d<sub>k</sub></var></sup>, and assume their components are independent random variables with mean 0 and variance 1. That is a fair description of what the projections produce at initialisation, and roughly what layer normalisation keeps them near during training.</p>
 
@@ -307,7 +307,7 @@
       <li><a href="#asymmetric">Asymmetric roles: addressing versus content</a></li>
       <li><a href="#routing">Where to look, separated from what to pass</a></li>
       <li><a href="#dimensions">Different dimensions, and multi-head attention</a></li>
-      <li><a href="#variance">The dot product grows with dk</a></li>
+      <li><a href="#variance">The dot product grows with the head width</a></li>
       <li><a href="#saturation">Softmax saturation and the vanishing gradient</a></li>
       <li><a href="#scaling">What the scaling does, and what it does not</a></li>
       <li><a href="#takeaways">Takeaways</a></li>
