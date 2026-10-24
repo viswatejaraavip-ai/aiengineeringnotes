@@ -68,10 +68,16 @@
             <li class="nav-topic empty"><span>Test-time compute and reasoning models</span></li>
           </ul>
     </details>
-    <details class="nav-section" data-id="agents">
+    <details class="nav-section" data-id="agents" open>
           <summary>Agentic AI</summary>
           <ul>
-            <li class="nav-topic empty"><span>Agent architectures, tool use and MCP</span></li>
+            <li class="nav-topic"><details data-id="agent-architectures" open>
+              <summary>Agent architectures, tool use and MCP</summary>
+              <p class="nav-sub">Agent loops</p>
+          <ul>
+                <li><a href="/articles/react-pattern-and-function-calling/" data-path="/articles/react-pattern-and-function-calling/">The ReAct pattern as a loop of function calls</a></li>
+              </ul>
+            </details></li>
             <li class="nav-topic empty"><span>Multi-agent systems, orchestration and human-in-the-loop</span></li>
           </ul>
     </details>
@@ -136,7 +142,7 @@
 
   <section id="how-to-read">
     <h2 id="h-how-to-read">How to read these notes</h2>
-    <p>The sidebar is a map of AI engineering in six sections: foundations, inference and reasoning, agentic AI, RAG, evaluation and ops, and security and governance. Each section has a few topics. Most of the notes written so far sit under one topic, <a href="#rag-ingestion">RAG ingestion, chunking and indexing</a>, in four groups: the core concepts, chunking patterns for real corpora, what changes when an index holds documents not everyone may read, and two systems built end to end with their measurements. <a href="#llm-fundamentals">LLM fundamentals</a> has started with tokenization and the Transformer’s attention mechanism, and <a href="#inference-scaling">Inference scaling and serving</a> with the KV cache. The other topics are listed so the shape of the whole is visible, and will fill in.</p>
+    <p>The sidebar is a map of AI engineering in six sections: foundations, inference and reasoning, agentic AI, RAG, evaluation and ops, and security and governance. Each section has a few topics. Most of the notes written so far sit under one topic, <a href="#rag-ingestion">RAG ingestion, chunking and indexing</a>, in four groups: the core concepts, chunking patterns for real corpora, what changes when an index holds documents not everyone may read, and two systems built end to end with their measurements. <a href="#llm-fundamentals">LLM fundamentals</a> has started with tokenization and the Transformer’s attention mechanism, and <a href="#inference-scaling">Inference scaling and serving</a> with the KV cache, and <a href="#agent-architectures">Agent architectures, tool use and MCP</a> with the ReAct loop. The other topics are listed so the shape of the whole is visible, and will fill in.</p>
     <p>Read top to bottom if you are new to retrieval. Each page ends with a link to the next one in that order, and the sidebar ticks the pages you have finished, in this browser only. If you already build these systems, open the topic you need; every note stands on its own.</p>
   </section>
 
@@ -229,7 +235,17 @@
     <h2 id="h-agents">Agentic AI</h2>
     <div class="topic" id="agent-architectures">
       <h3>Agent architectures, tool use and MCP</h3>
-      <p class="topic-empty">No notes yet.</p>
+      <p class="series-desc">How a model is turned into something that acts: the loop, the tools, the protocol between them, and the controls around it.</p>
+      <p class="eyebrow">Agent loops</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/react-pattern-and-function-calling/">
+            <span class="post-title">The ReAct pattern as a loop of function calls</span>
+          </a>
+          <span class="post-sub">Thought, action and observation mapped onto a modern API: the reasoning before a call, the structured tool-call block and its stop reason, the tool-result message your code appends, and the exit when the model answers without a tool. A full loop in pseudocode, why structured calls beat parsing text, and what the loop needs that the paper did not cover.</span>
+          <span class="post-meta">25 Oct 2026 · 10 min read</span>
+        </li>
+      </ol>
     </div>
     <div class="topic" id="multi-agent">
       <h3>Multi-agent systems, orchestration and human-in-the-loop</h3>

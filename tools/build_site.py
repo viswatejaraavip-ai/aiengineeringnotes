@@ -148,6 +148,18 @@ INFERENCE_SCALING_GROUPS = [
     },
 ]
 
+AGENT_ARCHITECTURES_GROUPS = [
+    {
+        "title": "Agent loops",
+        "pages": [
+            {"path": "/articles/react-pattern-and-function-calling/",
+             "title": "The ReAct pattern as a loop of function calls",
+             "sub": "Thought, action and observation mapped onto a modern API: the reasoning before a call, the structured tool-call block and its stop reason, the tool-result message your code appends, and the exit when the model answers without a tool. A full loop in pseudocode, why structured calls beat parsing text, and what the loop needs that the paper did not cover.",
+             "meta": "25 Oct 2026 · 10 min read"},
+        ],
+    },
+]
+
 NAV = [
     {"id": "foundations", "title": "Foundations", "topics": [
         T("llm-fundamentals", "LLM fundamentals", LLM_FUNDAMENTALS_GROUPS,
@@ -162,7 +174,8 @@ NAV = [
         T("test-time-compute", "Test-time compute and reasoning models"),
     ]},
     {"id": "agents", "title": "Agentic AI", "topics": [
-        T("agent-architectures", "Agent architectures, tool use and MCP"),
+        T("agent-architectures", "Agent architectures, tool use and MCP", AGENT_ARCHITECTURES_GROUPS,
+          desc="How a model is turned into something that acts: the loop, the tools, the protocol between them, and the controls around it."),
         T("multi-agent", "Multi-agent systems, orchestration and human-in-the-loop"),
     ]},
     {"id": "rag", "title": "RAG", "topics": [
