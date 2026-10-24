@@ -177,6 +177,10 @@ AGENT_ARCHITECTURES_GROUPS = [
              "title": "What makes a good tool schema, and why the description outranks the name",
              "sub": "The schema is a briefing the model reads. Name the action; spend the effort on a description that says what, when, when not, and what it costs; type every parameter, enum the fixed sets, require only what the function cannot run without. A weak schema rewritten, and why selection is decided by the description: a name has no room for conditions.",
              "meta": "25 Oct 2026 · 9 min read"},
+            {"path": "/articles/idempotent-tool-calls/",
+             "title": "Idempotent tool calls: which tools need a key, and how to derive one",
+             "sub": "Reads and absolute writes are safe to retry; creates, sends, charges and increments are not. How an idempotency key works, why it must be derived from the operation and never the attempt or the model, guarding both transport retries and model re-issues, a ledger with a unique constraint when the service has no key support, and why read-before-write is not enough on its own.",
+             "meta": "25 Oct 2026 · 10 min read"},
         ],
     },
     {

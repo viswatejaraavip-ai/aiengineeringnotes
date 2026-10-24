@@ -83,6 +83,7 @@
               <p class="nav-sub">Tool design</p>
           <ul>
                 <li><a href="/articles/tool-schema-design/" data-path="/articles/tool-schema-design/">What makes a good tool schema, and why the description outranks the name</a></li>
+                <li><a href="/articles/idempotent-tool-calls/" data-path="/articles/idempotent-tool-calls/">Idempotent tool calls: which tools need a key, and how to derive one</a></li>
               </ul>
               <p class="nav-sub">MCP</p>
           <ul>
@@ -286,6 +287,13 @@
           </a>
           <span class="post-sub">The schema is a briefing the model reads. Name the action; spend the effort on a description that says what, when, when not, and what it costs; type every parameter, enum the fixed sets, require only what the function cannot run without. A weak schema rewritten, and why selection is decided by the description: a name has no room for conditions.</span>
           <span class="post-meta">25 Oct 2026 · 9 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/idempotent-tool-calls/">
+            <span class="post-title">Idempotent tool calls: which tools need a key, and how to derive one</span>
+          </a>
+          <span class="post-sub">Reads and absolute writes are safe to retry; creates, sends, charges and increments are not. How an idempotency key works, why it must be derived from the operation and never the attempt or the model, guarding both transport retries and model re-issues, a ledger with a unique constraint when the service has no key support, and why read-before-write is not enough on its own.</span>
+          <span class="post-meta">25 Oct 2026 · 10 min read</span>
         </li>
       </ol>
       <p class="eyebrow">MCP</p>
