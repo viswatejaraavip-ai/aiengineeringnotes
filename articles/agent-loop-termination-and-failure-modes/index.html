@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How an agent loop ends, and the three ways it fails to · AI Engineering Notes</title>
+  <meta name="description" content="An agent loop needs a termination condition from the model, a response with no tool call, and hard limits from the runtime: a step cap, a time budget, a cost budget. What each stop reason means, including the one that is a failure. Then the three failure modes, infinite loops, premature stops, and repeated identical calls, with the root cause and the fix for each: retryable flags, validation gates, deduplication, and observations that say what they mean.">
+  <meta property="og:title" content="How an agent loop ends, and the three ways it fails to">
+  <meta property="og:description" content="Termination conditions, circuit breakers, and the failure modes of agent loops.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://aiengineeringnotes.com/articles/agent-loop-termination-and-failure-modes/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/articles/agent-loop-termination-and-failure-modes/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css?v=3">
+  <style>
+    .tree { font-family: var(--mono); font-size: 14px; line-height: 1.5; }
+    .tree .k { color: var(--accent); font-weight: 600; }
+    .tree .c { color: var(--muted); }
+    pre code { font-size: inherit; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- site:header -->
+    <header class="site">
+    <button class="menu" type="button" aria-controls="sidenav" aria-expanded="false">Contents</button>
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/">Introduction</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+    <!-- /site:header -->
+
+  <div class="layout">
+  <aside class="sidenav" id="sidenav" aria-label="All notes">
+    <!-- site:nav -->
+    <a class="nav-home" href="/" data-path="/">Introduction</a>
+    <details class="nav-section" data-id="foundations">
+          <summary>Foundations</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="llm-fundamentals">
+              <summary>LLM fundamentals</summary>
+              <p class="nav-sub">Tokenization</p>
+          <ul>
+                <li><a href="/articles/byte-pair-encoding/" data-path="/articles/byte-pair-encoding/">Byte-pair encoding, and why tokenizers work on bytes</a></li>
+              </ul>
+              <p class="nav-sub">Transformer internals</p>
+          <ul>
+                <li><a href="/articles/attention-qkv-and-scaling/" data-path="/articles/attention-qkv-and-scaling/">Why attention has separate Q, K and V, and why it divides by √d_k</a></li>
+                <li><a href="/articles/mixture-of-experts-active-vs-total/" data-path="/articles/mixture-of-experts-active-vs-total/">Mixture of experts: active parameters versus total parameters</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Frontier models and the model landscape</span></li>
+            <li class="nav-topic empty"><span>Prompting and context engineering</span></li>
+            <li class="nav-topic empty"><span>Fine-tuning, alignment and post-training</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="inference">
+          <summary>Inference and reasoning</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="inference-scaling">
+              <summary>Inference scaling and serving</summary>
+              <p class="nav-sub">Serving fundamentals</p>
+          <ul>
+                <li><a href="/articles/kv-cache-memory-bound-decoding/" data-path="/articles/kv-cache-memory-bound-decoding/">The KV cache, and why decoding is memory-bound</a></li>
+                <li><a href="/articles/grouped-query-attention/" data-path="/articles/grouped-query-attention/">Grouped-query attention: the middle ground between MHA and MQA</a></li>
+              </ul>
+              <p class="nav-sub">Decoding</p>
+          <ul>
+                <li><a href="/articles/temperature-top-k-top-p-and-t0/" data-path="/articles/temperature-top-k-top-p-and-t0/">Temperature, top-k, top-p, and why T = 0 is not deterministic</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Test-time compute and reasoning models</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="agents" open>
+          <summary>Agentic AI</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="agent-architectures" open>
+              <summary>Agent architectures, tool use and MCP</summary>
+              <p class="nav-sub">Agent loops</p>
+          <ul>
+                <li><a href="/articles/function-calling-model-and-application/" data-path="/articles/function-calling-model-and-application/">Function calling: how the model decides, and what your code must do</a></li>
+                <li><a href="/articles/react-pattern-and-function-calling/" data-path="/articles/react-pattern-and-function-calling/">The ReAct pattern as a loop of function calls</a></li>
+                <li><a href="/articles/agent-loop-termination-and-failure-modes/" class="current" aria-current="page" data-path="/articles/agent-loop-termination-and-failure-modes/">How an agent loop ends, and the three ways it fails to</a></li>
+                <li><a href="/articles/react-vs-plan-and-execute/" data-path="/articles/react-vs-plan-and-execute/">ReAct versus plan-and-execute, and the hybrid that production uses</a></li>
+              </ul>
+              <p class="nav-sub">Tool design</p>
+          <ul>
+                <li><a href="/articles/tool-schema-design/" data-path="/articles/tool-schema-design/">What makes a good tool schema, and why the description outranks the name</a></li>
+              </ul>
+              <p class="nav-sub">MCP</p>
+          <ul>
+                <li><a href="/articles/model-context-protocol/" data-path="/articles/model-context-protocol/">The Model Context Protocol: hosts, clients, servers, and where the adapter work went</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Multi-agent systems, orchestration and human-in-the-loop</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="rag">
+          <summary>RAG</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="rag-ingestion">
+              <summary>RAG ingestion, chunking and indexing</summary>
+              <p class="nav-sub">Core concepts</p>
+          <ul>
+                <li><a href="/articles/chunk-size-recall-vs-faithfulness/" data-path="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall falls, faithfulness rises</a></li>
+                <li><a href="/articles/chunk-is-not-the-embedding/" data-path="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve</a></li>
+                <li><a href="/articles/chunk-metadata-and-llm-extraction/" data-path="/articles/chunk-metadata-and-llm-extraction/">Metadata on chunks, and the care needed when a model writes it</a></li>
+              </ul>
+              <p class="nav-sub">Chunking patterns</p>
+          <ul>
+                <li><a href="/articles/chunking-wiki-pages/" data-path="/articles/chunking-wiki-pages/">How to chunk wiki pages</a></li>
+                <li><a href="/articles/semantic-chunking-regression/" data-path="/articles/semantic-chunking-regression/">Semantic chunking made my retrieval evals worse</a></li>
+              </ul>
+              <p class="nav-sub">Multi-tenant indexes</p>
+          <ul>
+                <li><a href="/articles/cross-tenant-leakage-in-rag/" data-path="/articles/cross-tenant-leakage-in-rag/">Cross-tenant leakage in vector search, and how to test for it</a></li>
+                <li><a href="/articles/chunk-permissions-in-sync/" data-path="/articles/chunk-permissions-in-sync/">Permissions on chunks, and keeping them in sync</a></li>
+              </ul>
+              <p class="nav-sub">Build breakdowns</p>
+          <ul>
+                <li><a href="/articles/telugu-gita-rag/" data-path="/articles/telugu-gita-rag/">How I built a RAG on the Bhagavad Gita in Telugu</a></li>
+                <li><a href="/articles/telugu-purana-rag/" data-path="/articles/telugu-purana-rag/">Sanskrit in, Telugu out: a RAG over 17 Puranas</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>RAG retrieval: embeddings, hybrid search and reranking</span></li>
+            <li class="nav-topic empty"><span>RAG generation, grounding and debugging</span></li>
+            <li class="nav-topic empty"><span>Advanced RAG: agentic RAG, GraphRAG, memory and long context</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="evaluation">
+          <summary>Evaluation, observability and ops</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Evaluation fundamentals, benchmarks and LLM-as-judge</span></li>
+            <li class="nav-topic empty"><span>Evaluating RAG, agents and production systems</span></li>
+            <li class="nav-topic empty"><span>Observability, tracing and monitoring</span></li>
+            <li class="nav-topic empty"><span>LLMOps, cost, reliability and product engineering</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="security">
+          <summary>Security, red teaming and governance</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Prompt injection and LLM application security</span></li>
+            <li class="nav-topic empty"><span>Red teaming, adversarial testing and guardrails</span></li>
+            <li class="nav-topic empty"><span>AI governance, risk and compliance</span></li>
+            <li class="nav-topic empty"><span>Responsible AI, safety, alignment and societal risk</span></li>
+          </ul>
+    </details>
+    <!-- /site:nav -->
+  </aside>
+  <main class="content">
+
+  <p class="crumbs"><!-- site:crumbs -->
+    <a href="/#agents">Agentic AI</a> / <a href="/#agent-architectures">Agent architectures, tool use and MCP</a> / How an agent loop ends, and the three ways it fails to
+    <!-- /site:crumbs --></p>
+
+  <article class="post">
+    <header>
+      <h1>How an agent loop ends, and the three ways it fails to</h1>
+      <p class="lede">The <a href="/articles/react-pattern-and-function-calling/">ReAct note</a> showed the loop with one exit: the model answers without calling a tool. That is the exit you want, and it is not the only one you need. A model is probabilistic, tools fail, and context fills up, so a loop that relies on the model to stop will sometimes never stop, sometimes stop too soon, and sometimes do the same thing over and over. This note sets out the full termination condition a production loop needs, and then takes the three failure modes apart: what you see, why it happens, and what fixes it.</p>
+      <div class="byline"><span>25 Oct 2026</span><span>11 min read</span></div>
+    </header>
+
+    <div class="concept">
+      <span class="label">The short version</span>
+      <p>A loop ends in one of two ways: the model decides, by responding without a tool call, or the runtime decides, by hitting a step cap, a time budget or a cost budget. You need both, because the model's decision is a judgement and judgements are sometimes wrong in each direction. Infinite loops come from stop criteria the model cannot satisfy and errors it is told to retry; the fix is hard caps and error results that say whether retrying can help. Premature stops come from the model believing it is done when it is not; the fix is a gate that checks the required work happened before the answer is accepted. Repeated identical calls come from the model losing track of what it already tried; the fix is a deduplication check in the runtime and observations that say what they mean.</p>
+    </div>
+
+    <div class="toc">
+      <p>Contents</p>
+      <ol>
+        <li><a href="#condition">What a termination condition is</a></li>
+        <li><a href="#stop-reasons">Reading the stop reason</a></li>
+        <li><a href="#breakers">Circuit breakers: the runtime's own limits</a></li>
+        <li><a href="#infinite">Failure 1: the loop that never ends</a></li>
+        <li><a href="#premature">Failure 2: the loop that ends too soon</a></li>
+        <li><a href="#repeated">Failure 3: the same call, again and again</a></li>
+        <li><a href="#tripped">What to do when a breaker trips</a></li>
+        <li><a href="#matrix">The three failures side by side</a></li>
+        <li><a href="#takeaways">Takeaways</a></li>
+      </ol>
+    </div>
+
+    <h2 id="condition"><span class="num">01</span>What a termination condition is</h2>
+
+    <p>A termination condition is the set of checks the runtime makes at the end of every iteration to decide whether to go round again. It has two layers, and production loops need both.</p>
+
+    <pre class="tree">        ┌──────────────────────────┐
+        │  model generates a turn  │
+        └────────────┬─────────────┘
+                     ▼
+        ┌──────────────────────────┐
+        │  run any tool calls      │
+        └────────────┬─────────────┘
+                     ▼
+        ┌──────────────────────────┐
+        │  <span class="k">evaluate termination</span>    │
+        └────┬──────────┬────────┬─┘
+             ▼          ▼        ▼
+     <span class="k">natural exit</span>  <span class="k">breaker</span>   continue
+     the model      a limit   next iteration
+     answered       was hit
+     with no        (steps,
+     tool call      time, cost)
+             │          │
+             └────┬─────┘
+                  ▼
+        return the answer, or the
+        partial state and the reason</pre>
+
+    <ul>
+      <li><strong>The task-driven stop</strong> comes from the model. It responds with text and no tool call, which means it believes the task is complete, or that it needs to ask the user something. Some systems add a programmatic check on top: the row count matches, the update was verified, the user clicked approve.</li>
+      <li><strong>The guardrails</strong> come from the runtime and ignore what the model thinks. A maximum number of iterations, a wall-clock limit, a token or cost budget. They exist because the first layer is a judgement call by a probabilistic system, and the runtime has to be able to stop regardless of that judgement.</li>
+    </ul>
+
+    <p>The pairing is sometimes called a double stop. The model's exit handles the normal case; the breakers handle the cases where the model's exit does not come, or comes at the wrong time.</p>
+
+    <h2 id="stop-reasons"><span class="num">02</span>Reading the stop reason</h2>
+
+    <p>The API tells you why the model stopped generating, and the loop should branch on it rather than on the content.</p>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Stop reason</th><th>Meaning</th><th>What the loop does</th></tr>
+        <tr><td><code>tool_use</code> / <code>tool_calls</code></td><td>The model wants a tool run and is waiting</td><td>Execute, append results, continue</td></tr>
+        <tr><td><code>end_turn</code> / <code>stop</code></td><td>The model finished a response with no call</td><td>Exit; return the text</td></tr>
+        <tr><td><code>max_tokens</code> / <code>length</code></td><td>Output was cut off at the token limit, possibly mid-call</td><td>A failure, not an exit: do not execute a truncated call; retry with a larger limit or ask the model to continue</td></tr>
+        <tr><td><code>refusal</code> or a content filter</td><td>The model declined</td><td>Exit with that information; do not loop</td></tr>
+      </table>
+    </div>
+
+    <p>The third row is the one that gets missed. A tool call truncated by the output limit arrives as incomplete JSON, and a loop that treats any non-tool stop as "done" will either crash on the parse or, worse, present the half-generated text as an answer. Treat it as its own case.</p>
+
+    <p>Note also that <code>end_turn</code> means the turn ended, not that the task did. The model may have answered, or it may have asked the user a question. Both return control to the user, and both are correct behaviour. The loop's job is to end the turn; whether the task is complete is a separate question that only a goal check can answer.</p>
+
+    <h2 id="breakers"><span class="num">03</span>Circuit breakers: the runtime's own limits</h2>
+
+    <ul>
+      <li><strong>Step cap.</strong> A maximum number of iterations, typically ten to thirty depending on the task. The single most important guardrail, because it bounds every other cost.</li>
+      <li><strong>Time budget.</strong> A wall-clock limit on the whole run, with a shorter per-tool timeout inside it so one hanging network call cannot consume the budget alone.</li>
+      <li><strong>Cost budget.</strong> A cap on cumulative tokens or money per run. Agent costs grow faster than linearly in steps, because the history is resent each time, so a step cap alone can still allow an expensive run.</li>
+      <li><strong>A told budget.</strong> Hard caps cut the model off without warning. A softer complement is to tell the model its budget, in steps or tokens, so it paces itself and wraps up before the cap rather than being truncated at it. Some APIs expose this directly; otherwise put the remaining budget in the context each turn.</li>
+    </ul>
+
+    <p>Breakers are set per task type, not globally. A step cap that is right for "look up an order" is far too low for "refactor this module", and setting one value for both produces either runaway loops or premature cut-offs.</p>
+
+    <h2 id="infinite"><span class="num">04</span>Failure 1: the loop that never ends</h2>
+
+    <p><strong>What you see.</strong> Token usage and elapsed time climb, the trace shows step after step, and nothing in the task's state moves. The loop ends only when a breaker trips, or never, if there is no breaker.</p>
+
+    <p><strong>Why it happens.</strong></p>
+
+    <ul>
+      <li><strong>A stop criterion the model cannot satisfy.</strong> "Search until you have enough information" with no definition of enough. Each search returns something, the model is never sure it has enough, and the instruction says to keep going. The same happens with "make sure the answer is correct" and no way to check.</li>
+      <li><strong>Retrying what cannot succeed.</strong> A tool returns an error that no retry will fix, such as an authentication failure or a resource that does not exist, and the prompt says to retry on failure. The model obeys. Each attempt returns the same error, which looks like a transient failure to a model that has no way to tell the difference.</li>
+      <li><strong>Oscillation.</strong> Two actions each undo the other's effect, or two tools each suggest the other. The model alternates between them, making local progress every step and global progress never.</li>
+    </ul>
+
+    <p><strong>The fix.</strong> A hard step cap, always. Then make the errors informative: a result that says <code>retryable: false</code> and why, so the model has the information to stop. Define "done" in the prompt in terms the model can verify from observations, and give it an explicit way to say it cannot finish, such as a <code>give_up</code> tool or an instruction that an unanswerable task should be reported rather than pursued.</p>
+
+    <h2 id="premature"><span class="num">05</span>Failure 2: the loop that ends too soon</h2>
+
+    <p><strong>What you see.</strong> A confident final answer, often a well-formed one, with tools the task required never called. The agent reports the record updated and the update tool was never invoked; it summarises search results it never fetched.</p>
+
+    <p><strong>Why it happens.</strong></p>
+
+    <ul>
+      <li><strong>Hallucinated progress.</strong> The model predicts what the answer would look like and writes it, skipping the step of finding out. This is more likely when the context contains enough to make a plausible guess, and when the system prompt rewards sounding finished.</li>
+      <li><strong>Empty results read as completion.</strong> A search returns <code>[]</code>. To the model that can look like "nothing more to do" rather than "nothing found; try differently". The ambiguity is in the observation, and the model resolves it in the direction of stopping.</li>
+      <li><strong>Breakers set too tight.</strong> A step cap of five on a task that needs twelve. The loop is cut off and the runtime returns whatever was last generated, which looks like an answer.</li>
+      <li><strong>Missing information treated as optional.</strong> A required parameter is unknown, and rather than ask, the model answers with an assumption.</li>
+    </ul>
+
+    <p><strong>The fix.</strong> A validation gate between the model's exit and the accepted answer. For a task that must write, the runtime checks that the write tool was called with a success result before it accepts a final response; if not, it rejects the exit and sends the model back with a message saying so. For retrieval tasks, require the answer to cite an observation. A structured final-answer tool, which the model must call to finish and whose schema requires the evidence fields, makes the gate mechanical. And format empty results so they cannot be misread: <code>{"results": [], "note": "No matches. Consider different terms or a different tool."}</code>.</p>
+
+    <h2 id="repeated"><span class="num">06</span>Failure 3: the same call, again and again</h2>
+
+    <p><strong>What you see.</strong> The trace shows <code>search_user(id="101")</code> on consecutive steps, five times, identical arguments, identical results. Sometimes a longer cycle of two or three calls repeating.</p>
+
+    <p><strong>Why it happens.</strong></p>
+
+    <ul>
+      <li><strong>State blindness.</strong> As the history grows the model attends less reliably to what it already did. It forgets it ran the query, or remembers running it but not what came back, and runs it again as the obvious next step.</li>
+      <li><strong>An uninformative observation.</strong> The result was ambiguous or unhelpful, and nothing in it said that repeating the call will not help. The model's reasonable inference is that something went wrong and trying again is cheap.</li>
+      <li><strong>No memory across steps of what has been tried.</strong> Each turn is generated afresh from the history; there is no separate record of attempts unless the runtime keeps one.</li>
+    </ul>
+
+    <p><strong>The fix.</strong> A deduplication check in the runtime: before executing a call, compare its name and arguments to the last several calls. If identical, do not execute; return a system notice instead, "You already ran this with these arguments and received: [result]. Choose different arguments or a different tool." The model almost always changes course once told. Secondly, make observations say what they mean: a result that is the same as last time should say so, and a result that is final should say not to re-query unless the arguments change. Thirdly, manage the context, by truncating or summarising old tool results, so that recent history is where the model's attention actually lands.</p>
+
+    <h2 id="tripped"><span class="num">07</span>What to do when a breaker trips</h2>
+
+    <p>A breaker is not a crash. When the step cap, time budget or cost budget is hit, the runtime should return something useful rather than an error with nothing attached.</p>
+
+    <ul>
+      <li><strong>Return the partial state</strong>: what was done, what was found, what remains, and which limit was hit.</li>
+      <li><strong>Give the model one final turn without tools</strong>, asking it to summarise progress and say what it would have done next. This costs one call and turns a dead run into a resumable one.</li>
+      <li><strong>Record the trip</strong> with the full trace. A breaker that trips often on one task type is telling you the cap is wrong or the task has a loop in it, and the traces are how you find out which.</li>
+      <li><strong>Escalate where the task matters.</strong> A human sees the partial state and decides whether to resume with a larger budget, finish by hand, or abandon.</li>
+    </ul>
+
+    <h2 id="matrix"><span class="num">08</span>The three failures side by side</h2>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Failure</th><th>Symptom in the trace</th><th>Root cause</th><th>Fix</th></tr>
+        <tr><td>Infinite loop</td><td>Steps and cost climb; a limit trips or nothing ends</td><td>Unsatisfiable stop criterion; retrying unrecoverable errors; oscillation</td><td>Hard step cap; <code>retryable: false</code> in error results; a defined, observable "done"; a way to give up</td></tr>
+        <tr><td>Premature stop</td><td>Confident answer; required tools never called</td><td>Hallucinated progress; empty results read as completion; caps too tight</td><td>Validation gate on exit; structured final-answer tool requiring evidence; unambiguous empty results</td></tr>
+        <tr><td>Repeated calls</td><td>Identical name and arguments on consecutive steps</td><td>State blindness in a long context; uninformative observations</td><td>Runtime deduplication with a notice; observations that say what they mean; context management</td></tr>
+      </table>
+    </div>
+
+    <h2 id="takeaways"><span class="num">09</span>Takeaways</h2>
+    <ol>
+      <li><strong>Two layers of termination.</strong> The model's exit for the normal case; the runtime's breakers for when the model's judgement is wrong.</li>
+      <li><strong>Branch on the stop reason, and handle truncation as its own case.</strong> A cut-off tool call is neither an answer nor a call to execute.</li>
+      <li><strong>End of turn is not end of task.</strong> A goal check is a separate thing from the loop exit.</li>
+      <li><strong>Set breakers per task type.</strong> One global cap is wrong for everything.</li>
+      <li><strong>Errors must say whether retrying can help.</strong> That one flag removes most infinite loops.</li>
+      <li><strong>Gate the exit.</strong> Check the required work happened before accepting the answer.</li>
+      <li><strong>Deduplicate in the runtime.</strong> The model will repeat itself; tell it so, with the result it already got.</li>
+      <li><strong>A tripped breaker returns partial state</strong>, not silence.</li>
+    </ol>
+
+    <div class="cta">
+      <a class="btn primary" href="/articles/react-pattern-and-function-calling/">The ReAct pattern as a loop of function calls →</a>
+      <a class="btn" href="/articles/react-vs-plan-and-execute/">ReAct versus plan-and-execute →</a>
+    </div>
+  </article>
+
+  <nav class="pager" aria-label="Reading order">
+    <!-- site:pager -->
+    <a class="prev" href="/articles/react-pattern-and-function-calling/"><small>Previous</small>The ReAct pattern as a loop of function calls</a>
+    <a class="next" href="/articles/react-vs-plan-and-execute/"><small>Next</small>ReAct versus plan-and-execute, and the hybrid that production uses</a>
+    <!-- /site:pager -->
+  </nav>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+  </main>
+  <aside class="onpage" aria-label="On this page">
+    <!-- site:onpage -->
+    <p class="nav-title">On this page</p>
+    <ol>
+      <li><a href="#condition">What a termination condition is</a></li>
+      <li><a href="#stop-reasons">Reading the stop reason</a></li>
+      <li><a href="#breakers">Circuit breakers: the runtime's own limits</a></li>
+      <li><a href="#infinite">Failure 1: the loop that never ends</a></li>
+      <li><a href="#premature">Failure 2: the loop that ends too soon</a></li>
+      <li><a href="#repeated">Failure 3: the same call, again and again</a></li>
+      <li><a href="#tripped">What to do when a breaker trips</a></li>
+      <li><a href="#matrix">The three failures side by side</a></li>
+      <li><a href="#takeaways">Takeaways</a></li>
+    </ol>
+    <!-- /site:onpage -->
+  </aside>
+  </div>
+
+</div>
+<script src="/site.js?v=3"></script>
+</body>
+</html>
