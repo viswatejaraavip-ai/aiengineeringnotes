@@ -152,6 +152,10 @@ AGENT_ARCHITECTURES_GROUPS = [
     {
         "title": "Agent loops",
         "pages": [
+            {"path": "/articles/function-calling-model-and-application/",
+             "title": "Function calling: how the model decides, and what your code must do",
+             "sub": "Tool definitions are prompt text; the decision to call is learned judgement; strict mode guarantees the arguments' shape but not their sense. Then the application's four steps, parse, validate and authorise, execute, return, with a worked order-lookup example and the mistakes that matter, starting with treating the model's arguments as permission.",
+             "meta": "25 Oct 2026 · 9 min read"},
             {"path": "/articles/react-pattern-and-function-calling/",
              "title": "The ReAct pattern as a loop of function calls",
              "sub": "Thought, action and observation mapped onto a modern API: the reasoning before a call, the structured tool-call block and its stop reason, the tool-result message your code appends, and the exit when the model answers without a tool. A full loop in pseudocode, why structured calls beat parsing text, and what the loop needs that the paper did not cover.",

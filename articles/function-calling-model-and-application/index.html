@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Function calling: how the model decides, and what your code must do · AI Engineering Notes</title>
+  <meta name="description" content="Function calling lets a model answer with a structured request to run a function instead of text. How the decision is made: tool schemas rendered into the prompt, a model trained to choose between answering and calling, and constrained decoding that keeps the arguments schema-valid. Then the application's side: parse, validate, authorise, execute, and return the result, with a worked order-lookup example and the mistakes that matter.">
+  <meta property="og:title" content="Function calling: how the model decides, and what your code must do">
+  <meta property="og:description" content="The model's side and the application's side of a single tool call.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://aiengineeringnotes.com/articles/function-calling-model-and-application/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/articles/function-calling-model-and-application/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css?v=3">
+  <style>
+    .tree { font-family: var(--mono); font-size: 14px; line-height: 1.5; }
+    .tree .k { color: var(--accent); font-weight: 600; }
+    pre code { font-size: inherit; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- site:header -->
+    <header class="site">
+    <button class="menu" type="button" aria-controls="sidenav" aria-expanded="false">Contents</button>
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/">Introduction</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+    <!-- /site:header -->
+
+  <div class="layout">
+  <aside class="sidenav" id="sidenav" aria-label="All notes">
+    <!-- site:nav -->
+    <a class="nav-home" href="/" data-path="/">Introduction</a>
+    <details class="nav-section" data-id="foundations">
+          <summary>Foundations</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="llm-fundamentals">
+              <summary>LLM fundamentals</summary>
+              <p class="nav-sub">Tokenization</p>
+          <ul>
+                <li><a href="/articles/byte-pair-encoding/" data-path="/articles/byte-pair-encoding/">Byte-pair encoding, and why tokenizers work on bytes</a></li>
+              </ul>
+              <p class="nav-sub">Transformer internals</p>
+          <ul>
+                <li><a href="/articles/attention-qkv-and-scaling/" data-path="/articles/attention-qkv-and-scaling/">Why attention has separate Q, K and V, and why it divides by √d_k</a></li>
+                <li><a href="/articles/mixture-of-experts-active-vs-total/" data-path="/articles/mixture-of-experts-active-vs-total/">Mixture of experts: active parameters versus total parameters</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Frontier models and the model landscape</span></li>
+            <li class="nav-topic empty"><span>Prompting and context engineering</span></li>
+            <li class="nav-topic empty"><span>Fine-tuning, alignment and post-training</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="inference">
+          <summary>Inference and reasoning</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="inference-scaling">
+              <summary>Inference scaling and serving</summary>
+              <p class="nav-sub">Serving fundamentals</p>
+          <ul>
+                <li><a href="/articles/kv-cache-memory-bound-decoding/" data-path="/articles/kv-cache-memory-bound-decoding/">The KV cache, and why decoding is memory-bound</a></li>
+                <li><a href="/articles/grouped-query-attention/" data-path="/articles/grouped-query-attention/">Grouped-query attention: the middle ground between MHA and MQA</a></li>
+              </ul>
+              <p class="nav-sub">Decoding</p>
+          <ul>
+                <li><a href="/articles/temperature-top-k-top-p-and-t0/" data-path="/articles/temperature-top-k-top-p-and-t0/">Temperature, top-k, top-p, and why T = 0 is not deterministic</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Test-time compute and reasoning models</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="agents" open>
+          <summary>Agentic AI</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="agent-architectures" open>
+              <summary>Agent architectures, tool use and MCP</summary>
+              <p class="nav-sub">Agent loops</p>
+          <ul>
+                <li><a href="/articles/function-calling-model-and-application/" class="current" aria-current="page" data-path="/articles/function-calling-model-and-application/">Function calling: how the model decides, and what your code must do</a></li>
+                <li><a href="/articles/react-pattern-and-function-calling/" data-path="/articles/react-pattern-and-function-calling/">The ReAct pattern as a loop of function calls</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Multi-agent systems, orchestration and human-in-the-loop</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="rag">
+          <summary>RAG</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="rag-ingestion">
+              <summary>RAG ingestion, chunking and indexing</summary>
+              <p class="nav-sub">Core concepts</p>
+          <ul>
+                <li><a href="/articles/chunk-size-recall-vs-faithfulness/" data-path="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall falls, faithfulness rises</a></li>
+                <li><a href="/articles/chunk-is-not-the-embedding/" data-path="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve</a></li>
+                <li><a href="/articles/chunk-metadata-and-llm-extraction/" data-path="/articles/chunk-metadata-and-llm-extraction/">Metadata on chunks, and the care needed when a model writes it</a></li>
+              </ul>
+              <p class="nav-sub">Chunking patterns</p>
+          <ul>
+                <li><a href="/articles/chunking-wiki-pages/" data-path="/articles/chunking-wiki-pages/">How to chunk wiki pages</a></li>
+                <li><a href="/articles/semantic-chunking-regression/" data-path="/articles/semantic-chunking-regression/">Semantic chunking made my retrieval evals worse</a></li>
+              </ul>
+              <p class="nav-sub">Multi-tenant indexes</p>
+          <ul>
+                <li><a href="/articles/cross-tenant-leakage-in-rag/" data-path="/articles/cross-tenant-leakage-in-rag/">Cross-tenant leakage in vector search, and how to test for it</a></li>
+                <li><a href="/articles/chunk-permissions-in-sync/" data-path="/articles/chunk-permissions-in-sync/">Permissions on chunks, and keeping them in sync</a></li>
+              </ul>
+              <p class="nav-sub">Build breakdowns</p>
+          <ul>
+                <li><a href="/articles/telugu-gita-rag/" data-path="/articles/telugu-gita-rag/">How I built a RAG on the Bhagavad Gita in Telugu</a></li>
+                <li><a href="/articles/telugu-purana-rag/" data-path="/articles/telugu-purana-rag/">Sanskrit in, Telugu out: a RAG over 17 Puranas</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>RAG retrieval: embeddings, hybrid search and reranking</span></li>
+            <li class="nav-topic empty"><span>RAG generation, grounding and debugging</span></li>
+            <li class="nav-topic empty"><span>Advanced RAG: agentic RAG, GraphRAG, memory and long context</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="evaluation">
+          <summary>Evaluation, observability and ops</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Evaluation fundamentals, benchmarks and LLM-as-judge</span></li>
+            <li class="nav-topic empty"><span>Evaluating RAG, agents and production systems</span></li>
+            <li class="nav-topic empty"><span>Observability, tracing and monitoring</span></li>
+            <li class="nav-topic empty"><span>LLMOps, cost, reliability and product engineering</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="security">
+          <summary>Security, red teaming and governance</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Prompt injection and LLM application security</span></li>
+            <li class="nav-topic empty"><span>Red teaming, adversarial testing and guardrails</span></li>
+            <li class="nav-topic empty"><span>AI governance, risk and compliance</span></li>
+            <li class="nav-topic empty"><span>Responsible AI, safety, alignment and societal risk</span></li>
+          </ul>
+    </details>
+    <!-- /site:nav -->
+  </aside>
+  <main class="content">
+
+  <p class="crumbs"><!-- site:crumbs -->
+    <a href="/#agents">Agentic AI</a> / <a href="/#agent-architectures">Agent architectures, tool use and MCP</a> / Function calling: how the model decides, and what your code must do
+    <!-- /site:crumbs --></p>
+
+  <article class="post">
+    <header>
+      <h1>Function calling: how the model decides, and what your code must do</h1>
+      <p class="lede">Function calling is the one API feature that turns a text generator into something that can act. It is also widely misunderstood in both directions: people imagine the model runs the function, and people imagine the model's arguments can be trusted. This note takes one tool call apart. First the model's side, how it decides to call and how the arguments come out valid. Then the application's side, which is where most of the real work and all of the responsibility sits.</p>
+      <div class="byline"><span>25 Oct 2026</span><span>9 min read</span></div>
+    </header>
+
+    <div class="concept">
+      <span class="label">The short version</span>
+      <p>You send tool definitions with the request: a name, a description, a JSON schema. The model, trained on this format, reads them as part of its context and decides per turn whether to answer in text or to emit a structured call with a name and arguments. Constrained decoding, where offered, guarantees the arguments fit the schema. The model never executes anything. Your application parses the call, validates and authorises the arguments, runs the function, and sends the result back as a message so the model can finish. The arguments are the model's guess about what the user wants, not a verified fact about what the user may do.</p>
+    </div>
+
+    <div class="toc">
+      <p>Contents</p>
+      <ol>
+        <li><a href="#what">What function calling is</a></li>
+        <li><a href="#schemas">Tool definitions are part of the prompt</a></li>
+        <li><a href="#decide">How the model decides to call</a></li>
+        <li><a href="#arguments">How the arguments come out valid</a></li>
+        <li><a href="#application">What the application is responsible for</a></li>
+        <li><a href="#example">A worked example: order lookup</a></li>
+        <li><a href="#mistakes">The mistakes that matter</a></li>
+        <li><a href="#takeaways">Takeaways</a></li>
+      </ol>
+    </div>
+
+    <h2 id="what"><span class="num">01</span>What function calling is</h2>
+
+    <p>A plain chat request produces text. Function calling, also called tool calling or tool use, adds a second kind of output: a structured block saying "run this function with these arguments". The model chooses which kind to produce on each turn.</p>
+
+    <pre class="tree">request:  messages + <span class="k">tool definitions</span>
+             │
+             ▼
+          model reads the query against the tool descriptions
+             │
+      ┌──────┴──────────────┐
+      ▼                     ▼
+  needs a tool          can answer directly
+      │                     │
+      ▼                     ▼
+  <span class="k">structured call</span>       ordinary text
+  name + JSON args      stop reason: end_turn
+  stop reason: tool_use</pre>
+
+    <p>The feature does two things the plain interface cannot. It lets the model reach information it does not have, such as today's weather or a row in your database, and it lets the model request an action, such as sending an email or creating a ticket. In both cases the model only requests; the application does the reaching and the acting.</p>
+
+    <h2 id="schemas"><span class="num">02</span>Tool definitions are part of the prompt</h2>
+
+    <p>Each tool is declared with three parts:</p>
+
+    <pre><code>{
+  "name": "lookup_order",
+  "description": "Retrieves shipping status for a given order ID.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "order_id": {"type": "string", "description": "The numeric order identifier"}
+    },
+    "required": ["order_id"]
+  }
+}</code></pre>
+
+    <p>It helps to know what happens to this on the way in. The API renders the tool list into the model's context, in a format the model was trained on, ahead of your system prompt and messages. The model does not have a separate "tool matching" component; the definitions are text it reads, in the same way it reads the user's question. That has two practical consequences.</p>
+
+    <ul>
+      <li><strong>The description is doing the work.</strong> The model chooses tools by what the descriptions say. "Retrieves shipping status for a given order ID" tells it when to call and what the argument means. A tool named <code>do_thing</code> with no description will be chosen badly. Write descriptions the way you would brief a colleague: what it does, when to use it, when not to.</li>
+      <li><strong>The definitions cost tokens on every request.</strong> Twenty tools with long schemas are a few thousand tokens re-sent each turn. Prompt caching makes that cheap; keeping the list stable and ordered is what makes the cache hit.</li>
+    </ul>
+
+    <h2 id="decide"><span class="num">03</span>How the model decides to call</h2>
+
+    <p>The decision is a learned behaviour, not a rule. Models are post-trained on many examples of conversations with tools available, where the right move was sometimes to call a tool and sometimes to answer. From those they learn a judgement that runs roughly like this on each turn:</p>
+
+    <ol>
+      <li><strong>Does answering need something I do not have?</strong> Current data, private data, a computation, or a side effect. A question about an order number cannot be answered from weights. A question about the capital of France can.</li>
+      <li><strong>Is there a tool whose description covers it?</strong> The model matches the need against the descriptions. If several fit, it picks the closest; if none fit, it answers in text, often saying that it cannot do that.</li>
+      <li><strong>Do I have the arguments?</strong> If the user said "order 98765", the model extracts it. If the user said "my order", the model should ask which one rather than invent an id. Whether it asks or guesses depends on the model and on your system prompt.</li>
+    </ol>
+
+    <p>The output of that judgement is either a text response or a call block. Most APIs let you weight the decision: a tool-choice setting that lets the model decide (the default), forbids tools for this turn, or, on some models, requires one. Newer models drop the forced option and expect the system prompt to steer instead.</p>
+
+    <p>It is worth being clear about what the model is not doing. It is not checking that order 98765 exists, that the current user owns it, or that the lookup is allowed. It is producing a plausible, well-formed request from the conversation. Everything about whether that request should be honoured is the application's problem.</p>
+
+    <h2 id="arguments"><span class="num">04</span>How the arguments come out valid</h2>
+
+    <p>Once the model commits to a call, it has to produce JSON that matches the schema. Two mechanisms get it there.</p>
+
+    <ul>
+      <li><strong>Training.</strong> The model has seen enough tool calls to produce well-formed JSON with the right keys nearly all the time. Nearly is the operative word: on a long or nested schema it will occasionally emit a wrong type, a missing required field, or invalid JSON.</li>
+      <li><strong>Constrained decoding.</strong> With a strict mode turned on for the tool, the API compiles the schema into a grammar and, at each decoding step, masks out every token that would make the output invalid. The model can only choose among tokens that keep the JSON on a valid path. The result is guaranteed to parse and to conform to the schema's structure and types. Anthropic and OpenAI both expose this as <code>strict: true</code> on the tool definition, with some schema restrictions, such as requiring every property to be listed and forbidding additional properties.</li>
+    </ul>
+
+    <p>Constrained decoding guarantees shape, not sense. A strict schema ensures <code>order_id</code> is a string; it does not ensure the string is an order id, that it is the user's, or that the model did not hallucinate it from a half-remembered earlier message. Validation of meaning stays with the application.</p>
+
+    <h2 id="application"><span class="num">05</span>What the application is responsible for</h2>
+
+    <p>The model stops after emitting the call. The stop reason tells your code why. From here the application is the orchestrator, and there are four steps before the model can continue.</p>
+
+    <pre class="tree"><span class="k">A. parse</span>      read the call: name, id, arguments (a JSON object, or a JSON
+              string to decode). Never string-match on the raw text.
+
+<span class="k">B. validate</span>   check types and constraints against your own schema again;
+              check business rules; reject or repair what is wrong.
+              <span class="k">authorise</span>: does this user, from the session, have the right
+              to do this to this resource? Arguments from the model are
+              not credentials.
+
+<span class="k">C. execute</span>    run the function, service call or query with the checked
+              arguments. Time-limit it. Catch everything.
+
+<span class="k">D. return</span>     append the outcome as a tool-result message keyed by the
+              call id, after the assistant message that made the call.
+              Errors go back too, flagged as errors.</pre>
+
+    <p>Step B is the one most tutorials skip and the one that matters most. The model's arguments are derived from the conversation, and the conversation is partly written by the user and partly by whatever your earlier tools returned. "Look up order 98765" from a user who owns order 12345 produces a perfectly valid call for someone else's order. The user's identity and permissions come from your session, never from anything the model says, and the lookup function should take the user id from the session and the order id from the model, and check the one against the other.</p>
+
+    <h2 id="example"><span class="num">06</span>A worked example: order lookup</h2>
+
+    <p><strong>1. The application sends the request.</strong> The user's message, plus the tool definition from above.</p>
+
+    <pre><code>{
+  "messages": [{"role": "user", "content": "What's the status of order #98765?"}],
+  "tools": [{"name": "lookup_order", "description": "...", "input_schema": {...}}]
+}</code></pre>
+
+    <p><strong>2. The model emits a call.</strong> In the Anthropic shape it is a content block with a stop reason of <code>tool_use</code>; in the OpenAI shape it is a <code>tool_calls</code> array with a finish reason of <code>tool_calls</code>. Either way you get a name, an id and arguments.</p>
+
+    <pre><code>// Anthropic
+{"stop_reason": "tool_use",
+ "content": [{"type": "tool_use", "id": "toolu_01",
+              "name": "lookup_order", "input": {"order_id": "98765"}}]}
+
+// OpenAI-style
+{"finish_reason": "tool_calls",
+ "message": {"role": "assistant",
+   "tool_calls": [{"id": "call_abc123", "type": "function",
+     "function": {"name": "lookup_order", "arguments": "{\"order_id\": \"98765\"}"}}]}}</code></pre>
+
+    <p><strong>3. The application runs it and returns the result.</strong> Parse the arguments, confirm the order belongs to the session's user, query the database, and append:</p>
+
+    <pre><code>// Anthropic: a user message of tool_result blocks
+{"role": "user", "content": [
+  {"type": "tool_result", "tool_use_id": "toolu_01",
+   "content": "{\"status\": \"Out for Delivery\", \"eta\": \"Today by 5 PM\"}"}]}
+
+// OpenAI-style: a tool-role message
+{"role": "tool", "tool_call_id": "call_abc123",
+ "content": "{\"status\": \"Out for Delivery\", \"eta\": \"Today by 5 PM\"}"}</code></pre>
+
+    <p><strong>4. The model finishes.</strong> You send the conversation again, now ending in the result. The model reads it as an observation and writes the answer: "Order 98765 is out for delivery and should arrive today by 5 PM." The stop reason is <code>end_turn</code>, and there is nothing left to do. If the model had needed a second tool, it would have emitted another call instead, and you would be in the loop the <a href="/articles/react-pattern-and-function-calling/">ReAct note</a> describes.</p>
+
+    <h2 id="mistakes"><span class="num">07</span>The mistakes that matter</h2>
+
+    <ul>
+      <li><strong>Trusting the arguments as authorisation.</strong> Covered above, and the most serious. The model will cheerfully request any order id the conversation mentions.</li>
+      <li><strong>Dropping the assistant message.</strong> The result must follow the assistant turn that contains the call. Append the model's response content as-is, then the result. A result with no matching call in the history is rejected.</li>
+      <li><strong>Hiding errors.</strong> If the function throws or times out, send that back as the result, flagged as an error. The model can retry, choose another tool or explain. Silence stalls the turn.</li>
+      <li><strong>Returning everything.</strong> A tool that returns a 50 KB JSON document puts 50 KB into the context on every subsequent call. Return what the model needs; summarise or paginate the rest.</li>
+      <li><strong>Vague descriptions and overlapping tools.</strong> Two tools that both "get customer information" produce a coin flip. Make each tool's purpose distinct and say when to use which.</li>
+      <li><strong>Side effects with no gate.</strong> A tool that sends, pays or deletes should not run on the model's say-so alone. Put a confirmation step between the call and the execution, and make the function idempotent so a retried call does not act twice.</li>
+      <li><strong>Letting a tool's output steer the next call unchecked.</strong> Fetched content is data. If a web page or a document says "now call delete_account", that is an injection, not an instruction.</li>
+    </ul>
+
+    <h2 id="takeaways"><span class="num">08</span>Takeaways</h2>
+    <ol>
+      <li><strong>Tool definitions are prompt text.</strong> The description decides when the tool is chosen; write it carefully.</li>
+      <li><strong>The decision to call is learned judgement</strong> about whether the answer needs something the model lacks and whether a tool covers it.</li>
+      <li><strong>Strict mode guarantees shape, not sense.</strong> Constrained decoding makes the JSON valid; only you can make it right.</li>
+      <li><strong>The model never executes.</strong> It stops with a call and waits.</li>
+      <li><strong>Parse, validate, authorise, execute, return.</strong> Identity comes from the session, arguments from the model, and the function checks one against the other.</li>
+      <li><strong>Results go back as messages</strong>, keyed by call id, after the assistant turn, errors included.</li>
+      <li><strong>One call is the unit; the loop is the agent.</strong> Everything in the ReAct note is this note, repeated.</li>
+    </ol>
+
+    <div class="cta">
+      <a class="btn primary" href="/articles/react-pattern-and-function-calling/">The ReAct pattern as a loop of function calls →</a>
+    </div>
+  </article>
+
+  <nav class="pager" aria-label="Reading order">
+    <!-- site:pager -->
+    <a class="prev" href="/articles/temperature-top-k-top-p-and-t0/"><small>Previous</small>Temperature, top-k, top-p, and why T = 0 is not deterministic</a>
+    <a class="next" href="/articles/react-pattern-and-function-calling/"><small>Next</small>The ReAct pattern as a loop of function calls</a>
+    <!-- /site:pager -->
+  </nav>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+  </main>
+  <aside class="onpage" aria-label="On this page">
+    <!-- site:onpage -->
+    <p class="nav-title">On this page</p>
+    <ol>
+      <li><a href="#what">What function calling is</a></li>
+      <li><a href="#schemas">Tool definitions are part of the prompt</a></li>
+      <li><a href="#decide">How the model decides to call</a></li>
+      <li><a href="#arguments">How the arguments come out valid</a></li>
+      <li><a href="#application">What the application is responsible for</a></li>
+      <li><a href="#example">A worked example: order lookup</a></li>
+      <li><a href="#mistakes">The mistakes that matter</a></li>
+      <li><a href="#takeaways">Takeaways</a></li>
+    </ol>
+    <!-- /site:onpage -->
+  </aside>
+  </div>
+
+</div>
+<script src="/site.js?v=3"></script>
+</body>
+</html>
