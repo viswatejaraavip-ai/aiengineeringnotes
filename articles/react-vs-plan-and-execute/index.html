@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ReAct versus plan-and-execute, and the hybrid that production uses · AI Engineering Notes</title>
+  <meta name="description" content="Interleaved tool use decides one step at a time from the last observation; plan-and-execute writes the whole plan first and runs it. Where each wins: ReAct on tasks whose next step depends on what the last one found, plan-and-execute on tasks with a known shape, independent parts, or a long horizon. Then the plan-execute-replan hybrid: a planner without tools, executors running local ReAct loops in their own context, and a replanner that revises the plan when a step fails or reveals something new, with a worked walkthrough.">
+  <meta property="og:title" content="ReAct versus plan-and-execute, and the hybrid that production uses">
+  <meta property="og:description" content="When to decide step by step, when to plan first, and how to combine them.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://aiengineeringnotes.com/articles/react-vs-plan-and-execute/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/articles/react-vs-plan-and-execute/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css?v=3">
+  <style>
+    .tree { font-family: var(--mono); font-size: 14px; line-height: 1.5; }
+    .tree .k { color: var(--accent); font-weight: 600; }
+    .tree .c { color: var(--muted); }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- site:header -->
+    <header class="site">
+    <button class="menu" type="button" aria-controls="sidenav" aria-expanded="false">Contents</button>
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/">Introduction</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+    <!-- /site:header -->
+
+  <div class="layout">
+  <aside class="sidenav" id="sidenav" aria-label="All notes">
+    <!-- site:nav -->
+    <a class="nav-home" href="/" data-path="/">Introduction</a>
+    <details class="nav-section" data-id="foundations">
+          <summary>Foundations</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="llm-fundamentals">
+              <summary>LLM fundamentals</summary>
+              <p class="nav-sub">Tokenization</p>
+          <ul>
+                <li><a href="/articles/byte-pair-encoding/" data-path="/articles/byte-pair-encoding/">Byte-pair encoding, and why tokenizers work on bytes</a></li>
+              </ul>
+              <p class="nav-sub">Transformer internals</p>
+          <ul>
+                <li><a href="/articles/attention-qkv-and-scaling/" data-path="/articles/attention-qkv-and-scaling/">Why attention has separate Q, K and V, and why it divides by √d_k</a></li>
+                <li><a href="/articles/mixture-of-experts-active-vs-total/" data-path="/articles/mixture-of-experts-active-vs-total/">Mixture of experts: active parameters versus total parameters</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Frontier models and the model landscape</span></li>
+            <li class="nav-topic empty"><span>Prompting and context engineering</span></li>
+            <li class="nav-topic empty"><span>Fine-tuning, alignment and post-training</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="inference">
+          <summary>Inference and reasoning</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="inference-scaling">
+              <summary>Inference scaling and serving</summary>
+              <p class="nav-sub">Serving fundamentals</p>
+          <ul>
+                <li><a href="/articles/kv-cache-memory-bound-decoding/" data-path="/articles/kv-cache-memory-bound-decoding/">The KV cache, and why decoding is memory-bound</a></li>
+                <li><a href="/articles/grouped-query-attention/" data-path="/articles/grouped-query-attention/">Grouped-query attention: the middle ground between MHA and MQA</a></li>
+              </ul>
+              <p class="nav-sub">Decoding</p>
+          <ul>
+                <li><a href="/articles/temperature-top-k-top-p-and-t0/" data-path="/articles/temperature-top-k-top-p-and-t0/">Temperature, top-k, top-p, and why T = 0 is not deterministic</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Test-time compute and reasoning models</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="agents" open>
+          <summary>Agentic AI</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="agent-architectures" open>
+              <summary>Agent architectures, tool use and MCP</summary>
+              <p class="nav-sub">Agent loops</p>
+          <ul>
+                <li><a href="/articles/function-calling-model-and-application/" data-path="/articles/function-calling-model-and-application/">Function calling: how the model decides, and what your code must do</a></li>
+                <li><a href="/articles/react-pattern-and-function-calling/" data-path="/articles/react-pattern-and-function-calling/">The ReAct pattern as a loop of function calls</a></li>
+                <li><a href="/articles/react-vs-plan-and-execute/" class="current" aria-current="page" data-path="/articles/react-vs-plan-and-execute/">ReAct versus plan-and-execute, and the hybrid that production uses</a></li>
+              </ul>
+              <p class="nav-sub">Tool design</p>
+          <ul>
+                <li><a href="/articles/tool-schema-design/" data-path="/articles/tool-schema-design/">What makes a good tool schema, and why the description outranks the name</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Multi-agent systems, orchestration and human-in-the-loop</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="rag">
+          <summary>RAG</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="rag-ingestion">
+              <summary>RAG ingestion, chunking and indexing</summary>
+              <p class="nav-sub">Core concepts</p>
+          <ul>
+                <li><a href="/articles/chunk-size-recall-vs-faithfulness/" data-path="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall falls, faithfulness rises</a></li>
+                <li><a href="/articles/chunk-is-not-the-embedding/" data-path="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve</a></li>
+                <li><a href="/articles/chunk-metadata-and-llm-extraction/" data-path="/articles/chunk-metadata-and-llm-extraction/">Metadata on chunks, and the care needed when a model writes it</a></li>
+              </ul>
+              <p class="nav-sub">Chunking patterns</p>
+          <ul>
+                <li><a href="/articles/chunking-wiki-pages/" data-path="/articles/chunking-wiki-pages/">How to chunk wiki pages</a></li>
+                <li><a href="/articles/semantic-chunking-regression/" data-path="/articles/semantic-chunking-regression/">Semantic chunking made my retrieval evals worse</a></li>
+              </ul>
+              <p class="nav-sub">Multi-tenant indexes</p>
+          <ul>
+                <li><a href="/articles/cross-tenant-leakage-in-rag/" data-path="/articles/cross-tenant-leakage-in-rag/">Cross-tenant leakage in vector search, and how to test for it</a></li>
+                <li><a href="/articles/chunk-permissions-in-sync/" data-path="/articles/chunk-permissions-in-sync/">Permissions on chunks, and keeping them in sync</a></li>
+              </ul>
+              <p class="nav-sub">Build breakdowns</p>
+          <ul>
+                <li><a href="/articles/telugu-gita-rag/" data-path="/articles/telugu-gita-rag/">How I built a RAG on the Bhagavad Gita in Telugu</a></li>
+                <li><a href="/articles/telugu-purana-rag/" data-path="/articles/telugu-purana-rag/">Sanskrit in, Telugu out: a RAG over 17 Puranas</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>RAG retrieval: embeddings, hybrid search and reranking</span></li>
+            <li class="nav-topic empty"><span>RAG generation, grounding and debugging</span></li>
+            <li class="nav-topic empty"><span>Advanced RAG: agentic RAG, GraphRAG, memory and long context</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="evaluation">
+          <summary>Evaluation, observability and ops</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Evaluation fundamentals, benchmarks and LLM-as-judge</span></li>
+            <li class="nav-topic empty"><span>Evaluating RAG, agents and production systems</span></li>
+            <li class="nav-topic empty"><span>Observability, tracing and monitoring</span></li>
+            <li class="nav-topic empty"><span>LLMOps, cost, reliability and product engineering</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="security">
+          <summary>Security, red teaming and governance</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Prompt injection and LLM application security</span></li>
+            <li class="nav-topic empty"><span>Red teaming, adversarial testing and guardrails</span></li>
+            <li class="nav-topic empty"><span>AI governance, risk and compliance</span></li>
+            <li class="nav-topic empty"><span>Responsible AI, safety, alignment and societal risk</span></li>
+          </ul>
+    </details>
+    <!-- /site:nav -->
+  </aside>
+  <main class="content">
+
+  <p class="crumbs"><!-- site:crumbs -->
+    <a href="/#agents">Agentic AI</a> / <a href="/#agent-architectures">Agent architectures, tool use and MCP</a> / ReAct versus plan-and-execute, and the hybrid that production uses
+    <!-- /site:crumbs --></p>
+
+  <article class="post">
+    <header>
+      <h1>ReAct versus plan-and-execute, and the hybrid that production uses</h1>
+      <p class="lede">The <a href="/articles/react-pattern-and-function-calling/">ReAct note</a> described an agent that decides one step at a time. The alternative is to decide all the steps first and then carry them out. The two differ in when reasoning happens relative to action, and that single difference sets what each is good at. This note compares them, says which tasks each wins, and then describes the three-role hybrid that most production agent systems settle on, with a walkthrough of it handling a task that does not go to plan.</p>
+      <div class="byline"><span>25 Oct 2026</span><span>11 min read</span></div>
+    </header>
+
+    <div class="concept">
+      <span class="label">The short version</span>
+      <p>ReAct interleaves: think, act, observe, and choose the next step from what was just observed. Plan-and-execute separates: a planner writes the full sequence up front, an executor runs it, and the results are joined at the end. Interleaving wins when step <var>n</var>+1 cannot be known until step <var>n</var> returns; planning wins when the task's shape is known, its parts are independent, or its horizon is long enough that an interleaved agent drifts. The hybrid, plan-execute-replan, gives a planner the big picture without tools, gives each step to an executor running a short ReAct loop in its own context, and sends the result to a replanner that revises what remains. It keeps the tool mess out of the plan and the plan out of the tools.</p>
+    </div>
+
+    <div class="toc">
+      <p>Contents</p>
+      <ol>
+        <li><a href="#two">Two ways to arrange reasoning and action</a></li>
+        <li><a href="#differences">What the difference changes</a></li>
+        <li><a href="#react-wins">Where interleaving wins</a></li>
+        <li><a href="#plan-wins">Where planning first wins</a></li>
+        <li><a href="#hybrid">The hybrid: plan, execute, replan</a></li>
+        <li><a href="#roles">The three roles</a></li>
+        <li><a href="#walkthrough">A walkthrough that does not go to plan</a></li>
+        <li><a href="#why">Why the hybrid works</a></li>
+        <li><a href="#choosing">Choosing, in practice</a></li>
+        <li><a href="#takeaways">Takeaways</a></li>
+      </ol>
+    </div>
+
+    <h2 id="two"><span class="num">01</span>Two ways to arrange reasoning and action</h2>
+
+    <pre class="tree"><span class="k">ReAct, interleaved</span>
+thought 1 → action 1 → observation 1
+                           │
+thought 2 → action 2 → observation 2 → … → final answer
+<span class="c">each thought sees every observation so far and picks one next step</span>
+
+<span class="k">plan-and-execute, decoupled</span>
+1. planner    reads the task, writes [step 1, step 2, step 3, step 4]
+2. executor   runs step 1 → step 2 → step 3 → step 4
+3. rejoin     gathers the step results → final answer
+<span class="c">the plan is fixed before any tool runs</span></pre>
+
+    <p>In ReAct the model plans exactly one step ahead and replans after every observation, for free, because the next thought is generated with the observation in context. In plan-and-execute the reasoning is front-loaded: one call produces the whole sequence, and the executor's job is to carry it out rather than to decide. The planner typically has no tools; the executor has tools and little judgement to exercise.</p>
+
+    <h2 id="differences"><span class="num">02</span>What the difference changes</h2>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th></th><th>ReAct, interleaved</th><th>Plan-and-execute</th></tr>
+        <tr><td>Control flow</td><td>A loop whose next iteration is chosen at runtime</td><td>A sequence or graph fixed before execution</td></tr>
+        <tr><td>Context</td><td>One growing history holding every observation</td><td>The plan, plus a small per-step context for each executor call</td></tr>
+        <tr><td>Adaptation</td><td>Immediate; a failed tool or surprising result changes the very next step</td><td>None unless a replanning step is built in</td></tr>
+        <tr><td>Parallelism</td><td>Within a step only, when the model issues several calls at once; across steps each waits on the last</td><td>Independent steps in the plan can run concurrently</td></tr>
+        <tr><td>Cost per step</td><td>Rises as history grows; the whole context is resent each turn</td><td>Flat; each step sees only what it needs</td></tr>
+        <tr><td>Long horizons</td><td>Tends to drift, repeat itself, or lose the original goal</td><td>The plan is the goal, written down; the executor cannot wander far</td></tr>
+        <tr><td>Model choice</td><td>One model does everything</td><td>A strong model plans once, a cheaper one executes many times</td></tr>
+      </table>
+    </div>
+
+    <p>Every row follows from the one architectural fact: ReAct reasons after each observation and plan-and-execute reasons before any. The first buys adaptability and pays in context and cost. The second buys structure, parallelism and cheap execution and pays in rigidity.</p>
+
+    <h2 id="react-wins"><span class="num">03</span>Where interleaving wins</h2>
+
+    <p>ReAct wins on tasks where the next step genuinely cannot be written down until the last one has returned. The environment, not the task description, determines the path.</p>
+
+    <ul>
+      <li><strong>Chained lookups.</strong> "Find the current CEO of the startup founded by the author of paper X." The search for the startup cannot be planned until the author is known, and the search for the CEO cannot be planned until the startup is. Any plan written in advance would be a plan to run searches with blanks in them.</li>
+      <li><strong>Debugging and diagnosis.</strong> A failing endpoint, a cluster that will not schedule pods. Each log line or inspection narrows the branch to follow next. The diagnostic tree is discovered, not designed, and a fixed plan would check the wrong things in the wrong order.</li>
+      <li><strong>Conversations that gather what they need.</strong> An assistant completing a transaction asks for whatever is missing, and what is missing depends on each answer. The loop is the natural shape of a dialogue.</li>
+      <li><strong>Short tasks in general.</strong> For two or three steps the overhead of planning exceeds the benefit, and the growing-context cost has no time to bite.</li>
+    </ul>
+
+    <h2 id="plan-wins"><span class="num">04</span>Where planning first wins</h2>
+
+    <p>Plan-and-execute wins when the shape of the work is visible from the task description, when the parts do not depend on one another, or when the task is long enough that an interleaved agent would lose its way.</p>
+
+    <ul>
+      <li><strong>Fan-out over known items.</strong> "Summarise this week's news for these five competitors." The planner writes five identical sub-tasks, they run in parallel in their own contexts, and a final step merges them. A ReAct agent would do the five serially in one ever-growing context, with the fifth summary written while the first company's raw articles are still taking up space.</li>
+      <li><strong>Pipelines with a fixed topology.</strong> Extract the schema from one database, transform the column types, load into another, send a notification. The order is given; nothing discovered along the way changes it. Planning first means the long-running middle steps cannot distract the agent from the end.</li>
+      <li><strong>Cost-sensitive automation.</strong> A strong, expensive model writes the plan once. A fast, cheap model executes each step, most of which are routine tool calls that do not need the strong model's judgement. The expensive calls are few and the cheap calls are many.</li>
+      <li><strong>Anything that needs a reviewable plan.</strong> If a human should approve the approach before tools run, the plan has to exist as an object before execution. ReAct never produces one.</li>
+    </ul>
+
+    <h2 id="hybrid"><span class="num">05</span>The hybrid: plan, execute, replan</h2>
+
+    <p>Each pure form fails in a characteristic way. A ReAct agent on a long task accumulates raw tool output until it drifts, repeats steps, or forgets what it was for. A plan-and-execute agent on a real environment hits the first thing the planner did not foresee, a blocked request, a missing field, an extra case, and either fails the step or carries on executing a plan that no longer fits.</p>
+
+    <p>The hybrid takes planning from one and adaptation from the other, at two different scales. Macro-level reasoning is done by a planner that sees the whole task and none of the tools. Micro-level reasoning is done by executors that see one step and all of the tools. And a replanner between them decides, after each step, whether the plan still holds.</p>
+
+    <pre class="tree">              ┌────────────────────────────────────┐
+              │  <span class="k">planner</span>                           │
+              │  task → ordered steps, each with   │
+              │  what "done" looks like            │
+              └────────────────┬───────────────────┘
+                               ▼
+              ┌────────────────────────────────────┐
+              │  <span class="k">executor</span>  (one step, own context) │
+              │  local ReAct loop with tools:      │
+              │  think → call → observe → … → result│
+              └────────────────┬───────────────────┘
+                               ▼
+              ┌────────────────────────────────────┐
+              │  <span class="k">replanner</span>                         │
+              │  reads the step result:            │
+              │   done as expected → next step     │
+              │   failed or surprised → rewrite    │
+              │     the remaining steps            │
+              │   nothing left → write the answer  │
+              └────────────────────────────────────┘</pre>
+
+    <h2 id="roles"><span class="num">06</span>The three roles</h2>
+
+    <h3>The planner</h3>
+
+    <p>Receives the task and produces a sequence or graph of sub-tasks, each with a short statement of what counts as done. It has no tools, by design: a planner that can browse starts browsing, and the plan dissolves into a ReAct loop. Its output is the master state of the run. This is the step to spend a capable model on, because a poor decomposition is not recoverable by good execution.</p>
+
+    <h3>The executor</h3>
+
+    <p>Takes one step and runs a short ReAct loop to complete it, with full tool access and a fresh context holding only the step's instructions and inputs. It is expected to handle local friction on its own: retry a failed request, try a different search term, parse a messy response, fall back to a second tool. When done, it returns a compact result, and its context, with all the raw tool output in it, is thrown away. A smaller, faster model usually does fine here, and several executors can run at once on independent steps.</p>
+
+    <h3>The replanner</h3>
+
+    <p>Reads each executor's result against the plan and makes one of three decisions. The step did what was expected: pass its result on and start the next. The step failed or turned up something the plan did not anticipate: rewrite, insert or drop the remaining steps. Nothing remains: synthesise the final answer from the accumulated results. This role is what turns a brittle sequence into a recoverable state machine, and it needs the same quality of judgement as the planner; in many implementations the planner and replanner are the same prompt called with different state.</p>
+
+    <h2 id="walkthrough"><span class="num">07</span>A walkthrough that does not go to plan</h2>
+
+    <p>Task: "Analyse our top competitor's current pricing page, compute our price gap across their tiers, and post a summary to the pricing channel."</p>
+
+    <pre class="tree"><span class="k">1. plan</span>
+   step 1  fetch the competitor's pricing page and extract the tiers
+   step 2  compare against our price table and compute the gap per tier
+   step 3  format the summary and post it to the channel
+
+<span class="k">2. execute step 1</span>  (executor, local ReAct)
+   call  fetch_page(competitor.com/pricing)
+   obs   HTTP 403, bot protection
+   think "direct fetch blocked; use the rendering browser instead"
+   call  render_page(competitor.com/pricing)
+   obs   HTML retrieved
+   think "three priced tiers, plus an Enterprise tier with no listed price"
+   result  tiers: [29, 99, 299], note: Enterprise tier, price on request
+   <span class="c">the 403 was absorbed here; the plan never heard about it</span>
+
+<span class="k">3. replan</span>
+   the result contains something the plan did not expect: an unpriced tier
+   step 2   compare the three priced tiers and compute the gap     (kept)
+   step 2b  look up recent enterprise quotes for the competitor    (inserted)
+   step 3   format and post, including the enterprise estimate     (amended)
+
+<span class="k">4. execute 2 and 2b</span>  in parallel, independent of each other
+<span class="k">5. replan</span>  both done; nothing surprising; proceed
+<span class="k">6. execute 3</span>  post the summary
+<span class="k">7. replan</span>  nothing left; write the final report of what was posted</pre>
+
+    <p>Two things happened that neither pure form handles well. A tool failure was handled entirely inside the executor, without touching the plan, which a pure plan-and-execute system would have failed on. And a discovery changed the plan, in a controlled way, with one step inserted and one amended, which a pure ReAct agent would have handled by wandering into the enterprise lookup mid-stream and perhaps forgetting to post the summary.</p>
+
+    <h2 id="why"><span class="num">08</span>Why the hybrid works</h2>
+
+    <ul>
+      <li><strong>Context isolation.</strong> In pure ReAct every raw page, database dump and stack trace lives in one window until the end. In the hybrid each executor's mess is discarded when its step completes, and only the compact result reaches the master state. The planner and replanner operate on a few hundred tokens of plan and results, not megabytes of observations.</li>
+      <li><strong>The right model for each job.</strong> Planning and replanning are infrequent and need judgement, so they get the strong model. Execution is frequent and mostly mechanical, so it gets the fast one. The cost profile is a few expensive calls and many cheap ones.</li>
+      <li><strong>Two levels of recovery.</strong> Small failures are handled locally by the executor's loop; large surprises are handled globally by the replanner. Neither has to deal with the other's class of problem.</li>
+      <li><strong>Parallelism where the plan allows it.</strong> Independent steps run concurrently, each in its own executor, something a single interleaved loop cannot do across steps.</li>
+      <li><strong>A plan you can show someone.</strong> The plan is an object. It can be logged, approved, resumed after a crash, and diffed when the replanner changes it.</li>
+    </ul>
+
+    <div class="lesson">
+      <span class="label">Three roles, not necessarily three models</span>
+      <p>The roles are a separation of concerns, not a deployment diagram. A single capable model can play all three with different prompts and different context, and current frontier models run a lighter version of the hybrid on their own: they write a task list in their first turn, work through it with tool calls, and revise the list when something changes. The explicit three-role version is what you build when you need the context isolation, the parallelism, or the reviewable plan that the single-context version cannot give you.</p>
+    </div>
+
+    <h2 id="choosing"><span class="num">09</span>Choosing, in practice</h2>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>If the task is…</th><th>Start with</th></tr>
+        <tr><td>Short, and each step depends on the last</td><td>ReAct, one loop, one context</td></tr>
+        <tr><td>Known in shape, with independent parts, or long</td><td>Plan-and-execute, with a replanning step from day one</td></tr>
+        <tr><td>Long and uncertain, or touches an environment that pushes back</td><td>The hybrid: planner without tools, executors with tools in their own contexts, replanner between</td></tr>
+        <tr><td>Something a person must approve before tools run</td><td>Anything with an explicit plan; never pure ReAct</td></tr>
+      </table>
+    </div>
+
+    <p>The honest default for a new agent is to begin with the simplest form that could work, measure where it fails, and add structure in response. Most agents that end up hybrid got there because a ReAct loop drifted on long tasks, or a plan broke on the first surprise, and the fix for each is one more role.</p>
+
+    <h2 id="takeaways"><span class="num">10</span>Takeaways</h2>
+    <ol>
+      <li><strong>The difference is when reasoning happens.</strong> ReAct reasons after each observation; plan-and-execute reasons before any.</li>
+      <li><strong>Interleaving buys adaptation and pays in context.</strong> It wins when the next step depends on the last result.</li>
+      <li><strong>Planning buys structure, parallelism and cheap execution and pays in rigidity.</strong> It wins when the shape is known, the parts are independent, or the horizon is long.</li>
+      <li><strong>Pure forms fail predictably.</strong> ReAct drifts on long tasks; plans break on the first surprise.</li>
+      <li><strong>The hybrid separates scales.</strong> A planner without tools, executors with tools in isolated contexts, a replanner that revises the remaining steps.</li>
+      <li><strong>Local failures stay local; discoveries change the plan.</strong> That is the whole point of having both loops.</li>
+      <li><strong>Roles are not models.</strong> Start simple, add a role when a measured failure calls for it.</li>
+    </ol>
+
+    <div class="cta">
+      <a class="btn primary" href="/articles/react-pattern-and-function-calling/">The ReAct pattern as a loop of function calls →</a>
+      <a class="btn" href="/articles/tool-schema-design/">What makes a good tool schema →</a>
+    </div>
+  </article>
+
+  <nav class="pager" aria-label="Reading order">
+    <!-- site:pager -->
+    <a class="prev" href="/articles/react-pattern-and-function-calling/"><small>Previous</small>The ReAct pattern as a loop of function calls</a>
+    <a class="next" href="/articles/tool-schema-design/"><small>Next</small>What makes a good tool schema, and why the description outranks the name</a>
+    <!-- /site:pager -->
+  </nav>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+  </main>
+  <aside class="onpage" aria-label="On this page">
+    <!-- site:onpage -->
+    <p class="nav-title">On this page</p>
+    <ol>
+      <li><a href="#two">Two ways to arrange reasoning and action</a></li>
+      <li><a href="#differences">What the difference changes</a></li>
+      <li><a href="#react-wins">Where interleaving wins</a></li>
+      <li><a href="#plan-wins">Where planning first wins</a></li>
+      <li><a href="#hybrid">The hybrid: plan, execute, replan</a></li>
+      <li><a href="#roles">The three roles</a></li>
+      <li><a href="#walkthrough">A walkthrough that does not go to plan</a></li>
+      <li><a href="#why">Why the hybrid works</a></li>
+      <li><a href="#choosing">Choosing, in practice</a></li>
+      <li><a href="#takeaways">Takeaways</a></li>
+    </ol>
+    <!-- /site:onpage -->
+  </aside>
+  </div>
+
+</div>
+<script src="/site.js?v=3"></script>
+</body>
+</html>
