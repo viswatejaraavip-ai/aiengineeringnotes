@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Grouped-query attention: the middle ground between MHA and MQA · AI Engineering Notes</title>
+  <meta name="description" content="Multi-head attention gives every query head its own key and value heads; multi-query attention gives all of them one pair; grouped-query attention shares one pair per group. Why the middle option became the default in Llama, Mistral and Gemma: the cache shrinks by the group ratio, decode gets faster, and quality stays close to multi-head. With the real head counts, and how a trained multi-head model is converted by mean-pooling and uptraining.">
+  <meta property="og:title" content="Grouped-query attention: the middle ground between MHA and MQA">
+  <meta property="og:description" content="How KV heads are shared, what it saves, and why nearly every current model uses it.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://aiengineeringnotes.com/articles/grouped-query-attention/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/articles/grouped-query-attention/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css?v=3">
+  <style>
+    .tree { font-family: var(--mono); font-size: 14px; line-height: 1.5; }
+    .tree .k { color: var(--accent); font-weight: 600; }
+    .num { text-align: right; }
+    var { font-style: italic; font-family: var(--serif); }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- site:header -->
+    <header class="site">
+    <button class="menu" type="button" aria-controls="sidenav" aria-expanded="false">Contents</button>
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/">Introduction</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+    <!-- /site:header -->
+
+  <div class="layout">
+  <aside class="sidenav" id="sidenav" aria-label="All notes">
+    <!-- site:nav -->
+    <a class="nav-home" href="/" data-path="/">Introduction</a>
+    <details class="nav-section" data-id="foundations">
+          <summary>Foundations</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="llm-fundamentals">
+              <summary>LLM fundamentals</summary>
+              <p class="nav-sub">Tokenization</p>
+          <ul>
+                <li><a href="/articles/byte-pair-encoding/" data-path="/articles/byte-pair-encoding/">Byte-pair encoding, and why tokenizers work on bytes</a></li>
+              </ul>
+              <p class="nav-sub">Transformer internals</p>
+          <ul>
+                <li><a href="/articles/attention-qkv-and-scaling/" data-path="/articles/attention-qkv-and-scaling/">Why attention has separate Q, K and V, and why it divides by √d_k</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Frontier models and the model landscape</span></li>
+            <li class="nav-topic empty"><span>Prompting and context engineering</span></li>
+            <li class="nav-topic empty"><span>Fine-tuning, alignment and post-training</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="inference" open>
+          <summary>Inference and reasoning</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="inference-scaling" open>
+              <summary>Inference scaling and serving</summary>
+              <p class="nav-sub">Serving fundamentals</p>
+          <ul>
+                <li><a href="/articles/kv-cache-memory-bound-decoding/" data-path="/articles/kv-cache-memory-bound-decoding/">The KV cache, and why decoding is memory-bound</a></li>
+                <li><a href="/articles/grouped-query-attention/" class="current" aria-current="page" data-path="/articles/grouped-query-attention/">Grouped-query attention: the middle ground between MHA and MQA</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Test-time compute and reasoning models</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="agents">
+          <summary>Agentic AI</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Agent architectures, tool use and MCP</span></li>
+            <li class="nav-topic empty"><span>Multi-agent systems, orchestration and human-in-the-loop</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="rag">
+          <summary>RAG</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="rag-ingestion">
+              <summary>RAG ingestion, chunking and indexing</summary>
+              <p class="nav-sub">Core concepts</p>
+          <ul>
+                <li><a href="/articles/chunk-size-recall-vs-faithfulness/" data-path="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall falls, faithfulness rises</a></li>
+                <li><a href="/articles/chunk-is-not-the-embedding/" data-path="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve</a></li>
+                <li><a href="/articles/chunk-metadata-and-llm-extraction/" data-path="/articles/chunk-metadata-and-llm-extraction/">Metadata on chunks, and the care needed when a model writes it</a></li>
+              </ul>
+              <p class="nav-sub">Chunking patterns</p>
+          <ul>
+                <li><a href="/articles/chunking-wiki-pages/" data-path="/articles/chunking-wiki-pages/">How to chunk wiki pages</a></li>
+                <li><a href="/articles/semantic-chunking-regression/" data-path="/articles/semantic-chunking-regression/">Semantic chunking made my retrieval evals worse</a></li>
+              </ul>
+              <p class="nav-sub">Multi-tenant indexes</p>
+          <ul>
+                <li><a href="/articles/cross-tenant-leakage-in-rag/" data-path="/articles/cross-tenant-leakage-in-rag/">Cross-tenant leakage in vector search, and how to test for it</a></li>
+                <li><a href="/articles/chunk-permissions-in-sync/" data-path="/articles/chunk-permissions-in-sync/">Permissions on chunks, and keeping them in sync</a></li>
+              </ul>
+              <p class="nav-sub">Build breakdowns</p>
+          <ul>
+                <li><a href="/articles/telugu-gita-rag/" data-path="/articles/telugu-gita-rag/">How I built a RAG on the Bhagavad Gita in Telugu</a></li>
+                <li><a href="/articles/telugu-purana-rag/" data-path="/articles/telugu-purana-rag/">Sanskrit in, Telugu out: a RAG over 17 Puranas</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>RAG retrieval: embeddings, hybrid search and reranking</span></li>
+            <li class="nav-topic empty"><span>RAG generation, grounding and debugging</span></li>
+            <li class="nav-topic empty"><span>Advanced RAG: agentic RAG, GraphRAG, memory and long context</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="evaluation">
+          <summary>Evaluation, observability and ops</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Evaluation fundamentals, benchmarks and LLM-as-judge</span></li>
+            <li class="nav-topic empty"><span>Evaluating RAG, agents and production systems</span></li>
+            <li class="nav-topic empty"><span>Observability, tracing and monitoring</span></li>
+            <li class="nav-topic empty"><span>LLMOps, cost, reliability and product engineering</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="security">
+          <summary>Security, red teaming and governance</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Prompt injection and LLM application security</span></li>
+            <li class="nav-topic empty"><span>Red teaming, adversarial testing and guardrails</span></li>
+            <li class="nav-topic empty"><span>AI governance, risk and compliance</span></li>
+            <li class="nav-topic empty"><span>Responsible AI, safety, alignment and societal risk</span></li>
+          </ul>
+    </details>
+    <!-- /site:nav -->
+  </aside>
+  <main class="content">
+
+  <p class="crumbs"><!-- site:crumbs -->
+    <a href="/#inference">Inference and reasoning</a> / <a href="/#inference-scaling">Inference scaling and serving</a> / Grouped-query attention: the middle ground between MHA and MQA
+    <!-- /site:crumbs --></p>
+
+  <article class="post">
+    <header>
+      <h1>Grouped-query attention: the middle ground between MHA and MQA</h1>
+      <p class="lede">The <a href="/articles/kv-cache-memory-bound-decoding/">KV cache note</a> ended with the size formula and the observation that the number of key-value heads is one of its terms. Grouped-query attention is the architectural change that shrinks that term without giving up much of what multi-head attention can do. This note lays out the three options side by side, with the head counts of real models, and explains why nearly every model since 2023 picked the one in the middle.</p>
+      <div class="byline"><span>24 Oct 2026</span><span>7 min read</span></div>
+    </header>
+
+    <div class="concept">
+      <span class="label">The short version</span>
+      <p>Multi-head attention gives each of the <var>N</var> query heads its own key head and value head. Multi-query attention gives all <var>N</var> of them a single shared pair, which cuts the cache by <var>N</var>× but costs quality and can destabilise training. Grouped-query attention splits the query heads into <var>G</var> groups and gives each group one key-value pair: the cache shrinks by <var>N</var>/<var>G</var>, decode speed is close to multi-query, and quality is close to multi-head. A trained multi-head model can be converted by averaging the key and value heads within each group and training briefly.</p>
+    </div>
+
+    <div class="toc">
+      <p>Contents</p>
+      <ol>
+        <li><a href="#spectrum">Three ways to assign key-value heads</a></li>
+        <li><a href="#mha">Multi-head attention</a></li>
+        <li><a href="#mqa">Multi-query attention</a></li>
+        <li><a href="#gqa">Grouped-query attention</a></li>
+        <li><a href="#compare">Side by side</a></li>
+        <li><a href="#why">Why GQA became the default</a></li>
+        <li><a href="#uptraining">Converting a multi-head model: uptraining</a></li>
+        <li><a href="#takeaways">Takeaways</a></li>
+      </ol>
+    </div>
+
+    <h2 id="spectrum"><span class="num">01</span>Three ways to assign key-value heads</h2>
+
+    <p>In every attention layer, each query head needs a key head to match against and a value head to read from. The question the three variants answer differently is how many distinct key and value heads exist, and which query heads share them.</p>
+
+    <pre class="tree"><span class="k">Multi-head (MHA)</span>            <span class="k">Grouped-query (GQA)</span>          <span class="k">Multi-query (MQA)</span>
+one KV pair per Q head      one KV pair per group        one KV pair for all
+
+Q Q Q Q   Q Q Q Q           Q Q Q Q   Q Q Q Q            Q Q Q Q   Q Q Q Q
+│ │ │ │   │ │ │ │           └──┬──┘   └──┬──┘            └───────┬───────┘
+K K K K   K K K K              K         K                       K
+V V V V   V V V V              V         V                       V
+
+8 KV heads                  2 KV heads                   1 KV head</pre>
+
+    <p>The query heads are the same in all three. The query projection has the same size, each head still computes its own attention pattern, and the output is still the concatenation of <var>N</var> head outputs. What changes is the size of the key and value projections, the number of distinct key and value tensors in the cache, and how much has to be read from memory at every decode step.</p>
+
+    <h2 id="mha"><span class="num">02</span>Multi-head attention</h2>
+
+    <p>The original Transformer design, and the one GPT-3 and most models before 2023 used. With <var>N</var> query heads there are <var>N</var> key heads and <var>N</var> value heads. Each head has a fully independent view of which tokens to attend to and what to read from them, which is the maximum of modelling capacity for a given width.</p>
+
+    <p>The cost is in the cache. Every token stores <var>N</var> key vectors and <var>N</var> value vectors per layer, and all of them are streamed from memory at every step of generation. For a large model at long context, that cache is bigger than the weights and the decode phase is bound by memory bandwidth, as the KV cache note works through.</p>
+
+    <h2 id="mqa"><span class="num">03</span>Multi-query attention</h2>
+
+    <p>The opposite extreme, proposed in 2019: keep <var>N</var> query heads but a single key head and a single value head, shared by all of them. Each query head still computes its own attention weights, because its query is different, but they all score against the same keys and all read from the same values.</p>
+
+    <ul>
+      <li><strong>What it buys.</strong> The cache is <var>N</var>× smaller, and so is the per-step memory traffic for attention. Generation throughput and achievable batch size go up by a large factor. PaLM and Falcon used it.</li>
+      <li><strong>What it costs.</strong> All heads now have to find what they need through one key space and one value space, so the model loses representational capacity, and benchmark quality drops measurably. The GQA paper also reports training instability with multi-query at large scale.</li>
+    </ul>
+
+    <h2 id="gqa"><span class="num">04</span>Grouped-query attention</h2>
+
+    <p>Grouped-query attention, from Ainslie and colleagues at Google in 2023, interpolates. The <var>N</var> query heads are divided into <var>G</var> groups, with 1 &lt; <var>G</var> &lt; <var>N</var>, and each group shares one key head and one value head. <var>G</var> = <var>N</var> is multi-head; <var>G</var> = 1 is multi-query.</p>
+
+    <p>The cache shrinks by <var>N</var>/<var>G</var>. The real head counts show the ratios in use:</p>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Model</th><th>Query heads <var>N</var></th><th>KV heads <var>G</var></th><th>Queries per KV head</th><th>Cache versus MHA</th></tr>
+        <tr><td>Llama 3 8B, Mistral 7B</td><td class="num">32</td><td class="num">8</td><td class="num">4</td><td class="num">1/4</td></tr>
+        <tr><td>Llama 2 70B, Llama 3 70B</td><td class="num">64</td><td class="num">8</td><td class="num">8</td><td class="num">1/8</td></tr>
+        <tr><td>Llama 3.1 405B</td><td class="num">128</td><td class="num">8</td><td class="num">16</td><td class="num">1/16</td></tr>
+        <tr><td>Gemma 2 9B</td><td class="num">16</td><td class="num">8</td><td class="num">2</td><td class="num">1/2</td></tr>
+        <tr><td>Gemma 2 27B</td><td class="num">32</td><td class="num">16</td><td class="num">2</td><td class="num">1/2</td></tr>
+      </table>
+    </div>
+
+    <p>Eight key-value heads is a recurring choice. One reason is tensor parallelism: when a model is split across eight GPUs, each device holds one key-value head and its share of query heads, with no duplication of the cache. The query count then grows with the model while the KV count stays put, so the bigger the model, the larger the saving.</p>
+
+    <h2 id="compare"><span class="num">05</span>Side by side</h2>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th></th><th>Multi-head</th><th>Grouped-query</th><th>Multi-query</th></tr>
+        <tr><td>KV heads</td><td><var>N</var>, one per query head</td><td><var>G</var>, one per group</td><td>1, shared by all</td></tr>
+        <tr><td>Cache size</td><td>Base</td><td>1/2 to 1/16 of base; 1/8 is typical for large models</td><td>1/<var>N</var> of base</td></tr>
+        <tr><td>Decode speed</td><td>Slowest, memory-bound</td><td>Close to multi-query</td><td>Fastest</td></tr>
+        <tr><td>Quality</td><td>Highest</td><td>Within noise of multi-head in most reported evaluations</td><td>Measurable drop; unstable at scale</td></tr>
+        <tr><td>Used in</td><td>Original Transformer, GPT-3, Llama 1</td><td>Llama 2 70B, Llama 3, Mistral, Gemma 2, Qwen 2, most models since</td><td>PaLM, Falcon</td></tr>
+      </table>
+    </div>
+
+    <h2 id="why"><span class="num">06</span>Why GQA became the default</h2>
+
+    <p>At the context lengths models now serve, 8k to 128k and beyond, decode is bound by memory bandwidth, and the key-value cache is a large part of what is streamed each step. Take Llama 3 70B's ratio of eight query heads to one KV head.</p>
+
+    <ul>
+      <li><strong>Memory.</strong> The cache is 87.5 percent smaller than multi-head. At 128k context in 16-bit that is 43 GB instead of 344 GB per request. The freed memory goes to more concurrent requests or longer contexts on the same hardware.</li>
+      <li><strong>Speed.</strong> Attention at each decode step reads one eighth of the key and value bytes from high-bandwidth memory, so the attention part of the step is close to eight times faster, and the step as a whole is faster in proportion to how much of it attention was.</li>
+      <li><strong>Quality.</strong> Each group still has its own key and value space, so the model keeps most of the distinct routing that multi-head allows. The GQA paper's uptrained T5-XXL variants land within a fraction of a point of multi-head on summarisation and translation benchmarks while matching multi-query speed.</li>
+    </ul>
+
+    <p>So the trade is a large, predictable gain on the bottleneck resource for a small, measured loss on quality. That is a trade almost every model builder takes, and since 2023 almost all have.</p>
+
+    <h2 id="uptraining"><span class="num">07</span>Converting a multi-head model: uptraining</h2>
+
+    <p>GQA did not require retraining from scratch, which is part of why it spread quickly. The paper's recipe converts an existing multi-head checkpoint in two steps.</p>
+
+    <ol>
+      <li><strong>Mean-pool the projections.</strong> For each group, take the <var>N</var>/<var>G</var> key heads that will be merged and average their projection matrices into one; do the same for the value heads. Averaging preserved more of the original model than picking one head from the group or initialising randomly, in the paper's ablation.</li>
+      <li><strong>Uptrain briefly.</strong> Continue pretraining the converted model on the original objective for a small fraction of the original budget, about 5 percent of the pretraining steps in the paper. This lets the query heads in each group adapt to their now-shared keys and values.</li>
+    </ol>
+
+    <p>After uptraining, the converted model recovered nearly all of the multi-head baseline's quality. The same procedure works for multi-query, with every head pooled into one, but the quality gap it leaves is larger. For a model trained with GQA from the start, as Llama 2 70B and everything after were, none of this is needed.</p>
+
+    <div class="lesson">
+      <span class="label">Where this is heading</span>
+      <p>Grouped-query attention reduces the number of key-value heads. Multi-head latent attention, used in DeepSeek's models, goes a step further: instead of storing keys and values, it stores a low-rank latent vector per token and reconstructs them on the fly, so the cache is smaller than even an aggressive GQA ratio while keeping per-head keys and values at compute time. It is the same trade, pushed harder.</p>
+    </div>
+
+    <h2 id="takeaways"><span class="num">08</span>Takeaways</h2>
+    <ol>
+      <li><strong>The three variants differ only in how many key-value heads exist.</strong> Query heads, attention patterns and outputs are the same shape in all of them.</li>
+      <li><strong>Multi-query is the extreme: one shared pair, <var>N</var>× smaller cache, a real quality cost.</strong></li>
+      <li><strong>Grouped-query shares one pair per group.</strong> The cache shrinks by <var>N</var>/<var>G</var>; eight KV heads is the common choice, giving 4× for 7B to 8B models and 8× for 70B.</li>
+      <li><strong>The saving lands on the bottleneck.</strong> Decode is bandwidth-bound and the cache is what is streamed, so a smaller cache is faster decode and bigger batches.</li>
+      <li><strong>Quality stays close to multi-head.</strong> Each group keeps its own key and value space.</li>
+      <li><strong>Existing models convert cheaply.</strong> Mean-pool the heads in each group, then uptrain for a few percent of the original budget.</li>
+    </ol>
+
+    <div class="cta">
+      <a class="btn primary" href="/articles/kv-cache-memory-bound-decoding/">The KV cache, and why decoding is memory-bound →</a>
+      <a class="btn" href="/articles/attention-qkv-and-scaling/">Why attention has separate Q, K and V →</a>
+    </div>
+  </article>
+
+  <nav class="pager" aria-label="Reading order">
+    <!-- site:pager -->
+    <a class="prev" href="/articles/kv-cache-memory-bound-decoding/"><small>Previous</small>The KV cache, and why decoding is memory-bound</a>
+    <a class="next" href="/articles/chunk-size-recall-vs-faithfulness/"><small>Next</small>Chunk size: recall falls, faithfulness rises</a>
+    <!-- /site:pager -->
+  </nav>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+  </main>
+  <aside class="onpage" aria-label="On this page">
+    <!-- site:onpage -->
+    <p class="nav-title">On this page</p>
+    <ol>
+      <li><a href="#spectrum">Three ways to assign key-value heads</a></li>
+      <li><a href="#mha">Multi-head attention</a></li>
+      <li><a href="#mqa">Multi-query attention</a></li>
+      <li><a href="#gqa">Grouped-query attention</a></li>
+      <li><a href="#compare">Side by side</a></li>
+      <li><a href="#why">Why GQA became the default</a></li>
+      <li><a href="#uptraining">Converting a multi-head model: uptraining</a></li>
+      <li><a href="#takeaways">Takeaways</a></li>
+    </ol>
+    <!-- /site:onpage -->
+  </aside>
+  </div>
+
+</div>
+<script src="/site.js?v=3"></script>
+</body>
+</html>

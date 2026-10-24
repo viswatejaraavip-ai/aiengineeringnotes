@@ -127,6 +127,10 @@ INFERENCE_SCALING_GROUPS = [
              "title": "The KV cache, and why decoding is memory-bound",
              "sub": "Caching keys and values makes generation linear instead of quadratic, and leaves each decode step streaming the whole model and cache for one token's worth of arithmetic. The size formula, worked for a 70B model at 2k and 128k with and without grouped-query attention, and the mitigations: MQA, GQA, paged attention, cache quantisation.",
              "meta": "24 Oct 2026 · 10 min read"},
+            {"path": "/articles/grouped-query-attention/",
+             "title": "Grouped-query attention: the middle ground between MHA and MQA",
+             "sub": "One key-value pair per query head, per group, or for all heads. Why sharing one pair per group shrinks the cache by the group ratio, keeps quality close to multi-head, and became the default in Llama, Mistral and Gemma, with the real head counts. How a trained multi-head model converts by mean-pooling and uptraining.",
+             "meta": "24 Oct 2026 · 7 min read"},
         ],
     },
 ]
