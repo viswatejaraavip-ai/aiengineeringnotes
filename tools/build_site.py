@@ -115,6 +115,10 @@ LLM_FUNDAMENTALS_GROUPS = [
              "title": "Why attention has separate Q, K and V, and why it divides by √d_k",
              "sub": "Three projections let a token ask one thing, advertise another and hand over a third, which one similarity matrix cannot express. The dot product of two d_k-dimensional vectors has variance d_k, so without scaling the softmax saturates and its gradient vanishes.",
              "meta": "24 Oct 2026 · 8 min read"},
+            {"path": "/articles/mixture-of-experts-active-vs-total/",
+             "title": "Mixture of experts: active parameters versus total parameters",
+             "sub": "Several feed-forward experts and a router that sends each token to one or two of them. Why memory is paid on the total count and arithmetic on the active count, with Mixtral and DeepSeek-V3 as examples, where the bandwidth advantage fades under batching, and what learned routing costs in training.",
+             "meta": "24 Oct 2026 · 9 min read"},
         ],
     },
 ]

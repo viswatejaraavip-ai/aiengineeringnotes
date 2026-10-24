@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mixture of experts: active parameters versus total parameters · AI Engineering Notes</title>
+  <meta name="description" content="A mixture-of-experts layer replaces the feed-forward block with several expert networks and a router that sends each token to a few of them. What the layer looks like, the difference between total and active parameters with Mixtral 8x7B and DeepSeek-V3 as examples, why the model needs the memory of its total size but the compute of its active size, what happens to that advantage under batching, and the training problems routing creates.">
+  <meta property="og:title" content="Mixture of experts: active parameters versus total parameters">
+  <meta property="og:description" content="The layer, the router, and why memory follows total parameters while compute follows active ones.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://aiengineeringnotes.com/articles/mixture-of-experts-active-vs-total/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/articles/mixture-of-experts-active-vs-total/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css?v=3">
+  <style>
+    .tree { font-family: var(--mono); font-size: 14px; line-height: 1.5; }
+    .tree .k { color: var(--accent); font-weight: 600; }
+    .formula { font-family: var(--serif); font-size: 19px; text-align: center; margin: 22px 0; padding: 12px 16px; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+    var { font-style: italic; font-family: var(--serif); }
+    .formula sup, .formula sub { font-size: .7em; }
+    .num { text-align: right; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- site:header -->
+    <header class="site">
+    <button class="menu" type="button" aria-controls="sidenav" aria-expanded="false">Contents</button>
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/">Introduction</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+    <!-- /site:header -->
+
+  <div class="layout">
+  <aside class="sidenav" id="sidenav" aria-label="All notes">
+    <!-- site:nav -->
+    <a class="nav-home" href="/" data-path="/">Introduction</a>
+    <details class="nav-section" data-id="foundations" open>
+          <summary>Foundations</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="llm-fundamentals" open>
+              <summary>LLM fundamentals</summary>
+              <p class="nav-sub">Tokenization</p>
+          <ul>
+                <li><a href="/articles/byte-pair-encoding/" data-path="/articles/byte-pair-encoding/">Byte-pair encoding, and why tokenizers work on bytes</a></li>
+              </ul>
+              <p class="nav-sub">Transformer internals</p>
+          <ul>
+                <li><a href="/articles/attention-qkv-and-scaling/" data-path="/articles/attention-qkv-and-scaling/">Why attention has separate Q, K and V, and why it divides by √d_k</a></li>
+                <li><a href="/articles/mixture-of-experts-active-vs-total/" class="current" aria-current="page" data-path="/articles/mixture-of-experts-active-vs-total/">Mixture of experts: active parameters versus total parameters</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Frontier models and the model landscape</span></li>
+            <li class="nav-topic empty"><span>Prompting and context engineering</span></li>
+            <li class="nav-topic empty"><span>Fine-tuning, alignment and post-training</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="inference">
+          <summary>Inference and reasoning</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="inference-scaling">
+              <summary>Inference scaling and serving</summary>
+              <p class="nav-sub">Serving fundamentals</p>
+          <ul>
+                <li><a href="/articles/kv-cache-memory-bound-decoding/" data-path="/articles/kv-cache-memory-bound-decoding/">The KV cache, and why decoding is memory-bound</a></li>
+                <li><a href="/articles/grouped-query-attention/" data-path="/articles/grouped-query-attention/">Grouped-query attention: the middle ground between MHA and MQA</a></li>
+              </ul>
+              <p class="nav-sub">Decoding</p>
+          <ul>
+                <li><a href="/articles/temperature-top-k-top-p-and-t0/" data-path="/articles/temperature-top-k-top-p-and-t0/">Temperature, top-k, top-p, and why T = 0 is not deterministic</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Test-time compute and reasoning models</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="agents">
+          <summary>Agentic AI</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Agent architectures, tool use and MCP</span></li>
+            <li class="nav-topic empty"><span>Multi-agent systems, orchestration and human-in-the-loop</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="rag">
+          <summary>RAG</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="rag-ingestion">
+              <summary>RAG ingestion, chunking and indexing</summary>
+              <p class="nav-sub">Core concepts</p>
+          <ul>
+                <li><a href="/articles/chunk-size-recall-vs-faithfulness/" data-path="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall falls, faithfulness rises</a></li>
+                <li><a href="/articles/chunk-is-not-the-embedding/" data-path="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve</a></li>
+                <li><a href="/articles/chunk-metadata-and-llm-extraction/" data-path="/articles/chunk-metadata-and-llm-extraction/">Metadata on chunks, and the care needed when a model writes it</a></li>
+              </ul>
+              <p class="nav-sub">Chunking patterns</p>
+          <ul>
+                <li><a href="/articles/chunking-wiki-pages/" data-path="/articles/chunking-wiki-pages/">How to chunk wiki pages</a></li>
+                <li><a href="/articles/semantic-chunking-regression/" data-path="/articles/semantic-chunking-regression/">Semantic chunking made my retrieval evals worse</a></li>
+              </ul>
+              <p class="nav-sub">Multi-tenant indexes</p>
+          <ul>
+                <li><a href="/articles/cross-tenant-leakage-in-rag/" data-path="/articles/cross-tenant-leakage-in-rag/">Cross-tenant leakage in vector search, and how to test for it</a></li>
+                <li><a href="/articles/chunk-permissions-in-sync/" data-path="/articles/chunk-permissions-in-sync/">Permissions on chunks, and keeping them in sync</a></li>
+              </ul>
+              <p class="nav-sub">Build breakdowns</p>
+          <ul>
+                <li><a href="/articles/telugu-gita-rag/" data-path="/articles/telugu-gita-rag/">How I built a RAG on the Bhagavad Gita in Telugu</a></li>
+                <li><a href="/articles/telugu-purana-rag/" data-path="/articles/telugu-purana-rag/">Sanskrit in, Telugu out: a RAG over 17 Puranas</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>RAG retrieval: embeddings, hybrid search and reranking</span></li>
+            <li class="nav-topic empty"><span>RAG generation, grounding and debugging</span></li>
+            <li class="nav-topic empty"><span>Advanced RAG: agentic RAG, GraphRAG, memory and long context</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="evaluation">
+          <summary>Evaluation, observability and ops</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Evaluation fundamentals, benchmarks and LLM-as-judge</span></li>
+            <li class="nav-topic empty"><span>Evaluating RAG, agents and production systems</span></li>
+            <li class="nav-topic empty"><span>Observability, tracing and monitoring</span></li>
+            <li class="nav-topic empty"><span>LLMOps, cost, reliability and product engineering</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="security">
+          <summary>Security, red teaming and governance</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Prompt injection and LLM application security</span></li>
+            <li class="nav-topic empty"><span>Red teaming, adversarial testing and guardrails</span></li>
+            <li class="nav-topic empty"><span>AI governance, risk and compliance</span></li>
+            <li class="nav-topic empty"><span>Responsible AI, safety, alignment and societal risk</span></li>
+          </ul>
+    </details>
+    <!-- /site:nav -->
+  </aside>
+  <main class="content">
+
+  <p class="crumbs"><!-- site:crumbs -->
+    <a href="/#foundations">Foundations</a> / <a href="/#llm-fundamentals">LLM fundamentals</a> / Mixture of experts: active parameters versus total parameters
+    <!-- /site:crumbs --></p>
+
+  <article class="post">
+    <header>
+      <h1>Mixture of experts: active parameters versus total parameters</h1>
+      <p class="lede">A model described as "8×7B" or "671B total, 37B active" is a mixture of experts. The numbers are telling you two different things: how much the model knows, and how much of it any one token touches. This note explains the layer that creates the gap, why memory is paid on the first number and compute on the second, and where that bargain stops holding.</p>
+      <div class="byline"><span>24 Oct 2026</span><span>9 min read</span></div>
+    </header>
+
+    <div class="concept">
+      <span class="label">The short version</span>
+      <p>A mixture-of-experts layer replaces the one feed-forward network in a Transformer block with several, the experts, and a small router that scores them for each token and runs only the top one or two. Every expert's weights must be in memory, so the model costs the memory of its total parameter count. Each token passes through only the chosen experts, so it costs the arithmetic of its active parameter count. Mixtral 8×7B holds 47 billion parameters and uses 13 billion per token. The catch is that routing has to be learned and balanced, and that the bandwidth advantage at decode time fades as the batch grows.</p>
+    </div>
+
+    <div class="toc">
+      <p>Contents</p>
+      <ol>
+        <li><a href="#layer">The layer</a></li>
+        <li><a href="#router">The router</a></li>
+        <li><a href="#counts">Total and active parameters</a></li>
+        <li><a href="#memory">Why memory follows the total</a></li>
+        <li><a href="#compute">Why compute follows the active count</a></li>
+        <li><a href="#batching">Where the bargain weakens: batching and bandwidth</a></li>
+        <li><a href="#training">What routing costs in training</a></li>
+        <li><a href="#compare">Dense versus mixture of experts</a></li>
+        <li><a href="#takeaways">Takeaways</a></li>
+      </ol>
+    </div>
+
+    <h2 id="layer"><span class="num">01</span>The layer</h2>
+
+    <p>A Transformer block has two halves: attention, which moves information between tokens, and a feed-forward network, which transforms each token on its own. In a dense model every token passes through the same feed-forward network, and that network is where most of the parameters live, typically two thirds of the block.</p>
+
+    <p class="formula">dense: &nbsp; output = FFN(<var>x</var>)</p>
+
+    <p>A mixture-of-experts layer keeps attention as it is and replaces the single feed-forward network with <var>N</var> of them, the experts, plus a router that decides which ones a token visits.</p>
+
+    <pre class="tree">                       ┌──► expert 1 (FFN<sub>1</sub>) ──┐
+                       ├──► expert 2 (FFN<sub>2</sub>) ──┤
+token <var>x</var> ──► <span class="k">router G(x)</span>  ├──► expert 3 (FFN<sub>3</sub>) ──┼──► weighted sum ──► output
+                       ├──►    …             ──┤
+                       └──► expert N (FFN<sub>N</sub>) ──┘
+
+only the top-k arrows are actually computed for a given token</pre>
+
+    <p class="formula">output = ∑<sub><var>i</var> ∈ top-<var>k</var></sub> <var>G</var>(<var>x</var>)<sub><var>i</var></sub> · FFN<sub><var>i</var></sub>(<var>x</var>)</p>
+
+    <p>The experts have the same shape as the feed-forward network they replace. "8×7B" means a 7B-sized architecture whose feed-forward block has been copied into eight experts; the attention weights, embeddings and norms are shared and exist once.</p>
+
+    <h2 id="router"><span class="num">02</span>The router</h2>
+
+    <p>The router is small: a linear layer that maps the token vector to one score per expert. The top <var>k</var> scores are kept, usually <var>k</var> = 1 or 2, and normalised with a softmax so the chosen experts' outputs can be combined as a weighted sum. Whether the softmax runs before or after the top-<var>k</var> cut varies by model; Mixtral applies it to the top-2 scores only.</p>
+
+    <p>Two things about this are easy to miss. The decision is per token and per layer, so one token may visit experts 3 and 7 in layer 4 and experts 1 and 5 in layer 5, and the next token makes its own choices. And the router is learned with everything else, by gradient, through the weights it assigns to the chosen experts. Nobody tells it that expert 3 is for code; whatever specialisation emerges comes from training.</p>
+
+    <h2 id="counts"><span class="num">03</span>Total and active parameters</h2>
+
+    <ul>
+      <li><strong>Total parameters</strong> are every weight in the model: all <var>N</var> experts in every layer, plus the shared attention, embeddings and routers.</li>
+      <li><strong>Active parameters</strong> are the weights a single token actually passes through: the shared parts plus <var>k</var> experts per layer.</li>
+    </ul>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Model</th><th>Experts per layer</th><th>Experts per token</th><th>Total</th><th>Active</th><th>Active share</th></tr>
+        <tr><td>Mixtral 8×7B</td><td class="num">8</td><td class="num">2</td><td class="num">47B</td><td class="num">13B</td><td class="num">28%</td></tr>
+        <tr><td>Mixtral 8×22B</td><td class="num">8</td><td class="num">2</td><td class="num">141B</td><td class="num">39B</td><td class="num">28%</td></tr>
+        <tr><td>DeepSeek-V3</td><td class="num">256 routed + 1 shared</td><td class="num">8 routed + 1 shared</td><td class="num">671B</td><td class="num">37B</td><td class="num">5.5%</td></tr>
+        <tr><td>Qwen3-235B-A22B</td><td class="num">128</td><td class="num">8</td><td class="num">235B</td><td class="num">22B</td><td class="num">9%</td></tr>
+      </table>
+    </div>
+
+    <p>Mixtral is the clean example. Eight 7B-shaped experts would be 56B if everything were copied, but only the feed-forward blocks are, so the total is 47B. A token uses 2 of the 8 experts plus the shared weights, which is 13B. Newer designs push the ratio much further, with hundreds of small experts and a few percent active per token, and some add a shared expert that every token visits so that common knowledge is not duplicated across routed experts.</p>
+
+    <h2 id="memory"><span class="num">04</span>Why memory follows the total</h2>
+
+    <p>The router decides per token, at run time, and any expert can be chosen. So every expert has to be resident before the first token arrives. There is no way to load the right 13B on demand; the right 13B is different for every token in every layer.</p>
+
+    <p>Mixtral 8×7B therefore needs about 93 GB in 16-bit, the same as a dense 47B model, and it needs it even if most experts sit idle for a given request. Add the KV cache, which is paid per request and depends on the attention design rather than the experts. Add, for the larger models, the fact that 671B parameters do not fit on one device and the experts have to be spread across GPUs, which brings communication into every layer.</p>
+
+    <h2 id="compute"><span class="num">05</span>Why compute follows the active count</h2>
+
+    <p>A forward pass costs roughly two floating-point operations per parameter per token, one multiply and one add. The parameters a token does not pass through cost nothing. Mixtral's token passes through 13B, so it costs the arithmetic of a 13B dense model, about 26 GFLOPs, not the 94 GFLOPs a dense 47B model would spend.</p>
+
+    <p>This is the bargain. Capacity, in the sense of how much the weights can store, scales with the total. Cost per token scales with the active count. A mixture of experts gets the knowledge of a large model at the training and inference arithmetic of a small one, and in training it is the arithmetic that sets the budget: for a fixed compute budget, a sparse model reaches a lower loss than a dense one.</p>
+
+    <h2 id="batching"><span class="num">06</span>Where the bargain weakens: batching and bandwidth</h2>
+
+    <p>The outline usually stops at "less compute, faster generation". It is worth being precise, because decode is <a href="/articles/kv-cache-memory-bound-decoding/">bound by memory bandwidth</a>, not arithmetic, and the two scale differently with the batch.</p>
+
+    <ul>
+      <li><strong>At batch size 1</strong>, a decode step reads only the weights it uses: the shared parts and the 2 chosen experts per layer. Bytes streamed scale with the active count, so the step is about as fast as a 13B dense model's. Both the FLOPs saving and the bandwidth saving hold.</li>
+      <li><strong>At a large batch</strong>, the tokens in the batch between them choose every expert in every layer, so the whole 47B streams from memory on every step. Bytes per step now match a dense 47B model. The FLOPs per token are still those of a 13B model, so the arithmetic saving holds, but the bandwidth saving is gone, and bandwidth is the bottleneck.</li>
+    </ul>
+
+    <p>So at high throughput a mixture of experts behaves like a large model on memory traffic and a small model on arithmetic. It is still the better trade, because the arithmetic saving lets the server batch much deeper before it becomes compute-bound, but "faster generation" is a batch-size-dependent claim.</p>
+
+    <p>Spreading experts across devices adds a second cost. Each token's hidden state has to travel to the GPUs holding its chosen experts and back, an all-to-all exchange in every MoE layer. The routing therefore depends on the whole batch, which is one of the reasons <a href="/articles/temperature-top-k-top-p-and-t0/">greedy decoding is not reproducible</a> on these models.</p>
+
+    <h2 id="training"><span class="num">07</span>What routing costs in training</h2>
+
+    <p>A learned router has a failure mode built in. Early in training a few experts are slightly better, so the router sends them more tokens, so they get more gradient and improve further, so they are chosen even more. Left alone, the model collapses onto a handful of experts and the rest never learn; the total parameter count is then a fiction.</p>
+
+    <ul>
+      <li><strong>Load-balancing loss.</strong> An auxiliary term that penalises uneven expert usage across a batch, pushing the router toward spreading tokens. It works, and it fights the main objective slightly. DeepSeek-V3 replaces it with a per-expert bias adjusted outside the gradient.</li>
+      <li><strong>Expert capacity.</strong> A cap on how many tokens an expert may take per batch, so that one overloaded expert does not stall the step. Tokens beyond the cap are dropped from that layer, passing through the residual connection unchanged, or rerouted.</li>
+      <li><strong>Router noise and instability.</strong> Top-<var>k</var> is not differentiable; the router only gets gradient through the weights of the chosen experts. Training is less stable than dense, and small routers in large models have needed care, such as computing router logits in higher precision.</li>
+      <li><strong>Fine-tuning is harder.</strong> With little data, the router overfits and expert usage skews. Many fine-tuning recipes freeze the router.</li>
+    </ul>
+
+    <h2 id="compare"><span class="num">08</span>Dense versus mixture of experts</h2>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th></th><th>Dense, 70B</th><th>Mixture of experts, 8×7B</th></tr>
+        <tr><td>Routing</td><td>None; every token uses every weight</td><td>Learned; each token uses the top-<var>k</var> experts per layer</td></tr>
+        <tr><td>Active parameters per token</td><td class="num">70B</td><td class="num">13B</td></tr>
+        <tr><td>Parameters in memory</td><td class="num">70B</td><td class="num">47B</td></tr>
+        <tr><td>Arithmetic per token</td><td>High</td><td>Low, about a fifth</td></tr>
+        <tr><td>Bytes per decode step, batch 1</td><td>All 70B</td><td>About 13B</td></tr>
+        <tr><td>Bytes per decode step, large batch</td><td>All 70B</td><td>All 47B</td></tr>
+        <tr><td>Training</td><td>Stable</td><td>Needs load balancing; router is fragile</td></tr>
+        <tr><td>Quality per total parameter</td><td>Higher</td><td>Lower; quality per FLOP is higher</td></tr>
+      </table>
+    </div>
+
+    <p>The last row is the honest summary. A 47B mixture is not as good as a 47B dense model; it is better than a 13B dense model and costs about as much to run. Whether that is the right trade depends on whether you are short of memory or short of compute, and for most training runs and most high-throughput serving, compute is the scarcer one.</p>
+
+    <h2 id="takeaways"><span class="num">09</span>Takeaways</h2>
+    <ol>
+      <li><strong>An MoE layer is several feed-forward networks and a router.</strong> Attention is shared and unchanged.</li>
+      <li><strong>Total parameters set capacity and memory.</strong> Every expert must be resident, because any token may choose it.</li>
+      <li><strong>Active parameters set arithmetic.</strong> A token pays only for the experts it visits.</li>
+      <li><strong>The bandwidth saving depends on batch size.</strong> At batch 1 only the chosen experts stream; at high batch the whole model does.</li>
+      <li><strong>Routing is learned and prone to collapse.</strong> Load-balancing losses, capacity limits and careful fine-tuning are the price.</li>
+      <li><strong>Read "8×7B" as 47B of knowledge at 13B of cost.</strong> Not as eight 7B models, and not as a 56B model.</li>
+    </ol>
+
+    <div class="cta">
+      <a class="btn primary" href="/articles/kv-cache-memory-bound-decoding/">The KV cache, and why decoding is memory-bound →</a>
+      <a class="btn" href="/articles/attention-qkv-and-scaling/">Why attention has separate Q, K and V →</a>
+    </div>
+  </article>
+
+  <nav class="pager" aria-label="Reading order">
+    <!-- site:pager -->
+    <a class="prev" href="/articles/attention-qkv-and-scaling/"><small>Previous</small>Why attention has separate Q, K and V, and why it divides by √d_k</a>
+    <a class="next" href="/articles/kv-cache-memory-bound-decoding/"><small>Next</small>The KV cache, and why decoding is memory-bound</a>
+    <!-- /site:pager -->
+  </nav>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+  </main>
+  <aside class="onpage" aria-label="On this page">
+    <!-- site:onpage -->
+    <p class="nav-title">On this page</p>
+    <ol>
+      <li><a href="#layer">The layer</a></li>
+      <li><a href="#router">The router</a></li>
+      <li><a href="#counts">Total and active parameters</a></li>
+      <li><a href="#memory">Why memory follows the total</a></li>
+      <li><a href="#compute">Why compute follows the active count</a></li>
+      <li><a href="#batching">Where the bargain weakens: batching and bandwidth</a></li>
+      <li><a href="#training">What routing costs in training</a></li>
+      <li><a href="#compare">Dense versus mixture of experts</a></li>
+      <li><a href="#takeaways">Takeaways</a></li>
+    </ol>
+    <!-- /site:onpage -->
+  </aside>
+  </div>
+
+</div>
+<script src="/site.js?v=3"></script>
+</body>
+</html>
