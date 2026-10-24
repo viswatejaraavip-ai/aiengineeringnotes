@@ -162,6 +162,15 @@ AGENT_ARCHITECTURES_GROUPS = [
              "meta": "25 Oct 2026 · 10 min read"},
         ],
     },
+    {
+        "title": "Tool design",
+        "pages": [
+            {"path": "/articles/tool-schema-design/",
+             "title": "What makes a good tool schema, and why the description outranks the name",
+             "sub": "The schema is a briefing the model reads. Name the action; spend the effort on a description that says what, when, when not, and what it costs; type every parameter, enum the fixed sets, require only what the function cannot run without. A weak schema rewritten, and why selection is decided by the description: a name has no room for conditions.",
+             "meta": "25 Oct 2026 · 9 min read"},
+        ],
+    },
 ]
 
 NAV = [

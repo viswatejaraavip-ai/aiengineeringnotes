@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>What makes a good tool schema, and why the description outranks the name · AI Engineering Notes</title>
+  <meta name="description" content="A tool schema is the contract between your application and the model, and the model reads it as text. What to put in the name, the description, the parameter types, enums and required list, with a before-and-after rewrite. Why the description decides tool selection: a name is three tokens with no conditions in it, and the description is the only place that says when to call, when not to, what it costs, and which tool wins when two overlap.">
+  <meta property="og:title" content="What makes a good tool schema, and why the description outranks the name">
+  <meta property="og:description" content="Names, descriptions, types, enums, required fields, and why the description is the highest-leverage field.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://aiengineeringnotes.com/articles/tool-schema-design/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/articles/tool-schema-design/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css?v=3">
+  <style>
+    .tree { font-family: var(--mono); font-size: 14px; line-height: 1.5; }
+    .tree .k { color: var(--accent); font-weight: 600; }
+    pre code { font-size: inherit; }
+    .cmp td:first-child { white-space: nowrap; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- site:header -->
+    <header class="site">
+    <button class="menu" type="button" aria-controls="sidenav" aria-expanded="false">Contents</button>
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/">Introduction</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+    <!-- /site:header -->
+
+  <div class="layout">
+  <aside class="sidenav" id="sidenav" aria-label="All notes">
+    <!-- site:nav -->
+    <a class="nav-home" href="/" data-path="/">Introduction</a>
+    <details class="nav-section" data-id="foundations">
+          <summary>Foundations</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="llm-fundamentals">
+              <summary>LLM fundamentals</summary>
+              <p class="nav-sub">Tokenization</p>
+          <ul>
+                <li><a href="/articles/byte-pair-encoding/" data-path="/articles/byte-pair-encoding/">Byte-pair encoding, and why tokenizers work on bytes</a></li>
+              </ul>
+              <p class="nav-sub">Transformer internals</p>
+          <ul>
+                <li><a href="/articles/attention-qkv-and-scaling/" data-path="/articles/attention-qkv-and-scaling/">Why attention has separate Q, K and V, and why it divides by √d_k</a></li>
+                <li><a href="/articles/mixture-of-experts-active-vs-total/" data-path="/articles/mixture-of-experts-active-vs-total/">Mixture of experts: active parameters versus total parameters</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Frontier models and the model landscape</span></li>
+            <li class="nav-topic empty"><span>Prompting and context engineering</span></li>
+            <li class="nav-topic empty"><span>Fine-tuning, alignment and post-training</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="inference">
+          <summary>Inference and reasoning</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="inference-scaling">
+              <summary>Inference scaling and serving</summary>
+              <p class="nav-sub">Serving fundamentals</p>
+          <ul>
+                <li><a href="/articles/kv-cache-memory-bound-decoding/" data-path="/articles/kv-cache-memory-bound-decoding/">The KV cache, and why decoding is memory-bound</a></li>
+                <li><a href="/articles/grouped-query-attention/" data-path="/articles/grouped-query-attention/">Grouped-query attention: the middle ground between MHA and MQA</a></li>
+              </ul>
+              <p class="nav-sub">Decoding</p>
+          <ul>
+                <li><a href="/articles/temperature-top-k-top-p-and-t0/" data-path="/articles/temperature-top-k-top-p-and-t0/">Temperature, top-k, top-p, and why T = 0 is not deterministic</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Test-time compute and reasoning models</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="agents" open>
+          <summary>Agentic AI</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="agent-architectures" open>
+              <summary>Agent architectures, tool use and MCP</summary>
+              <p class="nav-sub">Agent loops</p>
+          <ul>
+                <li><a href="/articles/function-calling-model-and-application/" data-path="/articles/function-calling-model-and-application/">Function calling: how the model decides, and what your code must do</a></li>
+                <li><a href="/articles/react-pattern-and-function-calling/" data-path="/articles/react-pattern-and-function-calling/">The ReAct pattern as a loop of function calls</a></li>
+              </ul>
+              <p class="nav-sub">Tool design</p>
+          <ul>
+                <li><a href="/articles/tool-schema-design/" class="current" aria-current="page" data-path="/articles/tool-schema-design/">What makes a good tool schema, and why the description outranks the name</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Multi-agent systems, orchestration and human-in-the-loop</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="rag">
+          <summary>RAG</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="rag-ingestion">
+              <summary>RAG ingestion, chunking and indexing</summary>
+              <p class="nav-sub">Core concepts</p>
+          <ul>
+                <li><a href="/articles/chunk-size-recall-vs-faithfulness/" data-path="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall falls, faithfulness rises</a></li>
+                <li><a href="/articles/chunk-is-not-the-embedding/" data-path="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve</a></li>
+                <li><a href="/articles/chunk-metadata-and-llm-extraction/" data-path="/articles/chunk-metadata-and-llm-extraction/">Metadata on chunks, and the care needed when a model writes it</a></li>
+              </ul>
+              <p class="nav-sub">Chunking patterns</p>
+          <ul>
+                <li><a href="/articles/chunking-wiki-pages/" data-path="/articles/chunking-wiki-pages/">How to chunk wiki pages</a></li>
+                <li><a href="/articles/semantic-chunking-regression/" data-path="/articles/semantic-chunking-regression/">Semantic chunking made my retrieval evals worse</a></li>
+              </ul>
+              <p class="nav-sub">Multi-tenant indexes</p>
+          <ul>
+                <li><a href="/articles/cross-tenant-leakage-in-rag/" data-path="/articles/cross-tenant-leakage-in-rag/">Cross-tenant leakage in vector search, and how to test for it</a></li>
+                <li><a href="/articles/chunk-permissions-in-sync/" data-path="/articles/chunk-permissions-in-sync/">Permissions on chunks, and keeping them in sync</a></li>
+              </ul>
+              <p class="nav-sub">Build breakdowns</p>
+          <ul>
+                <li><a href="/articles/telugu-gita-rag/" data-path="/articles/telugu-gita-rag/">How I built a RAG on the Bhagavad Gita in Telugu</a></li>
+                <li><a href="/articles/telugu-purana-rag/" data-path="/articles/telugu-purana-rag/">Sanskrit in, Telugu out: a RAG over 17 Puranas</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>RAG retrieval: embeddings, hybrid search and reranking</span></li>
+            <li class="nav-topic empty"><span>RAG generation, grounding and debugging</span></li>
+            <li class="nav-topic empty"><span>Advanced RAG: agentic RAG, GraphRAG, memory and long context</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="evaluation">
+          <summary>Evaluation, observability and ops</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Evaluation fundamentals, benchmarks and LLM-as-judge</span></li>
+            <li class="nav-topic empty"><span>Evaluating RAG, agents and production systems</span></li>
+            <li class="nav-topic empty"><span>Observability, tracing and monitoring</span></li>
+            <li class="nav-topic empty"><span>LLMOps, cost, reliability and product engineering</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="security">
+          <summary>Security, red teaming and governance</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Prompt injection and LLM application security</span></li>
+            <li class="nav-topic empty"><span>Red teaming, adversarial testing and guardrails</span></li>
+            <li class="nav-topic empty"><span>AI governance, risk and compliance</span></li>
+            <li class="nav-topic empty"><span>Responsible AI, safety, alignment and societal risk</span></li>
+          </ul>
+    </details>
+    <!-- /site:nav -->
+  </aside>
+  <main class="content">
+
+  <p class="crumbs"><!-- site:crumbs -->
+    <a href="/#agents">Agentic AI</a> / <a href="/#agent-architectures">Agent architectures, tool use and MCP</a> / What makes a good tool schema, and why the description outranks the name
+    <!-- /site:crumbs --></p>
+
+  <article class="post">
+    <header>
+      <h1>What makes a good tool schema, and why the description outranks the name</h1>
+      <p class="lede">The <a href="/articles/function-calling-model-and-application/">function-calling note</a> made one point in passing that deserves its own page: tool definitions are prompt text, and the model chooses tools by reading them. That turns schema writing from a formality into the main lever you have over whether the right tool gets called with the right arguments. This note goes through each field, shows a weak schema rewritten, and explains why the description, not the name, is where selection is decided.</p>
+      <div class="byline"><span>25 Oct 2026</span><span>9 min read</span></div>
+    </header>
+
+    <div class="concept">
+      <span class="label">The short version</span>
+      <p>Name the tool for the action it performs, in one consistent style. Spend most of your effort on the description: what it does, when to use it, when not to, what it costs or changes, and how it relates to neighbouring tools. Give every parameter an explicit type, a description with format and an example, and an enum wherever the values are fixed. Put in <code>required</code> only what the function cannot run without, so the model is never forced to invent a value. The name is a label of two or three tokens; the description is the only place the conditions for calling can live, which is why it decides selection.</p>
+    </div>
+
+    <div class="toc">
+      <p>Contents</p>
+      <ol>
+        <li><a href="#contract">The schema is a contract the model reads</a></li>
+        <li><a href="#naming">Naming</a></li>
+        <li><a href="#description">The description</a></li>
+        <li><a href="#parameters">Parameter types and enums</a></li>
+        <li><a href="#required">Required and optional</a></li>
+        <li><a href="#rewrite">A schema rewritten</a></li>
+        <li><a href="#why">Why descriptions decide selection</a></li>
+        <li><a href="#beyond">Beyond the single schema</a></li>
+        <li><a href="#takeaways">Takeaways</a></li>
+      </ol>
+    </div>
+
+    <h2 id="contract"><span class="num">01</span>The schema is a contract the model reads</h2>
+
+    <p>A tool schema has two readers. Your code reads the name to dispatch the call and the schema to validate the arguments. The model reads all of it as text, rendered into its context ahead of the conversation, and from that text alone decides whether to call the tool and what to pass. Nothing else about your function is visible to it: not the implementation, not the docstring, not the database behind it.</p>
+
+    <p>So a schema is doing two jobs at once, a machine contract and a briefing. Most of what goes wrong in tool use, the wrong tool chosen, a tool called when none was needed, an argument invented, comes from a briefing that left something out. The fields below are the places to put it.</p>
+
+    <h2 id="naming"><span class="num">02</span>Naming</h2>
+
+    <ul>
+      <li><strong>Name the action.</strong> A verb and an object: <code>search_user_database</code>, <code>create_support_ticket</code>, <code>get_order_status</code>. A reader should know what happens from the name alone.</li>
+      <li><strong>Be specific enough to differ from your other tools.</strong> <code>process_data</code>, <code>run_query</code> and <code>handle_request</code> say nothing. If you have three search tools, their names should say what each searches.</li>
+      <li><strong>One style, consistently.</strong> Snake case or camel case, verbs first, the same verb for the same kind of operation across tools: <code>get_</code> for reads, <code>create_</code> for writes, <code>search_</code> for queries that return lists. Consistency lets the model generalise from one tool to the next.</li>
+      <li><strong>Keep it short.</strong> The name is an identifier, not a sentence. Conditions, caveats and formats belong in the description.</li>
+    </ul>
+
+    <p>A good name is necessary and not sufficient. It gets the tool noticed; it does not tell the model when to reach for it.</p>
+
+    <h2 id="description"><span class="num">03</span>The description</h2>
+
+    <p>This is the highest-leverage field in the whole definition, and the one most often left as a fragment. A good description answers four questions, usually in three to five sentences.</p>
+
+    <ol>
+      <li><strong>What does it do, and what does it return?</strong> "Retrieves active account details, billing status and subscription tier for one customer."</li>
+      <li><strong>When should it be used?</strong> The trigger conditions, in the terms a user would use. "Use when the user asks about their plan, their invoice, or whether their account is active."</li>
+      <li><strong>When should it not be used, or what should be used instead?</strong> "Does not return order history; use <code>list_orders</code> for that." This is where overlapping tools are told apart.</li>
+      <li><strong>What does it cost or change?</strong> Side effects and limits. "Sends the email immediately and cannot be recalled." "Slow; takes up to 10 seconds." "Returns at most 50 results."</li>
+    </ol>
+
+    <p>Formatting rules for arguments can go here too when they apply to the tool as a whole, though each parameter's own description is the better home for its format.</p>
+
+    <h2 id="parameters"><span class="num">04</span>Parameter types and enums</h2>
+
+    <ul>
+      <li><strong>Explicit primitive types.</strong> <code>string</code>, <code>integer</code>, <code>number</code>, <code>boolean</code>, <code>array</code> with an <code>items</code> type, <code>object</code> with its properties. An untyped parameter is a guess for the model and a parse hazard for you.</li>
+      <li><strong>Enums for fixed vocabularies.</strong> If a field takes one of a known set, list the set: <code>"enum": ["celsius", "fahrenheit"]</code>. The model then picks from the list instead of paraphrasing, and in strict mode the decoder is constrained to it, so an invalid value becomes impossible rather than merely unlikely.</li>
+      <li><strong>A description on every parameter.</strong> The name <code>date</code> does not say which date or in what format. "Delivery date in YYYY-MM-DD format, e.g. 2026-10-25" does. Examples in parameter descriptions are cheap and the model uses them.</li>
+      <li><strong>Formats and ranges in words.</strong> JSON Schema's <code>format</code>, <code>minimum</code> and <code>pattern</code> keywords are not all honoured by every provider's validator. State the rule in the description as well, where the model will certainly read it.</li>
+      <li><strong>Keep nesting shallow.</strong> Deeply nested objects are harder for the model to fill correctly and some strict modes limit nesting depth. Flatten where you can.</li>
+    </ul>
+
+    <h2 id="required"><span class="num">05</span>Required and optional</h2>
+
+    <p>The <code>required</code> array tells the model which fields it must supply. Two rules.</p>
+
+    <ul>
+      <li><strong>Require what the function cannot run without.</strong> An order lookup needs an order id; mark it required so the model asks the user for it rather than calling with nothing.</li>
+      <li><strong>Leave the rest optional.</strong> A field with a sensible default in your backend, such as a result limit or a unit, should not be required. If it is, the model has to produce a value it was never told, and it will invent one: a plausible-looking customer id, a date that is probably wrong, a limit of 10 because 10 is common. Forced fields are where fabricated arguments come from.</li>
+    </ul>
+
+    <div class="lesson">
+      <span class="label">A strict-mode wrinkle</span>
+      <p>Some strict modes require every property to be listed in <code>required</code> so that the output shape is fully determined. Optional fields are then expressed as nullable types, <code>["string", "null"]</code>, and the model passes <code>null</code> to mean "not supplied". The intent is the same; the spelling differs. Check your provider's rules before turning strict on.</p>
+    </div>
+
+    <h2 id="rewrite"><span class="num">06</span>A schema rewritten</h2>
+
+    <p>A weak schema, of the kind that gets written in a hurry:</p>
+
+    <pre><code>{
+  "name": "user_info",
+  "description": "Gets user data.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "id": {"type": "string"},
+      "filter": {"type": "string"}
+    }
+  }
+}</code></pre>
+
+    <p>The same tool, written as a briefing:</p>
+
+    <pre><code>{
+  "name": "get_user_account_details",
+  "description": "Retrieves active account details, billing status and subscription tier
+    for one customer, looked up by system user ID or email address. Use when the user
+    asks about their plan, billing, or whether their account is active. Does not return
+    order history (use list_orders) or support tickets (use list_tickets). Read-only.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "user_id": {
+        "type": "string",
+        "description": "System user ID (e.g. usr_8f3a21) or the account email address."
+      },
+      "account_status": {
+        "type": "string",
+        "enum": ["active", "suspended", "closed"],
+        "description": "Optional. Return details only if the account is in this status."
+      }
+    },
+    "required": ["user_id"]
+  }
+}</code></pre>
+
+    <div class="table-wrap">
+      <table class="cmp">
+        <tr><th>Field</th><th>Weak</th><th>Rewritten</th></tr>
+        <tr><td>Name</td><td><code>user_info</code>: noun, no action, could mean anything</td><td><code>get_user_account_details</code>: verb, object, scope</td></tr>
+        <tr><td>Description</td><td>Three words; no trigger, no boundary, no side-effect statement</td><td>What, when, when not, which neighbour to use instead, read-only</td></tr>
+        <tr><td>Parameters</td><td><code>id</code> of what? <code>filter</code> on what, in what syntax?</td><td>Named for their meaning, typed, described with examples; the filter is an enum</td></tr>
+        <tr><td>Required</td><td>Missing, so the model may call with nothing</td><td>The one field the lookup needs; the filter stays optional</td></tr>
+      </table>
+    </div>
+
+    <h2 id="why"><span class="num">07</span>Why descriptions decide selection</h2>
+
+    <p>It is tempting to think the model matches the user's words to tool names. It does not, for two reasons.</p>
+
+    <h3>A name carries almost no information</h3>
+
+    <p>A name is two or three tokens. The user's request is a sentence or a paragraph, phrased in whatever way the user chose, often without the words in the name at all: "is my card still being charged?" has no overlap with <code>get_user_account_details</code>. The model attends over the whole rendered definition, and the description is the part with enough text to connect "card being charged" to "billing status". The name labels the tool; the description is what the request is matched against.</p>
+
+    <h3>Boundaries can only be written in prose</h3>
+
+    <p>Real tool sets overlap. A product has <code>search_internal_kb</code> and <code>search_web</code>; a CRM has <code>get_customer</code> and <code>search_customers</code>. Names cannot say which to prefer, what one covers that the other does not, or in which order to try them. Descriptions can:</p>
+
+    <pre class="tree"><span class="k">search_internal_kb</span>
+"Searches internal company policy, HR documents and employee benefits.
+ Use this first for any company-specific question, before search_web.
+ Returns up to 10 passages with source titles."
+
+<span class="k">search_web</span>
+"Searches the public web. Use for general knowledge and current events,
+ or when search_internal_kb returned nothing relevant. Never use for
+ questions about company policy."</pre>
+
+    <p>With those two descriptions the model has a priority rule, a scope for each, and a fallback path. With the names alone it has a coin flip. Every rule you want the model to follow about choosing among tools has to be written somewhere it reads, and the description is that place. The system prompt can carry such rules too, but the description travels with the tool and is read at the moment of choosing.</p>
+
+    <h2 id="beyond"><span class="num">08</span>Beyond the single schema</h2>
+
+    <ul>
+      <li><strong>Fewer, clearer tools beat many overlapping ones.</strong> Every extra tool is more text to read and another chance to pick wrong. Merge tools that differ only by a parameter; split a tool whose description needs the word "or" more than twice.</li>
+      <li><strong>The tool's output is part of the contract.</strong> What comes back is read by the model as an observation. Return structured, compact results with the fields the model needs, named consistently with the inputs, and say in the description what the output looks like.</li>
+      <li><strong>Test schemas like prompts.</strong> Collect requests that should and should not trigger each tool, run them, and measure selection and argument accuracy. A description change is a prompt change and can regress.</li>
+      <li><strong>Large tool sets need loading on demand.</strong> Past a few dozen tools, send a search tool and mark the rest deferred, so only the relevant definitions enter the context for a given request. Good descriptions matter even more here, because they are what the search matches on.</li>
+    </ul>
+
+    <h2 id="takeaways"><span class="num">09</span>Takeaways</h2>
+    <ol>
+      <li><strong>The model only knows what the schema says.</strong> Write it as a briefing, not a declaration.</li>
+      <li><strong>Name the action, consistently and briefly.</strong> Then stop; the name is a label.</li>
+      <li><strong>The description answers what, when, when not, and what it costs.</strong> Three to five sentences; it is the highest-leverage text you will write.</li>
+      <li><strong>Type everything, enum the fixed sets, describe every parameter with a format and an example.</strong></li>
+      <li><strong>Require only what the function cannot run without.</strong> Forced optional fields are where invented arguments come from.</li>
+      <li><strong>Descriptions decide selection</strong> because a name has no room for conditions and the request rarely contains the name's words.</li>
+      <li><strong>Overlapping tools need their boundaries written down</strong>, in the descriptions, with a priority and a fallback.</li>
+    </ol>
+
+    <div class="cta">
+      <a class="btn primary" href="/articles/function-calling-model-and-application/">Function calling: how the model decides →</a>
+      <a class="btn" href="/articles/react-pattern-and-function-calling/">The ReAct pattern as a loop of function calls →</a>
+    </div>
+  </article>
+
+  <nav class="pager" aria-label="Reading order">
+    <!-- site:pager -->
+    <a class="prev" href="/articles/react-pattern-and-function-calling/"><small>Previous</small>The ReAct pattern as a loop of function calls</a>
+    <a class="next" href="/articles/chunk-size-recall-vs-faithfulness/"><small>Next</small>Chunk size: recall falls, faithfulness rises</a>
+    <!-- /site:pager -->
+  </nav>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+  </main>
+  <aside class="onpage" aria-label="On this page">
+    <!-- site:onpage -->
+    <p class="nav-title">On this page</p>
+    <ol>
+      <li><a href="#contract">The schema is a contract the model reads</a></li>
+      <li><a href="#naming">Naming</a></li>
+      <li><a href="#description">The description</a></li>
+      <li><a href="#parameters">Parameter types and enums</a></li>
+      <li><a href="#required">Required and optional</a></li>
+      <li><a href="#rewrite">A schema rewritten</a></li>
+      <li><a href="#why">Why descriptions decide selection</a></li>
+      <li><a href="#beyond">Beyond the single schema</a></li>
+      <li><a href="#takeaways">Takeaways</a></li>
+    </ol>
+    <!-- /site:onpage -->
+  </aside>
+  </div>
+
+</div>
+<script src="/site.js?v=3"></script>
+</body>
+</html>
