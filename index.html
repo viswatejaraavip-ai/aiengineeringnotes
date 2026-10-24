@@ -49,10 +49,16 @@
             <li class="nav-topic empty"><span>Fine-tuning, alignment and post-training</span></li>
           </ul>
     </details>
-    <details class="nav-section" data-id="inference">
+    <details class="nav-section" data-id="inference" open>
           <summary>Inference and reasoning</summary>
           <ul>
-            <li class="nav-topic empty"><span>Inference scaling and serving</span></li>
+            <li class="nav-topic"><details data-id="inference-scaling" open>
+              <summary>Inference scaling and serving</summary>
+              <p class="nav-sub">Serving fundamentals</p>
+          <ul>
+                <li><a href="/articles/kv-cache-memory-bound-decoding/" data-path="/articles/kv-cache-memory-bound-decoding/">The KV cache, and why decoding is memory-bound</a></li>
+              </ul>
+            </details></li>
             <li class="nav-topic empty"><span>Test-time compute and reasoning models</span></li>
           </ul>
     </details>
@@ -124,7 +130,7 @@
 
   <section id="how-to-read">
     <h2 id="h-how-to-read">How to read these notes</h2>
-    <p>The sidebar is a map of AI engineering in six sections: foundations, inference and reasoning, agentic AI, RAG, evaluation and ops, and security and governance. Each section has a few topics. Most of the notes written so far sit under one topic, <a href="#rag-ingestion">RAG ingestion, chunking and indexing</a>, in four groups: the core concepts, chunking patterns for real corpora, what changes when an index holds documents not everyone may read, and two systems built end to end with their measurements. <a href="#llm-fundamentals">LLM fundamentals</a> has started with tokenization and the Transformer’s attention mechanism. The other topics are listed so the shape of the whole is visible, and will fill in.</p>
+    <p>The sidebar is a map of AI engineering in six sections: foundations, inference and reasoning, agentic AI, RAG, evaluation and ops, and security and governance. Each section has a few topics. Most of the notes written so far sit under one topic, <a href="#rag-ingestion">RAG ingestion, chunking and indexing</a>, in four groups: the core concepts, chunking patterns for real corpora, what changes when an index holds documents not everyone may read, and two systems built end to end with their measurements. <a href="#llm-fundamentals">LLM fundamentals</a> has started with tokenization and the Transformer’s attention mechanism, and <a href="#inference-scaling">Inference scaling and serving</a> with the KV cache. The other topics are listed so the shape of the whole is visible, and will fill in.</p>
     <p>Read top to bottom if you are new to retrieval. Each page ends with a link to the next one in that order, and the sidebar ticks the pages you have finished, in this browser only. If you already build these systems, open the topic you need; every note stands on its own.</p>
   </section>
 
@@ -172,7 +178,17 @@
     <h2 id="h-inference">Inference and reasoning</h2>
     <div class="topic" id="inference-scaling">
       <h3>Inference scaling and serving</h3>
-      <p class="topic-empty">No notes yet.</p>
+      <p class="series-desc">What it costs to run a model: where the time goes in a decode step, what memory is spent on, and the levers a serving stack has.</p>
+      <p class="eyebrow">Serving fundamentals</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/kv-cache-memory-bound-decoding/">
+            <span class="post-title">The KV cache, and why decoding is memory-bound</span>
+          </a>
+          <span class="post-sub">Caching keys and values makes generation linear instead of quadratic, and leaves each decode step streaming the whole model and cache for one token&#x27;s worth of arithmetic. The size formula, worked for a 70B model at 2k and 128k with and without grouped-query attention, and the mitigations: MQA, GQA, paged attention, cache quantisation.</span>
+          <span class="post-meta">24 Oct 2026 · 10 min read</span>
+        </li>
+      </ol>
     </div>
     <div class="topic" id="test-time-compute">
       <h3>Test-time compute and reasoning models</h3>

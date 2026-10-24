@@ -119,6 +119,18 @@ LLM_FUNDAMENTALS_GROUPS = [
     },
 ]
 
+INFERENCE_SCALING_GROUPS = [
+    {
+        "title": "Serving fundamentals",
+        "pages": [
+            {"path": "/articles/kv-cache-memory-bound-decoding/",
+             "title": "The KV cache, and why decoding is memory-bound",
+             "sub": "Caching keys and values makes generation linear instead of quadratic, and leaves each decode step streaming the whole model and cache for one token's worth of arithmetic. The size formula, worked for a 70B model at 2k and 128k with and without grouped-query attention, and the mitigations: MQA, GQA, paged attention, cache quantisation.",
+             "meta": "24 Oct 2026 · 10 min read"},
+        ],
+    },
+]
+
 NAV = [
     {"id": "foundations", "title": "Foundations", "topics": [
         T("llm-fundamentals", "LLM fundamentals", LLM_FUNDAMENTALS_GROUPS,
@@ -128,7 +140,8 @@ NAV = [
         T("fine-tuning", "Fine-tuning, alignment and post-training"),
     ]},
     {"id": "inference", "title": "Inference and reasoning", "topics": [
-        T("inference-scaling", "Inference scaling and serving"),
+        T("inference-scaling", "Inference scaling and serving", INFERENCE_SCALING_GROUPS,
+          desc="What it costs to run a model: where the time goes in a decode step, what memory is spent on, and the levers a serving stack has."),
         T("test-time-compute", "Test-time compute and reasoning models"),
     ]},
     {"id": "agents", "title": "Agentic AI", "topics": [

@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The KV cache, and why decoding is memory-bound · AI Engineering Notes</title>
+  <meta name="description" content="Why a Transformer decoder caches the keys and values of every past token, what that saves, and why it moves the bottleneck from arithmetic to memory bandwidth: a one-token query gives low arithmetic intensity, and the cache grows linearly with context until it is larger than the weights. The size formula, worked for a 70B model at 2k and 128k, and the mitigations: MQA, GQA, paged attention and cache quantization.">
+  <meta property="og:title" content="The KV cache, and why decoding is memory-bound">
+  <meta property="og:description" content="What the cache saves, why it makes decode bandwidth-bound, and how big it gets.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://aiengineeringnotes.com/articles/kv-cache-memory-bound-decoding/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/articles/kv-cache-memory-bound-decoding/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css?v=3">
+  <style>
+    .formula { font-family: var(--serif); font-size: 19px; text-align: center; margin: 22px 0; padding: 12px 16px; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+    var { font-style: italic; font-family: var(--serif); }
+    .formula sup, .formula sub { font-size: .7em; }
+    .num { text-align: right; }
+    .tree { font-family: var(--mono); font-size: 14px; line-height: 1.5; }
+    .tree .k { color: var(--accent); font-weight: 600; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- site:header -->
+    <header class="site">
+    <button class="menu" type="button" aria-controls="sidenav" aria-expanded="false">Contents</button>
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/">Introduction</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+    <!-- /site:header -->
+
+  <div class="layout">
+  <aside class="sidenav" id="sidenav" aria-label="All notes">
+    <!-- site:nav -->
+    <a class="nav-home" href="/" data-path="/">Introduction</a>
+    <details class="nav-section" data-id="foundations">
+          <summary>Foundations</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="llm-fundamentals">
+              <summary>LLM fundamentals</summary>
+              <p class="nav-sub">Tokenization</p>
+          <ul>
+                <li><a href="/articles/byte-pair-encoding/" data-path="/articles/byte-pair-encoding/">Byte-pair encoding, and why tokenizers work on bytes</a></li>
+              </ul>
+              <p class="nav-sub">Transformer internals</p>
+          <ul>
+                <li><a href="/articles/attention-qkv-and-scaling/" data-path="/articles/attention-qkv-and-scaling/">Why attention has separate Q, K and V, and why it divides by √d_k</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Frontier models and the model landscape</span></li>
+            <li class="nav-topic empty"><span>Prompting and context engineering</span></li>
+            <li class="nav-topic empty"><span>Fine-tuning, alignment and post-training</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="inference" open>
+          <summary>Inference and reasoning</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="inference-scaling" open>
+              <summary>Inference scaling and serving</summary>
+              <p class="nav-sub">Serving fundamentals</p>
+          <ul>
+                <li><a href="/articles/kv-cache-memory-bound-decoding/" class="current" aria-current="page" data-path="/articles/kv-cache-memory-bound-decoding/">The KV cache, and why decoding is memory-bound</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Test-time compute and reasoning models</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="agents">
+          <summary>Agentic AI</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Agent architectures, tool use and MCP</span></li>
+            <li class="nav-topic empty"><span>Multi-agent systems, orchestration and human-in-the-loop</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="rag">
+          <summary>RAG</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="rag-ingestion">
+              <summary>RAG ingestion, chunking and indexing</summary>
+              <p class="nav-sub">Core concepts</p>
+          <ul>
+                <li><a href="/articles/chunk-size-recall-vs-faithfulness/" data-path="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall falls, faithfulness rises</a></li>
+                <li><a href="/articles/chunk-is-not-the-embedding/" data-path="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve</a></li>
+                <li><a href="/articles/chunk-metadata-and-llm-extraction/" data-path="/articles/chunk-metadata-and-llm-extraction/">Metadata on chunks, and the care needed when a model writes it</a></li>
+              </ul>
+              <p class="nav-sub">Chunking patterns</p>
+          <ul>
+                <li><a href="/articles/chunking-wiki-pages/" data-path="/articles/chunking-wiki-pages/">How to chunk wiki pages</a></li>
+                <li><a href="/articles/semantic-chunking-regression/" data-path="/articles/semantic-chunking-regression/">Semantic chunking made my retrieval evals worse</a></li>
+              </ul>
+              <p class="nav-sub">Multi-tenant indexes</p>
+          <ul>
+                <li><a href="/articles/cross-tenant-leakage-in-rag/" data-path="/articles/cross-tenant-leakage-in-rag/">Cross-tenant leakage in vector search, and how to test for it</a></li>
+                <li><a href="/articles/chunk-permissions-in-sync/" data-path="/articles/chunk-permissions-in-sync/">Permissions on chunks, and keeping them in sync</a></li>
+              </ul>
+              <p class="nav-sub">Build breakdowns</p>
+          <ul>
+                <li><a href="/articles/telugu-gita-rag/" data-path="/articles/telugu-gita-rag/">How I built a RAG on the Bhagavad Gita in Telugu</a></li>
+                <li><a href="/articles/telugu-purana-rag/" data-path="/articles/telugu-purana-rag/">Sanskrit in, Telugu out: a RAG over 17 Puranas</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>RAG retrieval: embeddings, hybrid search and reranking</span></li>
+            <li class="nav-topic empty"><span>RAG generation, grounding and debugging</span></li>
+            <li class="nav-topic empty"><span>Advanced RAG: agentic RAG, GraphRAG, memory and long context</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="evaluation">
+          <summary>Evaluation, observability and ops</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Evaluation fundamentals, benchmarks and LLM-as-judge</span></li>
+            <li class="nav-topic empty"><span>Evaluating RAG, agents and production systems</span></li>
+            <li class="nav-topic empty"><span>Observability, tracing and monitoring</span></li>
+            <li class="nav-topic empty"><span>LLMOps, cost, reliability and product engineering</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="security">
+          <summary>Security, red teaming and governance</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Prompt injection and LLM application security</span></li>
+            <li class="nav-topic empty"><span>Red teaming, adversarial testing and guardrails</span></li>
+            <li class="nav-topic empty"><span>AI governance, risk and compliance</span></li>
+            <li class="nav-topic empty"><span>Responsible AI, safety, alignment and societal risk</span></li>
+          </ul>
+    </details>
+    <!-- /site:nav -->
+  </aside>
+  <main class="content">
+
+  <p class="crumbs"><!-- site:crumbs -->
+    <a href="/#inference">Inference and reasoning</a> / <a href="/#inference-scaling">Inference scaling and serving</a> / The KV cache, and why decoding is memory-bound
+    <!-- /site:crumbs --></p>
+
+  <article class="post">
+    <header>
+      <h1>The KV cache, and why decoding is memory-bound</h1>
+      <p class="lede">A language model generates one token at a time, and each new token attends to every token before it. The KV cache is the optimisation that stops the model recomputing the past at every step. It removes most of the arithmetic, and in doing so it changes what the hardware is waiting on: not the tensor cores, but the memory bus. This note explains both halves, puts numbers on the cache, and lists what architectures do about it.</p>
+      <div class="byline"><span>24 Oct 2026</span><span>10 min read</span></div>
+    </header>
+
+    <div class="concept">
+      <span class="label">The short version</span>
+      <p>Keys and values for a past token never change, so compute them once and keep them. That turns generation from quadratic to linear in the sequence length. But a decode step then does very little arithmetic per byte it reads: the whole weight set and the whole cache stream from memory to produce a single token. Throughput is set by bandwidth, not FLOPs, and the cache grows linearly with context until it is larger than the model. Grouped-query attention, paged allocation and lower-precision caches are the standard responses.</p>
+    </div>
+
+    <div class="toc">
+      <p>Contents</p>
+      <ol>
+        <li><a href="#what">What is cached, and why it can be</a></li>
+        <li><a href="#saves">What the cache saves</a></li>
+        <li><a href="#phases">Prefill and decode are different workloads</a></li>
+        <li><a href="#intensity">Reason 1: low arithmetic intensity</a></li>
+        <li><a href="#size">Reason 2: the cache grows with context</a></li>
+        <li><a href="#worked">A 70B model at 2k and 128k</a></li>
+        <li><a href="#mitigations">Architectural mitigations</a></li>
+        <li><a href="#takeaways">Takeaways</a></li>
+      </ol>
+    </div>
+
+    <h2 id="what"><span class="num">01</span>What is cached, and why it can be</h2>
+
+    <p>In every attention layer, each token is projected into a query, a key and a value (the <a href="/articles/attention-qkv-and-scaling/">previous note</a> covers why those are three different things). The new token's query is dotted with the keys of all earlier tokens, and the resulting weights average their values.</p>
+
+    <p>The point that makes caching possible: in a decoder, the key and value of token <var>t</var> depend only on tokens up to <var>t</var>, and those tokens do not change once generated. So the key and value computed for token 5 while generating token 6 are exactly the ones needed while generating token 7, 8 and 500. Recomputing them is pure waste.</p>
+
+    <p>The KV cache is therefore, per layer, two tensors that grow by one row per generated token: the stack of keys and the stack of values for everything so far. At each step the model projects only the newest token, appends its key and value, and runs attention for its single query against the stored rows.</p>
+
+    <pre class="tree"><span class="k">step n, each layer</span>
+  q_n, k_n, v_n  =  x_n W_Q,  x_n W_K,  x_n W_V        ← one token projected
+  K_cache  ←  [K_cache ; k_n]                          ← append
+  V_cache  ←  [V_cache ; v_n]
+  out_n    =  softmax(q_n K_cache<sup>T</sup> / √d_k) V_cache          ← one query, n keys</pre>
+
+    <p>The query is not cached, because it is used once and discarded.</p>
+
+    <h2 id="saves"><span class="num">02</span>What the cache saves</h2>
+
+    <p>Consider generating <var>N</var> tokens after a prompt.</p>
+
+    <ul>
+      <li><strong>Without the cache</strong>, producing token <var>n</var> means re-running every earlier token through <var>W<sub>K</sub></var> and <var>W<sub>V</sub></var> to rebuild the keys and values: <var>n</var> projections at step <var>n</var>. Summed over the sequence that is 1 + 2 + … + <var>N</var>, so <var>O</var>(<var>N</var><sup>2</sup>) projections per layer, and the per-step latency grows as the answer gets longer.</li>
+      <li><strong>With the cache</strong>, step <var>n</var> projects one token, so <var>N</var> tokens cost <var>O</var>(<var>N</var>) projections per layer. The attention itself still reads <var>n</var> keys at step <var>n</var>, which is unavoidable, but that is a dot product per key rather than a full matrix projection per key.</li>
+    </ul>
+
+    <p>For any realistic sequence the saving is enormous, and no production decoder runs without it. The interesting part is what happens next.</p>
+
+    <h2 id="phases"><span class="num">03</span>Prefill and decode are different workloads</h2>
+
+    <p>Serving a request has two phases, and they stress the hardware in opposite ways.</p>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th></th><th>Prefill</th><th>Decode</th></tr>
+        <tr><td>What happens</td><td>The whole prompt is processed in one pass, filling the cache</td><td>Tokens are produced one at a time, each appending to the cache</td></tr>
+        <tr><td>Shape of the work</td><td>Matrix × matrix: thousands of tokens against every weight</td><td>Vector × matrix: one token against every weight</td></tr>
+        <tr><td>Each weight loaded is used</td><td>Once per prompt token, thousands of times</td><td>Once</td></tr>
+        <tr><td>Bound by</td><td>Compute (FLOPs)</td><td>Memory bandwidth (bytes per second)</td></tr>
+        <tr><td>Shows up as</td><td>Time to first token</td><td>Time per output token</td></tr>
+      </table>
+    </div>
+
+    <p>Prefill is what GPUs are built for. Every weight matrix is read from memory once and multiplied against a block of prompt tokens, so the tensor cores stay busy. Decode is the opposite, for two reasons that compound.</p>
+
+    <h2 id="intensity"><span class="num">04</span>Reason 1: low arithmetic intensity</h2>
+
+    <p>Arithmetic intensity is the number of floating-point operations a kernel performs per byte it moves from high-bandwidth memory into the chip. Every accelerator has a ridge point: the intensity at which compute and memory traffic take equal time. Below it, the chip is waiting on memory and its FLOPs rating is irrelevant.</p>
+
+    <p class="formula">intensity = <var>FLOPs</var> / <var>bytes moved</var>, &nbsp;&nbsp; ridge = <var>peak FLOPs/s</var> / <var>bandwidth bytes/s</var></p>
+
+    <p>For a current datacentre GPU, peak dense 16-bit throughput is on the order of 1,000 TFLOPs/s and memory bandwidth on the order of 3 TB/s, so the ridge is roughly 300 FLOPs per byte. A kernel needs to do about 300 operations on every byte it loads to keep the chip busy.</p>
+
+    <p>Now look at a decode step at batch size 1. Each weight is a 16-bit value, two bytes. It is loaded and used in exactly one multiply-add for the one token being generated, which is two FLOPs. The intensity is about 1 FLOP per byte, two orders of magnitude below the ridge. The same is true of the cache: every stored key is loaded, dotted once against the one query, and discarded until the next step. The GPU streams gigabytes through the memory bus and performs almost no arithmetic on them.</p>
+
+    <p>This is why batching helps decode so much. Eight concurrent requests share one read of the weights, so the intensity rises eight-fold for the weight matmuls. It does not help the attention part, because each request has its own cache, which brings us to the second reason.</p>
+
+    <h2 id="size"><span class="num">05</span>Reason 2: the cache grows with context</h2>
+
+    <p>Every token in the context contributes one key and one value per layer, per key-value head. The total footprint is:</p>
+
+    <p class="formula">bytes = 2 × <var>n</var><sub>layers</sub> × <var>n</var><sub>kv heads</sub> × <var>d</var><sub>head</sub> × <var>s</var> × <var>b</var> × <var>p</var></p>
+
+    <ul>
+      <li>2, one for keys and one for values</li>
+      <li><var>n</var><sub>layers</sub>, the number of Transformer layers</li>
+      <li><var>n</var><sub>kv heads</sub> × <var>d</var><sub>head</sub>, the width of the key and value projections; for standard multi-head attention this equals <var>d</var><sub>model</sub></li>
+      <li><var>s</var>, the sequence length in tokens, prompt plus generated</li>
+      <li><var>b</var>, the batch size</li>
+      <li><var>p</var>, bytes per element, 2 for FP16 or BF16</li>
+    </ul>
+
+    <p>Two things about this formula matter. It is linear in <var>s</var>, so doubling the context doubles the cache. And it is linear in <var>b</var>, so the cache, unlike the weights, is paid per request. A server holding 32 concurrent long conversations holds 32 caches.</p>
+
+    <p>At every decode step the whole cache for the request is read to compute attention. So a longer context does not only take more memory; it makes each subsequent token slower, because more bytes have to stream through the same bus to produce it.</p>
+
+    <h2 id="worked"><span class="num">06</span>A 70B model at 2k and 128k</h2>
+
+    <p>Take a 70-billion-parameter model with 80 layers, a hidden size of 8,192 and 64 heads of 128 dimensions, served in FP16 at batch size 1.</p>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Context</th><th>Multi-head attention (64 KV heads)</th><th>Grouped-query attention (8 KV heads)</th></tr>
+        <tr><td>2,048 tokens</td><td class="num">5.4 GB</td><td class="num">0.67 GB</td></tr>
+        <tr><td>8,192 tokens</td><td class="num">21.5 GB</td><td class="num">2.7 GB</td></tr>
+        <tr><td>32,768 tokens</td><td class="num">85.9 GB</td><td class="num">10.7 GB</td></tr>
+        <tr><td>131,072 tokens</td><td class="num">343.6 GB</td><td class="num">42.9 GB</td></tr>
+      </table>
+    </div>
+
+    <p>The left column is the formula with <var>n</var><sub>kv heads</sub> × <var>d</var><sub>head</sub> = <var>d</var><sub>model</sub>: 2 × 80 × 8192 × 2048 × 2 bytes is 5.4 GB at 2k, and 343.6 GB at 128k, which is more than twice the 140 GB the weights themselves occupy in FP16. A single request's cache would not fit on any GPU, and it is read in full for every token generated.</p>
+
+    <p>The right column is the same model with grouped-query attention and 8 key-value heads, which is how Llama 2 70B and Llama 3 70B are actually built. The cache is eight times smaller, and 128k of context costs 43 GB. That is still a third of the weights, per request, and it still has to be streamed for every token. The architecture change moved the problem; it did not remove it.</p>
+
+    <div class="lesson">
+      <span class="label">A rule of thumb for decode latency</span>
+      <p>At batch size 1, a decode step cannot be faster than (weight bytes + cache bytes) divided by memory bandwidth. For the GQA model above at 32k context on hardware with 3 TB/s, that is about (140 + 10.7) GB / 3 TB/s, roughly 50 ms per token, before any compute or overhead. Spread across several GPUs with tensor parallelism the bytes per device fall, which is the main reason large models are served that way even when they would fit on fewer devices.</p>
+    </div>
+
+    <h2 id="mitigations"><span class="num">07</span>Architectural mitigations</h2>
+
+    <p>Each term in the size formula is a lever, and the serving stack pulls several at once.</p>
+
+    <h3>Multi-query attention</h3>
+
+    <p>All query heads share a single key head and a single value head. The <var>n</var><sub>kv heads</sub> term becomes 1, so the cache shrinks by the number of heads, 64× in the example. The cost is some model quality, since every head now has to find what it needs through the same key space. PaLM and Falcon used it.</p>
+
+    <h3>Grouped-query attention</h3>
+
+    <p>The compromise that most current models adopt: query heads are divided into groups, and each group shares one key-value head. With 64 query heads and 8 KV heads, the cache is 8× smaller than multi-head and quality is close to it. Llama 2 and 3, Mistral and most models since use GQA. A further step in the same direction is multi-head latent attention, which stores a compressed latent per token and reconstructs keys and values from it.</p>
+
+    <h3>Paged attention</h3>
+
+    <p>The cache is a tensor that grows one row at a time, and nobody knows in advance how long a response will be. Naive serving reserves the maximum context for every request up front, so most of the reserved memory is empty, and freed regions of different sizes fragment. vLLM's PagedAttention manages the cache like an operating system manages virtual memory: fixed-size blocks allocated on demand and indexed through a block table. Waste falls from a large fraction of memory to a few percent, so far more requests fit on a device, and shared prefixes such as a system prompt can be stored once and referenced by many sequences.</p>
+
+    <h3>Cache quantisation</h3>
+
+    <p>The <var>p</var> term: storing keys and values in 8-bit integers or FP8 instead of 16-bit halves the cache and halves the bytes streamed per step. Keys are more sensitive than values, so some schemes keep keys at higher precision or quantise per channel. Four-bit caches exist and cost some accuracy on long-context tasks.</p>
+
+    <h3>Two more that are not about the architecture</h3>
+
+    <ul>
+      <li><strong>Prefix caching.</strong> Many requests share a long prefix: a system prompt, a document, a tool list. Keeping that prefix's cache across requests turns its prefill into a lookup, which is what the hosted providers' prompt caching exposes.</li>
+      <li><strong>Sliding windows and eviction.</strong> Limit attention to the last <var>w</var> tokens, or drop cache rows that attention weights show are never used. Both bound the <var>s</var> term at the cost of forgetting.</li>
+    </ul>
+
+    <h2 id="takeaways"><span class="num">08</span>Takeaways</h2>
+    <ol>
+      <li><strong>Keys and values of past tokens never change, so cache them.</strong> Generation goes from quadratic to linear in sequence length.</li>
+      <li><strong>Decode is a vector against every weight.</strong> About one FLOP per byte loaded, against a ridge of hundreds. The memory bus, not the tensor cores, sets the pace.</li>
+      <li><strong>The cache is linear in context and in batch.</strong> It is paid per request and streamed in full for every token.</li>
+      <li><strong>At 128k, a full multi-head cache is larger than the weights.</strong> GQA divides it by the head-group ratio; it does not make it small.</li>
+      <li><strong>Batching helps the weights, not the attention.</strong> Concurrent requests share one weight read but each brings its own cache.</li>
+      <li><strong>The fixes map onto the formula's terms.</strong> MQA and GQA shrink the head term, quantisation the precision term, paging the waste around the sequence term, prefix caching the prefill that fills it.</li>
+    </ol>
+
+    <div class="cta">
+      <a class="btn primary" href="/articles/attention-qkv-and-scaling/">Why attention has separate Q, K and V →</a>
+    </div>
+  </article>
+
+  <nav class="pager" aria-label="Reading order">
+    <!-- site:pager -->
+    <a class="prev" href="/articles/attention-qkv-and-scaling/"><small>Previous</small>Why attention has separate Q, K and V, and why it divides by √d_k</a>
+    <a class="next" href="/articles/chunk-size-recall-vs-faithfulness/"><small>Next</small>Chunk size: recall falls, faithfulness rises</a>
+    <!-- /site:pager -->
+  </nav>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+  </main>
+  <aside class="onpage" aria-label="On this page">
+    <!-- site:onpage -->
+    <p class="nav-title">On this page</p>
+    <ol>
+      <li><a href="#what">What is cached, and why it can be</a></li>
+      <li><a href="#saves">What the cache saves</a></li>
+      <li><a href="#phases">Prefill and decode are different workloads</a></li>
+      <li><a href="#intensity">Reason 1: low arithmetic intensity</a></li>
+      <li><a href="#size">Reason 2: the cache grows with context</a></li>
+      <li><a href="#worked">A 70B model at 2k and 128k</a></li>
+      <li><a href="#mitigations">Architectural mitigations</a></li>
+      <li><a href="#takeaways">Takeaways</a></li>
+    </ol>
+    <!-- /site:onpage -->
+  </aside>
+  </div>
+
+</div>
+<script src="/site.js?v=3"></script>
+</body>
+</html>
