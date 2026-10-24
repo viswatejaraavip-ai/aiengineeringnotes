@@ -168,6 +168,10 @@ AGENT_ARCHITECTURES_GROUPS = [
              "title": "ReAct versus plan-and-execute, and the hybrid that production uses",
              "sub": "Interleaving reasons after each observation and wins when the next step depends on the last; planning first reasons before any and wins on known shapes, independent parts and long horizons. The plan-execute-replan hybrid: a planner without tools, executors running local ReAct loops in their own contexts, a replanner that revises what remains, with a walkthrough of a task that does not go to plan.",
              "meta": "25 Oct 2026 · 11 min read"},
+            {"path": "/articles/agent-framework-vs-hand-rolled-loop/",
+             "title": "Agent framework or hand-rolled loop: what each buys you, and what changes your mind",
+             "sub": "The loop is fifty lines; a framework sells the infrastructure around it. What a framework actually provides, when to hand-roll, when to use one, the provider loop helpers and managed runtimes the usual comparison misses, a three-way table, and the production pressures that move teams in each direction.",
+             "meta": "25 Oct 2026 · 10 min read"},
         ],
     },
     {
