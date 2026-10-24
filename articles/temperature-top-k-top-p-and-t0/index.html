@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Temperature, top-k, top-p, and why T = 0 is not deterministic · AI Engineering Notes</title>
+  <meta name="description" content="How the sampling parameters shape a model's logits, in the order they run: temperature divides, top-k cuts by rank, top-p cuts by cumulative mass, then softmax and a draw. What temperature zero really is, and why greedy decoding still gives different answers run to run: floating-point addition is not associative, near-ties at the top flip, kernels change strategy with batch size, and mixture-of-experts routing depends on the batch.">
+  <meta property="og:title" content="Temperature, top-k, top-p, and why T = 0 is not deterministic">
+  <meta property="og:description" content="The sampling pipeline in order, and the four reasons greedy decoding still varies.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://aiengineeringnotes.com/articles/temperature-top-k-top-p-and-t0/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/articles/temperature-top-k-top-p-and-t0/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css?v=3">
+  <style>
+    .tree { font-family: var(--mono); font-size: 14px; line-height: 1.5; }
+    .tree .k { color: var(--accent); font-weight: 600; }
+    .tree .bad { color: var(--accent); }
+    .formula { font-family: var(--serif); font-size: 19px; text-align: center; margin: 22px 0; padding: 12px 16px; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+    var { font-style: italic; font-family: var(--serif); }
+    .formula sup, .formula sub { font-size: .7em; }
+    .num { text-align: right; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- site:header -->
+    <header class="site">
+    <button class="menu" type="button" aria-controls="sidenav" aria-expanded="false">Contents</button>
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/">Introduction</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+    <!-- /site:header -->
+
+  <div class="layout">
+  <aside class="sidenav" id="sidenav" aria-label="All notes">
+    <!-- site:nav -->
+    <a class="nav-home" href="/" data-path="/">Introduction</a>
+    <details class="nav-section" data-id="foundations">
+          <summary>Foundations</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="llm-fundamentals">
+              <summary>LLM fundamentals</summary>
+              <p class="nav-sub">Tokenization</p>
+          <ul>
+                <li><a href="/articles/byte-pair-encoding/" data-path="/articles/byte-pair-encoding/">Byte-pair encoding, and why tokenizers work on bytes</a></li>
+              </ul>
+              <p class="nav-sub">Transformer internals</p>
+          <ul>
+                <li><a href="/articles/attention-qkv-and-scaling/" data-path="/articles/attention-qkv-and-scaling/">Why attention has separate Q, K and V, and why it divides by √d_k</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Frontier models and the model landscape</span></li>
+            <li class="nav-topic empty"><span>Prompting and context engineering</span></li>
+            <li class="nav-topic empty"><span>Fine-tuning, alignment and post-training</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="inference" open>
+          <summary>Inference and reasoning</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="inference-scaling" open>
+              <summary>Inference scaling and serving</summary>
+              <p class="nav-sub">Serving fundamentals</p>
+          <ul>
+                <li><a href="/articles/kv-cache-memory-bound-decoding/" data-path="/articles/kv-cache-memory-bound-decoding/">The KV cache, and why decoding is memory-bound</a></li>
+                <li><a href="/articles/grouped-query-attention/" data-path="/articles/grouped-query-attention/">Grouped-query attention: the middle ground between MHA and MQA</a></li>
+              </ul>
+              <p class="nav-sub">Decoding</p>
+          <ul>
+                <li><a href="/articles/temperature-top-k-top-p-and-t0/" class="current" aria-current="page" data-path="/articles/temperature-top-k-top-p-and-t0/">Temperature, top-k, top-p, and why T = 0 is not deterministic</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Test-time compute and reasoning models</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="agents">
+          <summary>Agentic AI</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Agent architectures, tool use and MCP</span></li>
+            <li class="nav-topic empty"><span>Multi-agent systems, orchestration and human-in-the-loop</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="rag">
+          <summary>RAG</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="rag-ingestion">
+              <summary>RAG ingestion, chunking and indexing</summary>
+              <p class="nav-sub">Core concepts</p>
+          <ul>
+                <li><a href="/articles/chunk-size-recall-vs-faithfulness/" data-path="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall falls, faithfulness rises</a></li>
+                <li><a href="/articles/chunk-is-not-the-embedding/" data-path="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve</a></li>
+                <li><a href="/articles/chunk-metadata-and-llm-extraction/" data-path="/articles/chunk-metadata-and-llm-extraction/">Metadata on chunks, and the care needed when a model writes it</a></li>
+              </ul>
+              <p class="nav-sub">Chunking patterns</p>
+          <ul>
+                <li><a href="/articles/chunking-wiki-pages/" data-path="/articles/chunking-wiki-pages/">How to chunk wiki pages</a></li>
+                <li><a href="/articles/semantic-chunking-regression/" data-path="/articles/semantic-chunking-regression/">Semantic chunking made my retrieval evals worse</a></li>
+              </ul>
+              <p class="nav-sub">Multi-tenant indexes</p>
+          <ul>
+                <li><a href="/articles/cross-tenant-leakage-in-rag/" data-path="/articles/cross-tenant-leakage-in-rag/">Cross-tenant leakage in vector search, and how to test for it</a></li>
+                <li><a href="/articles/chunk-permissions-in-sync/" data-path="/articles/chunk-permissions-in-sync/">Permissions on chunks, and keeping them in sync</a></li>
+              </ul>
+              <p class="nav-sub">Build breakdowns</p>
+          <ul>
+                <li><a href="/articles/telugu-gita-rag/" data-path="/articles/telugu-gita-rag/">How I built a RAG on the Bhagavad Gita in Telugu</a></li>
+                <li><a href="/articles/telugu-purana-rag/" data-path="/articles/telugu-purana-rag/">Sanskrit in, Telugu out: a RAG over 17 Puranas</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>RAG retrieval: embeddings, hybrid search and reranking</span></li>
+            <li class="nav-topic empty"><span>RAG generation, grounding and debugging</span></li>
+            <li class="nav-topic empty"><span>Advanced RAG: agentic RAG, GraphRAG, memory and long context</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="evaluation">
+          <summary>Evaluation, observability and ops</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Evaluation fundamentals, benchmarks and LLM-as-judge</span></li>
+            <li class="nav-topic empty"><span>Evaluating RAG, agents and production systems</span></li>
+            <li class="nav-topic empty"><span>Observability, tracing and monitoring</span></li>
+            <li class="nav-topic empty"><span>LLMOps, cost, reliability and product engineering</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="security">
+          <summary>Security, red teaming and governance</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Prompt injection and LLM application security</span></li>
+            <li class="nav-topic empty"><span>Red teaming, adversarial testing and guardrails</span></li>
+            <li class="nav-topic empty"><span>AI governance, risk and compliance</span></li>
+            <li class="nav-topic empty"><span>Responsible AI, safety, alignment and societal risk</span></li>
+          </ul>
+    </details>
+    <!-- /site:nav -->
+  </aside>
+  <main class="content">
+
+  <p class="crumbs"><!-- site:crumbs -->
+    <a href="/#inference">Inference and reasoning</a> / <a href="/#inference-scaling">Inference scaling and serving</a> / Temperature, top-k, top-p, and why T = 0 is not deterministic
+    <!-- /site:crumbs --></p>
+
+  <article class="post">
+    <header>
+      <h1>Temperature, top-k, top-p, and why T = 0 is not deterministic</h1>
+      <p class="lede">Every API exposes the same three knobs, and most people set them by folklore. This note walks the pipeline they form, in the order it actually runs, says precisely what temperature zero means, and then explains something that surprises almost everyone who builds an evaluation: a model at temperature zero, given the same prompt twice, can give two different answers.</p>
+      <div class="byline"><span>24 Oct 2026</span><span>9 min read</span></div>
+    </header>
+
+    <div class="concept">
+      <span class="label">The short version</span>
+      <p>The model emits one logit per vocabulary entry. Temperature divides the logits, top-k keeps the highest <var>k</var>, top-p keeps the smallest set whose probability mass reaches <var>p</var>, and a softmax over the survivors feeds a random draw. Temperature zero is greedy decoding: take the largest logit, and the other two knobs do nothing. Greedy is deterministic in mathematics and not in practice, because floating-point sums depend on the order they are taken in, that order depends on batch size and hardware scheduling, and a near-tie at the top of the logits turns a rounding difference into a different token, after which the whole continuation diverges.</p>
+    </div>
+
+    <div class="toc">
+      <p>Contents</p>
+      <ol>
+        <li><a href="#pipeline">The pipeline, in order</a></li>
+        <li><a href="#temperature">Temperature</a></li>
+        <li><a href="#topk">Top-k</a></li>
+        <li><a href="#topp">Top-p, or nucleus sampling</a></li>
+        <li><a href="#interaction">How the three interact</a></li>
+        <li><a href="#zero">What temperature zero actually does</a></li>
+        <li><a href="#nondeterminism">Why greedy is not deterministic in practice</a></li>
+        <li><a href="#practice">What to do about it</a></li>
+        <li><a href="#takeaways">Takeaways</a></li>
+      </ol>
+    </div>
+
+    <h2 id="pipeline"><span class="num">01</span>The pipeline, in order</h2>
+
+    <p>At each step of generation the model's final layer produces a vector of logits, one real number per vocabulary entry, typically 32,000 to 200,000 of them. Nothing about that vector is a probability yet. The decoding parameters are a sequence of transformations on it, and the order matters.</p>
+
+    <pre class="tree"><span class="k">logits z</span> = [z<sub>1</sub>, z<sub>2</sub>, …, z<sub>V</sub>]
+   │
+   ▼
+1. temperature       z<sub>i</sub> / T                    reshapes the distribution
+   │
+   ▼
+2. top-k             keep the k largest, rest → −∞    hard cap by rank
+   │
+   ▼
+3. top-p             keep the smallest prefix with     cap by probability mass
+                     cumulative mass ≥ p, rest → −∞
+   │
+   ▼
+4. softmax over survivors, then one random draw</pre>
+
+    <p>This is the order in the Hugging Face generation code and in most serving engines. Some stacks apply top-p before top-k, or add other filters; the order is a property of the implementation, not of the model.</p>
+
+    <h2 id="temperature"><span class="num">02</span>Temperature</h2>
+
+    <p>Temperature <var>T</var> divides every logit before the softmax:</p>
+
+    <p class="formula"><var>q<sub>i</sub></var> = <var>z<sub>i</sub></var> / <var>T</var>, &nbsp;&nbsp; <var>p<sub>i</sub></var> = <var>e</var><sup><var>q<sub>i</sub></var></sup> / ∑<sub><var>j</var></sub> <var>e</var><sup><var>q<sub>j</sub></var></sup></p>
+
+    <p>Because the softmax is exponential, scaling the logits changes the ratios between probabilities, not just their spread. Two tokens whose logits differ by 2 have a probability ratio of <var>e</var><sup>2</sup>, about 7.4, at <var>T</var> = 1. At <var>T</var> = 2 the gap becomes 1 and the ratio 2.7. At <var>T</var> = 0.5 the gap becomes 4 and the ratio 55.</p>
+
+    <ul>
+      <li><strong><var>T</var> &gt; 1 flattens.</strong> Gaps shrink, the distribution moves toward uniform, low-probability tokens get drawn more often. Output is more varied and, past a point, less coherent.</li>
+      <li><strong><var>T</var> &lt; 1 sharpens.</strong> Gaps grow, the leading tokens take more of the mass, output is more predictable.</li>
+      <li><strong><var>T</var> = 1 is the model's own distribution</strong>, the one it was trained to produce.</li>
+    </ul>
+
+    <p>Temperature never changes the ranking. The most likely token at <var>T</var> = 1 is the most likely token at any <var>T</var>. It changes how much the ranking matters.</p>
+
+    <h2 id="topk"><span class="num">03</span>Top-k</h2>
+
+    <p>Top-k is a hard cut by rank. Sort the logits, keep the <var>k</var> largest, set every other logit to −∞ so it gets zero probability after the softmax. With <var>k</var> = 50, exactly 50 candidates survive, whether the 50th has a probability of 1 percent or one in a million.</p>
+
+    <p>That is both the point and the problem. It guarantees the tail is gone, which stops the model drawing a nonsense token on the one-in-ten-thousand draw. But a fixed <var>k</var> is wrong in both directions: when the model is confident and two tokens hold 99 percent of the mass, 48 of the survivors are junk; when the model is genuinely uncertain across 200 plausible continuations, 150 reasonable ones are cut.</p>
+
+    <h2 id="topp"><span class="num">04</span>Top-p, or nucleus sampling</h2>
+
+    <p>Top-p cuts by cumulative mass rather than by rank. Sort the tokens by probability, descending; walk down adding probabilities until the running sum reaches <var>p</var>; keep that set, the nucleus, and set the rest to −∞.</p>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Model's state</th><th>Top-p = 0.9 keeps</th><th>Top-k = 50 keeps</th></tr>
+        <tr><td>Confident: one token at 0.95</td><td>1 token</td><td>50 tokens, 49 of them with 5 percent between them</td></tr>
+        <tr><td>Moderately sure: top 5 hold 0.9</td><td>5 tokens</td><td>50 tokens</td></tr>
+        <tr><td>Open: 300 tokens needed to reach 0.9</td><td>300 tokens</td><td>50 tokens</td></tr>
+      </table>
+    </div>
+
+    <p>The nucleus adapts to the model's confidence, which is why top-p is the usual default and top-k the backstop. The failure mode is the opposite of top-k's: when the distribution is very flat, a nucleus of 0.95 admits a long tail of individually improbable tokens.</p>
+
+    <h2 id="interaction"><span class="num">05</span>How the three interact</h2>
+
+    <ul>
+      <li><strong>Temperature runs first, so it changes what top-p sees.</strong> A higher temperature flattens the distribution, so the same <var>p</var> admits more tokens. Setting <var>T</var> = 1.5 and <var>p</var> = 0.9 is a much wider nucleus than <var>T</var> = 0.7 and <var>p</var> = 0.9. The two are not independent knobs.</li>
+      <li><strong>Top-k runs before top-p, so it is a ceiling.</strong> Top-p can only shrink the set top-k left. With <var>k</var> = 50 and <var>p</var> = 0.9, the nucleus is the smallest prefix of those 50 reaching 0.9 of their renormalised mass, never more than 50.</li>
+      <li><strong>Softmax runs again at the end.</strong> After the cuts, the survivors are renormalised to sum to 1 and one is drawn. The mass that was cut is redistributed proportionally, so the leading token's probability goes up slightly whenever anything is removed.</li>
+    </ul>
+
+    <p>Most providers recommend changing temperature or top-p, not both, for exactly the first reason. Other filters exist, such as min-p, which keeps tokens above a fraction of the top token's probability, and repetition penalties, which adjust logits for tokens already in the text; they slot into the same pipeline before the final softmax.</p>
+
+    <h2 id="zero"><span class="num">06</span>What temperature zero actually does</h2>
+
+    <p>Dividing by zero is undefined, so <var>T</var> = 0 is a convention rather than a value. What it means is the limit. As <var>T</var> shrinks, the gaps between scaled logits grow without bound, the largest one takes all of the mass, and the softmax becomes a one-hot vector:</p>
+
+    <p class="formula">lim<sub><var>T</var>→0</sub> softmax(<var>z</var> / <var>T</var>)<sub><var>i</var></sub> = 1 if <var>i</var> = argmax <var>z</var>, 0 otherwise</p>
+
+    <p>So temperature zero is greedy decoding: at every step, take the token with the largest logit. Serving code special-cases it and calls argmax directly rather than dividing. Two consequences follow.</p>
+
+    <ul>
+      <li><strong>Top-k and top-p become irrelevant.</strong> Both keep the top token, and only the top token has any probability. Whatever you set them to, the answer is the argmax.</li>
+      <li><strong>Greedy is not "the best answer".</strong> It is the locally most likely token at each step, which is not the globally most likely sequence and is often a worse sequence than a sampled one. Greedy decoding repeats itself and gets stuck in loops more than sampling at a moderate temperature does.</li>
+    </ul>
+
+    <h2 id="nondeterminism"><span class="num">07</span>Why greedy is not deterministic in practice</h2>
+
+    <p>Argmax of a fixed vector is deterministic. The vector is not fixed. The logits are the end of billions of floating-point operations, and small differences in how those operations are carried out produce logits that differ in the last few bits. Usually that changes nothing. Sometimes it changes the argmax, and then it changes everything after it.</p>
+
+    <h3>Floating-point addition is not associative</h3>
+
+    <p>In real arithmetic (<var>a</var> + <var>b</var>) + <var>c</var> = <var>a</var> + (<var>b</var> + <var>c</var>). In 16- or 32-bit floating point each addition rounds, and the rounding depends on the intermediate value, so the two orders can give different results. A matrix multiply, a layer norm or an attention softmax is a large reduction, a sum over thousands of terms, and a GPU splits that sum across many threads and combines the partial sums. Any change in how the sum is split changes the rounding, and the final logit comes out as 12.400001 in one run and 12.400000 in another.</p>
+
+    <h3>Near-ties at the top flip</h3>
+
+    <p>A difference in the sixth decimal place matters only when two logits are that close. But in a vocabulary of 100,000, over a response of 500 tokens, there are steps where the top two candidates are close. At such a step a rounding difference reorders them:</p>
+
+    <pre class="tree">run 1   logit(" Paris") = 15.000001   logit(" France") = 15.000000   →  " Paris"
+run 2   logit(" Paris") = 15.000000   logit(" France") = 15.000001   →  <span class="bad">" France"</span></pre>
+
+    <p>Generation is autoregressive. A different token at step <var>n</var> is a different prompt for step <var>n</var> + 1, so the two runs are now computing different things, and the rest of the sequence diverges completely. The divergence is not a small perturbation; it is a different answer.</p>
+
+    <h3>Kernels change strategy with batch size</h3>
+
+    <p>This is the cause that explains most of what people see on a production server, and it is often missed. The individual GPU kernels in an inference engine are, for a fixed input shape, usually deterministic: the same split, the same order, the same rounding every time. What is not fixed is the input shape. A server batches your request with whatever else arrived, and a matrix multiply over 8 sequences chooses a different tiling and reduction order from one over 64 sequences. Your request's logits therefore depend on how many other requests were in flight, which you do not control and cannot see. The kernels are not batch-invariant.</p>
+
+    <p>The practical upshot is that the same prompt, at temperature zero, on the same hardware and the same weights, returns different completions depending on server load. A 2025 study from Thinking Machines measured a popular model producing 80 distinct completions over 1,000 greedy runs of one prompt, and traced it to this effect rather than to in-kernel randomness; rewriting the reduction kernels to be batch-invariant made the output identical across all 1,000 runs, at some cost in speed.</p>
+
+    <h3>Mixture-of-experts routing and multi-GPU execution</h3>
+
+    <p>Mixture-of-experts models such as Mixtral and DeepSeek route each token to a few of many expert sub-networks, and the experts are executed in batches whose composition depends on every token in the batch. Expert capacity limits can even drop or reroute tokens under load. Tensor and pipeline parallelism across GPUs add communication steps whose combining order can vary. All of these change numerics with the batch, which compounds the previous cause.</p>
+
+    <h2 id="practice"><span class="num">08</span>What to do about it</h2>
+
+    <ul>
+      <li><strong>Do not treat temperature zero as a reproducibility guarantee.</strong> It removes the sampling randomness, not the numerical kind. A seed parameter helps only with the former.</li>
+      <li><strong>Evaluate with repeats.</strong> Run each evaluation prompt several times and report the spread, or the majority answer. A single greedy run is one draw from a distribution you cannot see.</li>
+      <li><strong>Compare models on the same batch conditions.</strong> Two runs of an evaluation at different times of day can differ for reasons that have nothing to do with the prompt or the model version.</li>
+      <li><strong>If you need bit-exact outputs, you need batch-invariant kernels</strong> or a batch size of one on dedicated hardware. Hosted APIs generally offer neither, and say so.</li>
+      <li><strong>Build for variation.</strong> Parse outputs defensively, use structured output modes where exactness of format matters, and do not write a test that asserts a specific string from a model.</li>
+    </ul>
+
+    <h2 id="takeaways"><span class="num">09</span>Takeaways</h2>
+    <ol>
+      <li><strong>Temperature, then top-k, then top-p, then softmax and a draw.</strong> The order is the implementation's, and it matters.</li>
+      <li><strong>Temperature changes ratios, not rankings.</strong> It makes the ranking matter more or less.</li>
+      <li><strong>Top-k caps by rank, top-p by mass.</strong> Top-p adapts to confidence; top-k is the backstop against a flat tail.</li>
+      <li><strong>Temperature and top-p are coupled.</strong> Raising temperature widens the nucleus at the same <var>p</var>.</li>
+      <li><strong>Temperature zero is argmax.</strong> The other knobs do nothing, and greedy is not the best sequence.</li>
+      <li><strong>Greedy is deterministic only in mathematics.</strong> Floating-point sums depend on order; order depends on batch size and scheduling; a near-tie turns a rounding difference into a different answer.</li>
+      <li><strong>Repeat your evaluations.</strong> One greedy run is one sample.</li>
+    </ol>
+
+    <div class="cta">
+      <a class="btn primary" href="/articles/kv-cache-memory-bound-decoding/">The KV cache, and why decoding is memory-bound →</a>
+      <a class="btn" href="/articles/attention-qkv-and-scaling/">Why attention has separate Q, K and V →</a>
+    </div>
+  </article>
+
+  <nav class="pager" aria-label="Reading order">
+    <!-- site:pager -->
+    <a class="prev" href="/articles/grouped-query-attention/"><small>Previous</small>Grouped-query attention: the middle ground between MHA and MQA</a>
+    <a class="next" href="/articles/chunk-size-recall-vs-faithfulness/"><small>Next</small>Chunk size: recall falls, faithfulness rises</a>
+    <!-- /site:pager -->
+  </nav>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+  </main>
+  <aside class="onpage" aria-label="On this page">
+    <!-- site:onpage -->
+    <p class="nav-title">On this page</p>
+    <ol>
+      <li><a href="#pipeline">The pipeline, in order</a></li>
+      <li><a href="#temperature">Temperature</a></li>
+      <li><a href="#topk">Top-k</a></li>
+      <li><a href="#topp">Top-p, or nucleus sampling</a></li>
+      <li><a href="#interaction">How the three interact</a></li>
+      <li><a href="#zero">What temperature zero actually does</a></li>
+      <li><a href="#nondeterminism">Why greedy is not deterministic in practice</a></li>
+      <li><a href="#practice">What to do about it</a></li>
+      <li><a href="#takeaways">Takeaways</a></li>
+    </ol>
+    <!-- /site:onpage -->
+  </aside>
+  </div>
+
+</div>
+<script src="/site.js?v=3"></script>
+</body>
+</html>

@@ -59,6 +59,10 @@
                 <li><a href="/articles/kv-cache-memory-bound-decoding/" data-path="/articles/kv-cache-memory-bound-decoding/">The KV cache, and why decoding is memory-bound</a></li>
                 <li><a href="/articles/grouped-query-attention/" data-path="/articles/grouped-query-attention/">Grouped-query attention: the middle ground between MHA and MQA</a></li>
               </ul>
+              <p class="nav-sub">Decoding</p>
+          <ul>
+                <li><a href="/articles/temperature-top-k-top-p-and-t0/" data-path="/articles/temperature-top-k-top-p-and-t0/">Temperature, top-k, top-p, and why T = 0 is not deterministic</a></li>
+              </ul>
             </details></li>
             <li class="nav-topic empty"><span>Test-time compute and reasoning models</span></li>
           </ul>
@@ -195,6 +199,16 @@
           </a>
           <span class="post-sub">One key-value pair per query head, per group, or for all heads. Why sharing one pair per group shrinks the cache by the group ratio, keeps quality close to multi-head, and became the default in Llama, Mistral and Gemma, with the real head counts. How a trained multi-head model converts by mean-pooling and uptraining.</span>
           <span class="post-meta">24 Oct 2026 · 7 min read</span>
+        </li>
+      </ol>
+      <p class="eyebrow">Decoding</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/temperature-top-k-top-p-and-t0/">
+            <span class="post-title">Temperature, top-k, top-p, and why T = 0 is not deterministic</span>
+          </a>
+          <span class="post-sub">The sampling pipeline in the order it runs: temperature divides, top-k cuts by rank, top-p cuts by mass, then softmax and a draw. Temperature zero is argmax, and still varies run to run: floating-point sums depend on order, kernels change strategy with batch size, near-ties at the top flip, and the continuation diverges.</span>
+          <span class="post-meta">24 Oct 2026 · 9 min read</span>
         </li>
       </ol>
     </div>

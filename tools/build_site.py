@@ -133,6 +133,15 @@ INFERENCE_SCALING_GROUPS = [
              "meta": "24 Oct 2026 · 7 min read"},
         ],
     },
+    {
+        "title": "Decoding",
+        "pages": [
+            {"path": "/articles/temperature-top-k-top-p-and-t0/",
+             "title": "Temperature, top-k, top-p, and why T = 0 is not deterministic",
+             "sub": "The sampling pipeline in the order it runs: temperature divides, top-k cuts by rank, top-p cuts by mass, then softmax and a draw. Temperature zero is argmax, and still varies run to run: floating-point sums depend on order, kernels change strategy with batch size, near-ties at the top flip, and the continuation diverges.",
+             "meta": "24 Oct 2026 · 9 min read"},
+        ],
+    },
 ]
 
 NAV = [
