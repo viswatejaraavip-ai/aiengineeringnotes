@@ -196,6 +196,15 @@ AGENT_ARCHITECTURES_GROUPS = [
              "meta": "25 Oct 2026 · 11 min read"},
         ],
     },
+    {
+        "title": "Design exercises",
+        "pages": [
+            {"path": "/articles/designing-a-support-agent/",
+             "title": "Designing a customer-support agent over 30 backend operations",
+             "sub": "One concrete system worked end to end: thirty operations classified by kind, reversibility and blast radius; merged and intent-loaded into a tool surface with a verified finish tool; scopes per principal with ownership checked by the adapter; idempotency keys for every create, send and money movement; the loop's gates; and a four-level evaluation plan with the live metrics that decide rollout.",
+             "meta": "25 Oct 2026 · 16 min read"},
+        ],
+    },
 ]
 
 NAV = [
