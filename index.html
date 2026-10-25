@@ -130,11 +130,28 @@
             <li class="nav-topic empty"><span>Advanced RAG: agentic RAG, GraphRAG, memory and long context</span></li>
           </ul>
     </details>
-    <details class="nav-section" data-id="evaluation">
+    <details class="nav-section" data-id="evaluation" open>
           <summary>Evaluation, observability and ops</summary>
           <ul>
             <li class="nav-topic empty"><span>Evaluation fundamentals, benchmarks and LLM-as-judge</span></li>
-            <li class="nav-topic empty"><span>Evaluating RAG, agents and production systems</span></li>
+            <li class="nav-topic"><details data-id="eval-systems" open>
+              <summary>Evaluating RAG, agents and production systems</summary>
+              <p class="nav-sub">RAG evaluation</p>
+          <ul>
+                <li><a href="/articles/rag-component-failures/" data-path="/articles/rag-component-failures/">Which RAG component broke? Why an end-to-end score cannot tell you</a></li>
+              </ul>
+              <p class="nav-sub">Agent evaluation</p>
+          <ul>
+                <li><a href="/articles/agent-success-vs-process/" data-path="/articles/agent-success-vs-process/">Agent task success versus process quality</a></li>
+                <li><a href="/articles/tool-call-correctness/" data-path="/articles/tool-call-correctness/">Evaluating tool-call correctness: right tool, right arguments, result used correctly</a></li>
+                <li><a href="/articles/eval-vs-real-sessions-gap/" data-path="/articles/eval-vs-real-sessions-gap/">The agent passes 92% of eval tasks and 60% of real sessions. What explains the gap?</a></li>
+              </ul>
+              <p class="nav-sub">Suites and safety</p>
+          <ul>
+                <li><a href="/articles/llm-regression-suite-in-ci/" data-path="/articles/llm-regression-suite-in-ci/">An LLM regression suite in CI: size, runtime, thresholds and flakes</a></li>
+                <li><a href="/articles/safety-eval-both-sides/" data-path="/articles/safety-eval-both-sides/">Evaluating safety behaviour: harmful compliance and over-refusal together</a></li>
+              </ul>
+            </details></li>
             <li class="nav-topic empty"><span>Observability, tracing and monitoring</span></li>
             <li class="nav-topic empty"><span>LLMOps, cost, reliability and product engineering</span></li>
           </ul>
@@ -159,7 +176,7 @@
 
   <section id="how-to-read">
     <h2 id="h-how-to-read">How to read these notes</h2>
-    <p>The sidebar is a map of AI engineering in six sections: foundations, inference and reasoning, agentic AI, RAG, evaluation and ops, and security and governance. Each section has a few topics. Most of the notes written so far sit under one topic, <a href="#rag-ingestion">RAG ingestion, chunking and indexing</a>, in four groups: the core concepts, chunking patterns for real corpora, what changes when an index holds documents not everyone may read, and two systems built end to end with their measurements. <a href="#llm-fundamentals">LLM fundamentals</a> has started with tokenization and the Transformer’s attention mechanism, and <a href="#inference-scaling">Inference scaling and serving</a> with the KV cache, and <a href="#agent-architectures">Agent architectures, tool use and MCP</a> with the ReAct loop. The other topics are listed so the shape of the whole is visible, and will fill in.</p>
+    <p>The sidebar is a map of AI engineering in six sections: foundations, inference and reasoning, agentic AI, RAG, evaluation and ops, and security and governance. Each section has a few topics. Most of the notes written so far sit under one topic, <a href="#rag-ingestion">RAG ingestion, chunking and indexing</a>, in four groups: the core concepts, chunking patterns for real corpora, what changes when an index holds documents not everyone may read, and two systems built end to end with their measurements. <a href="#llm-fundamentals">LLM fundamentals</a> has started with tokenization and the Transformer’s attention mechanism, and <a href="#inference-scaling">Inference scaling and serving</a> with the KV cache, and <a href="#agent-architectures">Agent architectures, tool use and MCP</a> with the ReAct loop, and <a href="#eval-systems">Evaluating RAG, agents and production systems</a> with six notes on measuring what actually broke. The other topics are listed so the shape of the whole is visible, and will fill in.</p>
     <p>Read top to bottom if you are new to retrieval. Each page ends with a link to the next one in that order, and the sidebar ticks the pages you have finished, in this browser only. If you already build these systems, open the topic you need; every note stands on its own.</p>
   </section>
 
@@ -436,7 +453,58 @@
     </div>
     <div class="topic" id="eval-systems">
       <h3>Evaluating RAG, agents and production systems</h3>
-      <p class="topic-empty">No notes yet.</p>
+      <p class="series-desc">How to know whether a retrieval pipeline or an agent works, which part of it broke, and whether the evaluation itself is telling the truth.</p>
+      <p class="eyebrow">RAG evaluation</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/rag-component-failures/">
+            <span class="post-title">Which RAG component broke? Why an end-to-end score cannot tell you</span>
+          </a>
+          <span class="post-sub">Query understanding, retrieval, reranking, context assembly and generation can each lose the answer, and the end-to-end score is their product, so the same number has different causes with different fixes. A metric per stage conditioned on the stage before, two oracle experiments that bound each half, and a decision tree that attributes every wrong answer.</span>
+          <span class="post-meta">25 Oct 2026 · 10 min read</span>
+        </li>
+      </ol>
+      <p class="eyebrow">Agent evaluation</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/agent-success-vs-process/">
+            <span class="post-title">Agent task success versus process quality</span>
+          </a>
+          <span class="post-sub">Finishing the task and taking a sensible path are different questions, and an agent can succeed by trying everything, guessing, or destroying and rebuilding, because the task did not punish it this time. Why outcome-only scoring rewards those paths, which process metrics to record from the trace, scoring against constraints rather than one golden path, and the two-by-two to read both scores together.</span>
+          <span class="post-meta">25 Oct 2026 · 9 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/tool-call-correctness/">
+            <span class="post-title">Evaluating tool-call correctness: right tool, right arguments, result used correctly</span>
+          </a>
+          <span class="post-sub">Four layers that fail separately: whether to call, which tool, which arguments, how the result was used. Selection as a confusion matrix, why exact-match arguments are wrong for most fields and what schema-aware comparison does type by type, counterfactual stubs to test result use, and derived-argument checks in multi-step sequences.</span>
+          <span class="post-meta">25 Oct 2026 · 10 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/eval-vs-real-sessions-gap/">
+            <span class="post-title">The agent passes 92% of eval tasks and 60% of real sessions. What explains the gap?</span>
+          </a>
+          <span class="post-sub">Part of the gap is definitional: task-spec success is not user-goal success. The rest is structural: real sessions are ambiguous, wrong about their own details, multi-turn, uncooperative, interrupted and unevenly distributed. How to diagnose which differences matter, then redesign with cases from real sessions, simulated users, tasks where the right move is to ask or to notice an error, injected tool failures, whole-session grading and production weighting.</span>
+          <span class="post-meta">25 Oct 2026 · 11 min read</span>
+        </li>
+      </ol>
+      <p class="eyebrow">Suites and safety</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/llm-regression-suite-in-ci/">
+            <span class="post-title">An LLM regression suite in CI: size, runtime, thresholds and flakes</span>
+          </a>
+          <span class="post-sub">A chosen smoke set on every change and a large nightly set, and why one tier cannot do both jobs. What a case fixes, graders from mechanical to human, thresholds against a baseline with a measured noise band and gates at 100 percent for safety and policy, and a flake policy: three runs, re-run failures, cache by request hash, pin model versions, quarantine the inconsistent.</span>
+          <span class="post-meta">25 Oct 2026 · 11 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/safety-eval-both-sides/">
+            <span class="post-title">Evaluating safety behaviour: harmful compliance and over-refusal together</span>
+          </a>
+          <span class="post-sub">Safety is a classifier with two error types, and measuring only harmful compliance has a trivial optimum: refuse everything. A harmful set with adversarial variants, a benign set built as matched pairs on the same topics, three response labels plus a separate harm grade, the pair reported per category with an operating point chosen per severity, and a regression rule that neither rate may be spent to buy the other without a person agreeing.</span>
+          <span class="post-meta">25 Oct 2026 · 10 min read</span>
+        </li>
+      </ol>
     </div>
     <div class="topic" id="observability">
       <h3>Observability, tracing and monitoring</h3>

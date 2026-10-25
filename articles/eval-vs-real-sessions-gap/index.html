@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The agent passes 92% of eval tasks and 60% of real sessions. What explains the gap? · AI Engineering Notes</title>
+  <meta name="description" content="A thirty-point gap between offline evaluation and real sessions is usually structural, not noise. Eval tasks are single-turn, fully specified, correctly stated and run against clean fixtures; real sessions are ambiguous, interrupted, partially informed, wrong about their own details, and judged by the user. Some of the gap is a measurement mismatch, and the rest is a specification mismatch. How to diagnose which, and how to redesign the eval with simulated users, underspecified and wrong-input tasks, injected tool failures, whole-session grading and production-weighted intents.">
+  <meta property="og:title" content="The agent passes 92% of eval tasks and 60% of real sessions. What explains the gap?">
+  <meta property="og:description" content="Structural differences between eval tasks and real sessions, and how to redesign the eval.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://aiengineeringnotes.com/articles/eval-vs-real-sessions-gap/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/articles/eval-vs-real-sessions-gap/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css?v=3">
+  <style>
+    .tree { font-family: var(--mono); font-size: 14px; line-height: 1.5; }
+    .tree .k { color: var(--accent); font-weight: 600; }
+    .tree .c { color: var(--muted); }
+    .num { text-align: right; }
+    pre code { font-size: inherit; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- site:header -->
+    <header class="site">
+    <button class="menu" type="button" aria-controls="sidenav" aria-expanded="false">Contents</button>
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/">Introduction</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+    <!-- /site:header -->
+
+  <div class="layout">
+  <aside class="sidenav" id="sidenav" aria-label="All notes">
+    <!-- site:nav -->
+    <a class="nav-home" href="/" data-path="/">Introduction</a>
+    <details class="nav-section" data-id="foundations">
+          <summary>Foundations</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="llm-fundamentals">
+              <summary>LLM fundamentals</summary>
+              <p class="nav-sub">Tokenization</p>
+          <ul>
+                <li><a href="/articles/byte-pair-encoding/" data-path="/articles/byte-pair-encoding/">Byte-pair encoding, and why tokenizers work on bytes</a></li>
+              </ul>
+              <p class="nav-sub">Transformer internals</p>
+          <ul>
+                <li><a href="/articles/attention-qkv-and-scaling/" data-path="/articles/attention-qkv-and-scaling/">Why attention has separate Q, K and V, and why it divides by √d_k</a></li>
+                <li><a href="/articles/mixture-of-experts-active-vs-total/" data-path="/articles/mixture-of-experts-active-vs-total/">Mixture of experts: active parameters versus total parameters</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Frontier models and the model landscape</span></li>
+            <li class="nav-topic empty"><span>Prompting and context engineering</span></li>
+            <li class="nav-topic empty"><span>Fine-tuning, alignment and post-training</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="inference">
+          <summary>Inference and reasoning</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="inference-scaling">
+              <summary>Inference scaling and serving</summary>
+              <p class="nav-sub">Serving fundamentals</p>
+          <ul>
+                <li><a href="/articles/kv-cache-memory-bound-decoding/" data-path="/articles/kv-cache-memory-bound-decoding/">The KV cache, and why decoding is memory-bound</a></li>
+                <li><a href="/articles/grouped-query-attention/" data-path="/articles/grouped-query-attention/">Grouped-query attention: the middle ground between MHA and MQA</a></li>
+              </ul>
+              <p class="nav-sub">Decoding</p>
+          <ul>
+                <li><a href="/articles/temperature-top-k-top-p-and-t0/" data-path="/articles/temperature-top-k-top-p-and-t0/">Temperature, top-k, top-p, and why T = 0 is not deterministic</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Test-time compute and reasoning models</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="agents">
+          <summary>Agentic AI</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="agent-architectures">
+              <summary>Agent architectures, tool use and MCP</summary>
+              <p class="nav-sub">Agent loops</p>
+          <ul>
+                <li><a href="/articles/function-calling-model-and-application/" data-path="/articles/function-calling-model-and-application/">Function calling: how the model decides, and what your code must do</a></li>
+                <li><a href="/articles/react-pattern-and-function-calling/" data-path="/articles/react-pattern-and-function-calling/">The ReAct pattern as a loop of function calls</a></li>
+                <li><a href="/articles/agent-loop-termination-and-failure-modes/" data-path="/articles/agent-loop-termination-and-failure-modes/">How an agent loop ends, and the three ways it fails to</a></li>
+                <li><a href="/articles/react-vs-plan-and-execute/" data-path="/articles/react-vs-plan-and-execute/">ReAct versus plan-and-execute, and the hybrid that production uses</a></li>
+                <li><a href="/articles/agent-framework-vs-hand-rolled-loop/" data-path="/articles/agent-framework-vs-hand-rolled-loop/">Agent framework or hand-rolled loop: what each buys you, and what changes your mind</a></li>
+              </ul>
+              <p class="nav-sub">Tool design</p>
+          <ul>
+                <li><a href="/articles/tool-schema-design/" data-path="/articles/tool-schema-design/">What makes a good tool schema, and why the description outranks the name</a></li>
+                <li><a href="/articles/idempotent-tool-calls/" data-path="/articles/idempotent-tool-calls/">Idempotent tool calls: which tools need a key, and how to derive one</a></li>
+              </ul>
+              <p class="nav-sub">MCP</p>
+          <ul>
+                <li><a href="/articles/model-context-protocol/" data-path="/articles/model-context-protocol/">The Model Context Protocol: hosts, clients, servers, and where the adapter work went</a></li>
+              </ul>
+              <p class="nav-sub">Design exercises</p>
+          <ul>
+                <li><a href="/articles/designing-a-support-agent/" data-path="/articles/designing-a-support-agent/">Designing a customer-support agent over 30 backend operations</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Multi-agent systems, orchestration and human-in-the-loop</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="rag">
+          <summary>RAG</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="rag-ingestion">
+              <summary>RAG ingestion, chunking and indexing</summary>
+              <p class="nav-sub">Core concepts</p>
+          <ul>
+                <li><a href="/articles/chunk-size-recall-vs-faithfulness/" data-path="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall falls, faithfulness rises</a></li>
+                <li><a href="/articles/chunk-is-not-the-embedding/" data-path="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve</a></li>
+                <li><a href="/articles/chunk-metadata-and-llm-extraction/" data-path="/articles/chunk-metadata-and-llm-extraction/">Metadata on chunks, and the care needed when a model writes it</a></li>
+              </ul>
+              <p class="nav-sub">Chunking patterns</p>
+          <ul>
+                <li><a href="/articles/chunking-wiki-pages/" data-path="/articles/chunking-wiki-pages/">How to chunk wiki pages</a></li>
+                <li><a href="/articles/semantic-chunking-regression/" data-path="/articles/semantic-chunking-regression/">Semantic chunking made my retrieval evals worse</a></li>
+              </ul>
+              <p class="nav-sub">Multi-tenant indexes</p>
+          <ul>
+                <li><a href="/articles/cross-tenant-leakage-in-rag/" data-path="/articles/cross-tenant-leakage-in-rag/">Cross-tenant leakage in vector search, and how to test for it</a></li>
+                <li><a href="/articles/chunk-permissions-in-sync/" data-path="/articles/chunk-permissions-in-sync/">Permissions on chunks, and keeping them in sync</a></li>
+              </ul>
+              <p class="nav-sub">Build breakdowns</p>
+          <ul>
+                <li><a href="/articles/telugu-gita-rag/" data-path="/articles/telugu-gita-rag/">How I built a RAG on the Bhagavad Gita in Telugu</a></li>
+                <li><a href="/articles/telugu-purana-rag/" data-path="/articles/telugu-purana-rag/">Sanskrit in, Telugu out: a RAG over 17 Puranas</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>RAG retrieval: embeddings, hybrid search and reranking</span></li>
+            <li class="nav-topic empty"><span>RAG generation, grounding and debugging</span></li>
+            <li class="nav-topic empty"><span>Advanced RAG: agentic RAG, GraphRAG, memory and long context</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="evaluation" open>
+          <summary>Evaluation, observability and ops</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Evaluation fundamentals, benchmarks and LLM-as-judge</span></li>
+            <li class="nav-topic"><details data-id="eval-systems" open>
+              <summary>Evaluating RAG, agents and production systems</summary>
+              <p class="nav-sub">RAG evaluation</p>
+          <ul>
+                <li><a href="/articles/rag-component-failures/" data-path="/articles/rag-component-failures/">Which RAG component broke? Why an end-to-end score cannot tell you</a></li>
+              </ul>
+              <p class="nav-sub">Agent evaluation</p>
+          <ul>
+                <li><a href="/articles/agent-success-vs-process/" data-path="/articles/agent-success-vs-process/">Agent task success versus process quality</a></li>
+                <li><a href="/articles/tool-call-correctness/" data-path="/articles/tool-call-correctness/">Evaluating tool-call correctness: right tool, right arguments, result used correctly</a></li>
+                <li><a href="/articles/eval-vs-real-sessions-gap/" class="current" aria-current="page" data-path="/articles/eval-vs-real-sessions-gap/">The agent passes 92% of eval tasks and 60% of real sessions. What explains the gap?</a></li>
+              </ul>
+              <p class="nav-sub">Suites and safety</p>
+          <ul>
+                <li><a href="/articles/llm-regression-suite-in-ci/" data-path="/articles/llm-regression-suite-in-ci/">An LLM regression suite in CI: size, runtime, thresholds and flakes</a></li>
+                <li><a href="/articles/safety-eval-both-sides/" data-path="/articles/safety-eval-both-sides/">Evaluating safety behaviour: harmful compliance and over-refusal together</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Observability, tracing and monitoring</span></li>
+            <li class="nav-topic empty"><span>LLMOps, cost, reliability and product engineering</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="security">
+          <summary>Security, red teaming and governance</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Prompt injection and LLM application security</span></li>
+            <li class="nav-topic empty"><span>Red teaming, adversarial testing and guardrails</span></li>
+            <li class="nav-topic empty"><span>AI governance, risk and compliance</span></li>
+            <li class="nav-topic empty"><span>Responsible AI, safety, alignment and societal risk</span></li>
+          </ul>
+    </details>
+    <!-- /site:nav -->
+  </aside>
+  <main class="content">
+
+  <p class="crumbs"><!-- site:crumbs -->
+    <a href="/#evaluation">Evaluation, observability and ops</a> / <a href="/#eval-systems">Evaluating RAG, agents and production systems</a> / The agent passes 92% of eval tasks and 60% of real sessions. What explains the gap?
+    <!-- /site:crumbs --></p>
+
+  <article class="post">
+    <header>
+      <h1>The agent passes 92% of eval tasks and 60% of real sessions. What explains the gap?</h1>
+      <p class="lede">Thirty points is not noise and it is not bad luck. It means the evaluation is measuring a different thing from the one users experience, and the two kinds of difference are worth separating: the sessions may be failing in ways the tasks never ask about, or "success" may simply mean something different in the two places. This note lists the structural differences between an evaluation task and a real session, gives a way to find out which ones are doing the damage, and then redesigns the evaluation so its number starts to mean what you thought it meant.</p>
+      <div class="byline"><span>25 Oct 2026</span><span>11 min read</span></div>
+    </header>
+
+    <div class="concept">
+      <span class="label">The short version</span>
+      <p>First check whether the two numbers measure the same thing: eval success is usually a grader confirming a task spec was met, and session success is usually a user signal, so part of the gap is definitional. Then sample a hundred failed sessions and categorise them. The usual causes are that real users are ambiguous where tasks are precise, give wrong details where fixtures are correct, change their minds and interrupt where tasks are single-turn, do not answer clarifying questions, arrive with intents the eval under-represents, and hit tool failures the stubs never produce. Redesign by building cases from real sessions with a simulated user, adding tasks where the right move is to ask or to notice an error, injecting tool failures, grading the whole session on the user's goal, weighting by the production intent mix, and tracking the correlation between offline and online scores as a metric in itself.</p>
+    </div>
+
+    <div class="toc">
+      <p>Contents</p>
+      <ol>
+        <li><a href="#measure">First, are the two numbers measuring the same thing?</a></li>
+        <li><a href="#differences">Structural differences between a task and a session</a></li>
+        <li><a href="#diagnose">Diagnosing which differences matter</a></li>
+        <li><a href="#redesign">Redesigning the eval</a></li>
+        <li><a href="#simulated">Simulated users</a></li>
+        <li><a href="#grading">Grading a session, not a task</a></li>
+        <li><a href="#correlation">Evaluating the eval</a></li>
+        <li><a href="#takeaways">Takeaways</a></li>
+      </ol>
+    </div>
+
+    <h2 id="measure"><span class="num">01</span>First, are the two numbers measuring the same thing?</h2>
+
+    <p>Before looking for agent failures, look at the two definitions of success.</p>
+
+    <ul>
+      <li><strong>Eval success</strong> is typically: the grader confirmed that the task specification was met. The task said "cancel order 98765", the order is cancelled, pass.</li>
+      <li><strong>Session success</strong> is typically something else: the user said it helped, or did not escalate, or did not come back within a day, or completed a flow. Those are proxies for "the user's goal was met", and the user's goal is not the task spec.</li>
+    </ul>
+
+    <p>These can diverge in both directions. A session where the agent correctly explained that the order could not be cancelled is a task success and often a user-signal failure. A session where the user gave up after three turns and did the thing themselves on the website is a user-signal failure that no task would represent. Estimate how much of the thirty points is this: take a sample of sessions marked failed, and ask whether the agent did what a task grader would have passed. If a third of them would pass, ten points of the gap are definitional, and the eval needs a different notion of success rather than harder tasks.</p>
+
+    <h2 id="differences"><span class="num">02</span>Structural differences between a task and a session</h2>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Dimension</th><th>Eval task</th><th>Real session</th><th>What breaks</th></tr>
+        <tr><td>Specification</td><td>Complete: the goal, the entity, the constraints are all stated</td><td>Ambiguous: "my order hasn't come", with three recent orders</td><td>The agent picks one, or asks badly, or does not ask</td></tr>
+        <tr><td>Correctness of inputs</td><td>The order id is right, the email is right</td><td>The user misremembers the id, gives the wrong email, describes the wrong product</td><td>The agent trusts the input and acts on the wrong thing, or finds nothing and gives up</td></tr>
+        <tr><td>Turns</td><td>One request, one resolution</td><td>Several turns; the goal changes mid-way; a second question is nested in the first</td><td>Context from turn one is applied to turn four; the second question is dropped</td></tr>
+        <tr><td>Cooperation</td><td>The task answers no questions, because there is no one to ask</td><td>The user ignores the clarifying question, answers a different one, or answers with a photo</td><td>The agent waits, or re-asks, or proceeds on a guess</td></tr>
+        <tr><td>Interruptions</td><td>None</td><td>"Actually never mind, can you instead…"; a long pause; a repeated message</td><td>The agent finishes the abandoned task anyway</td></tr>
+        <tr><td>Partial information</td><td>Everything needed is in the fixture</td><td>The record is incomplete; the tracking feed is stale; the policy has an exception not in the knowledge base</td><td>The agent answers confidently from incomplete data</td></tr>
+        <tr><td>Environment</td><td>Stubs return clean results</td><td>Tools time out, return errors, return malformed data</td><td>Untested error paths</td></tr>
+        <tr><td>Intent distribution</td><td>Even across the intents someone thought of</td><td>Heavy head, long tail, and intents nobody thought of</td><td>The eval over-weights what the agent is good at</td></tr>
+        <tr><td>User state</td><td>Neutral</td><td>Frustrated, in a hurry, hostile, or testing the bot</td><td>Tone failures; the agent takes bait</td></tr>
+        <tr><td>Length</td><td>Short</td><td>Long sessions with history that fills the context</td><td>State blindness; repeated calls; forgotten constraints</td></tr>
+        <tr><td>Judge of success</td><td>A grader with the spec</td><td>The user, with their goal</td><td>Definitional gap, as above</td></tr>
+      </table>
+    </div>
+
+    <p>An evaluation built from clean tasks tests the agent on the one row in each dimension that is easiest, and the agent passes. Users supply the other rows.</p>
+
+    <h2 id="diagnose"><span class="num">03</span>Diagnosing which differences matter</h2>
+
+    <p>Not every row costs the same, and which ones dominate depends on the product. Find out before redesigning.</p>
+
+    <ol>
+      <li><strong>Sample a hundred failed sessions</strong>, stratified by intent. Read each with its trace and assign a primary cause from the table above, plus "agent error on a well-specified request" for the cases where the eval should have caught it, and "definitional" for the cases a task grader would have passed.</li>
+      <li><strong>Compare the intent distribution</strong> of the eval set to production. Compute what the eval's score would be if its cases were weighted by production frequency. A drop here means the eval is over-sampling what the agent does well.</li>
+      <li><strong>Check the clean-request subset.</strong> Among real sessions that were well-specified, single-turn and correct, what was the success rate? If it is near 92 percent, the agent is fine on the thing the eval measures and the gap is entirely structural. If it is 75, the eval is also too easy on its own terms, and that is a separate problem.</li>
+      <li><strong>Look at where sessions end.</strong> Abandonment after a clarifying question, abandonment after a wrong answer, escalation, and silent exit each point at a different row.</li>
+    </ol>
+
+    <p>The output is a histogram of causes, and the redesign targets the tall bars.</p>
+
+    <h2 id="redesign"><span class="num">04</span>Redesigning the eval</h2>
+
+    <ul>
+      <li><strong>Build cases from real sessions.</strong> Anonymise failed and successful sessions and turn them into cases, with the user's side replayed by a simulated user. These carry the real distribution of ambiguity and error, which no one writes by hand.</li>
+      <li><strong>Add underspecified tasks where the right behaviour is to ask.</strong> "My order hasn't arrived" with three orders in the fixture. Pass requires a clarifying question that names the options, and then the right action after the simulated user answers. Score asking too much as well as too little.</li>
+      <li><strong>Add wrong-input tasks where the right behaviour is to notice.</strong> The user gives order O-98756 and owns O-98765. Pass requires detecting the mismatch, not acting on the typo and not giving up.</li>
+      <li><strong>Add mid-session changes.</strong> The user cancels the request on turn three and asks something else. Pass requires dropping the first task.</li>
+      <li><strong>Inject tool failures.</strong> In some fraction of cases the stub times out, returns an error, or returns a record with a missing field. Pass requires sensible recovery and honest reporting.</li>
+      <li><strong>Add long sessions.</strong> Ten or fifteen turns with a constraint stated early that must still be honoured late.</li>
+      <li><strong>Add the tail.</strong> The intents that appear in production below one percent each, which together are a quarter of sessions.</li>
+      <li><strong>Weight by production.</strong> Report the eval score weighted by the production intent mix, alongside the unweighted one.</li>
+      <li><strong>Add user state.</strong> Frustrated and hostile simulated users, and the ones who test the bot. Score tone and refusal to take bait.</li>
+    </ul>
+
+    <p>The score will fall, perhaps a long way. That is the eval starting to agree with reality, and it is the point.</p>
+
+    <h2 id="simulated"><span class="num">05</span>Simulated users</h2>
+
+    <p>Multi-turn cases need something to play the user. A scripted sequence of turns works for fixed flows and fails as soon as the agent asks an unexpected question. A simulated user is a model given a persona, a goal, the facts it knows, the facts it has wrong, and a behaviour profile, and asked to respond as that person would.</p>
+
+    <pre class="tree"><span class="k">simulated user</span>
+  goal        get a refund for the damaged lamp
+  knows       it arrived on Tuesday, the box was crushed
+  has wrong   the order number (one digit off)
+  behaviour   impatient; answers only the last question asked; mentions a second
+              unrelated question on turn three; gives up if asked for the order
+              number twice
+  stop        when the agent confirms a refund or escalates, or after 12 turns</pre>
+
+    <p>The simulated user is itself a model and needs its own checking: that it stays in character, does not reveal facts it was told it does not know, and does not helpfully fix the agent's mistakes. A small set of hand-reviewed transcripts per persona keeps it honest. Personas should be drawn from the diagnosis in section 03, so the eval's population of users resembles the real one.</p>
+
+    <h2 id="grading"><span class="num">06</span>Grading a session, not a task</h2>
+
+    <p>With multi-turn cases, the grader reads the whole transcript and answers a different question: was the user's goal met, as the user would judge it? That includes:</p>
+
+    <ul>
+      <li>Did the agent resolve the goal, or correctly explain why it could not and offer the next step?</li>
+      <li>Did it handle the wrong input, the interruption, the second question?</li>
+      <li>Did it ask when it should and not when it should not?</li>
+      <li>Did the user, as simulated, reach a state they would call done, or did they abandon?</li>
+      <li>Process quality over the session, as in the <a href="/articles/agent-success-vs-process/">success-versus-process note</a>: violations, waste, guessed arguments.</li>
+    </ul>
+
+    <p>Abandonment is a failure, even when the agent's last message was correct. The user's leaving is the signal; the grader should treat a simulated user who gave up as the real one would be counted.</p>
+
+    <h2 id="correlation"><span class="num">07</span>Evaluating the eval</h2>
+
+    <p>An evaluation's purpose is to predict production. So measure that directly: across releases, plot the offline score against the online success rate, and track the correlation. If a change raises the offline score and online does not move, the eval is measuring something users do not care about, and that is a bug in the eval. Over time the redesigned eval should move the two numbers together, and the gap between them should settle to a stable offset that you understand, the definitional part, rather than a thirty-point mystery.</p>
+
+    <p>Keep feeding it. Every week, the failed sessions that the eval would have passed are the cases to add. The eval is never finished; it is a model of your users, and your users change.</p>
+
+    <h2 id="takeaways"><span class="num">08</span>Takeaways</h2>
+    <ol>
+      <li><strong>Check the definitions first.</strong> Task-spec success and user-goal success differ, and some of the gap is that difference.</li>
+      <li><strong>Real sessions are ambiguous, wrong, multi-turn, uncooperative, interrupted, partially informed, long and unevenly distributed.</strong> Clean tasks test none of that.</li>
+      <li><strong>Diagnose before redesigning.</strong> A hundred failed sessions, categorised, and a production-weighted rescore.</li>
+      <li><strong>Build cases from real sessions with simulated users</strong>, and add tasks where the right move is to ask, to notice an error, to drop an abandoned goal, or to recover from a tool failure.</li>
+      <li><strong>Grade the session on the user's goal</strong>, count abandonment as failure, and score process as well as outcome.</li>
+      <li><strong>Track offline-to-online correlation as a metric.</strong> An eval that does not predict production is the thing that is broken.</li>
+    </ol>
+
+    <div class="cta">
+      <a class="btn primary" href="/articles/agent-success-vs-process/">Agent task success versus process quality →</a>
+      <a class="btn" href="/articles/llm-regression-suite-in-ci/">An LLM regression suite in CI →</a>
+    </div>
+  </article>
+
+  <nav class="pager" aria-label="Reading order">
+    <!-- site:pager -->
+    <a class="prev" href="/articles/tool-call-correctness/"><small>Previous</small>Evaluating tool-call correctness: right tool, right arguments, result used correctly</a>
+    <a class="next" href="/articles/llm-regression-suite-in-ci/"><small>Next</small>An LLM regression suite in CI: size, runtime, thresholds and flakes</a>
+    <!-- /site:pager -->
+  </nav>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+  </main>
+  <aside class="onpage" aria-label="On this page">
+    <!-- site:onpage -->
+    <p class="nav-title">On this page</p>
+    <ol>
+      <li><a href="#measure">First, are the two numbers measuring the same thing?</a></li>
+      <li><a href="#differences">Structural differences between a task and a session</a></li>
+      <li><a href="#diagnose">Diagnosing which differences matter</a></li>
+      <li><a href="#redesign">Redesigning the eval</a></li>
+      <li><a href="#simulated">Simulated users</a></li>
+      <li><a href="#grading">Grading a session, not a task</a></li>
+      <li><a href="#correlation">Evaluating the eval</a></li>
+      <li><a href="#takeaways">Takeaways</a></li>
+    </ol>
+    <!-- /site:onpage -->
+  </aside>
+  </div>
+
+</div>
+<script src="/site.js?v=3"></script>
+</body>
+</html>

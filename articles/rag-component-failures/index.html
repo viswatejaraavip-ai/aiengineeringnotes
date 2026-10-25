@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Which RAG component broke? Why an end-to-end score cannot tell you · AI Engineering Notes</title>
+  <meta name="description" content="A RAG pipeline has five stages that can each fail: query understanding, retrieval, reranking, context assembly and generation. An end-to-end answer score is the product of all five, so the same low number can come from a retrieval miss or from a model that ignored good context, and the fixes are different. How to measure each stage on its own, the oracle technique that isolates generation from retrieval, and a decision tree that attributes each wrong answer to the stage that caused it.">
+  <meta property="og:title" content="Which RAG component broke? Why an end-to-end score cannot tell you">
+  <meta property="og:description" content="Stage-by-stage metrics and oracle tests for attributing RAG failures.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://aiengineeringnotes.com/articles/rag-component-failures/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/articles/rag-component-failures/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css?v=3">
+  <style>
+    .tree { font-family: var(--mono); font-size: 14px; line-height: 1.5; }
+    .tree .k { color: var(--accent); font-weight: 600; }
+    .tree .c { color: var(--muted); }
+    .num { text-align: right; }
+    pre code { font-size: inherit; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- site:header -->
+    <header class="site">
+    <button class="menu" type="button" aria-controls="sidenav" aria-expanded="false">Contents</button>
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/">Introduction</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+    <!-- /site:header -->
+
+  <div class="layout">
+  <aside class="sidenav" id="sidenav" aria-label="All notes">
+    <!-- site:nav -->
+    <a class="nav-home" href="/" data-path="/">Introduction</a>
+    <details class="nav-section" data-id="foundations">
+          <summary>Foundations</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="llm-fundamentals">
+              <summary>LLM fundamentals</summary>
+              <p class="nav-sub">Tokenization</p>
+          <ul>
+                <li><a href="/articles/byte-pair-encoding/" data-path="/articles/byte-pair-encoding/">Byte-pair encoding, and why tokenizers work on bytes</a></li>
+              </ul>
+              <p class="nav-sub">Transformer internals</p>
+          <ul>
+                <li><a href="/articles/attention-qkv-and-scaling/" data-path="/articles/attention-qkv-and-scaling/">Why attention has separate Q, K and V, and why it divides by √d_k</a></li>
+                <li><a href="/articles/mixture-of-experts-active-vs-total/" data-path="/articles/mixture-of-experts-active-vs-total/">Mixture of experts: active parameters versus total parameters</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Frontier models and the model landscape</span></li>
+            <li class="nav-topic empty"><span>Prompting and context engineering</span></li>
+            <li class="nav-topic empty"><span>Fine-tuning, alignment and post-training</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="inference">
+          <summary>Inference and reasoning</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="inference-scaling">
+              <summary>Inference scaling and serving</summary>
+              <p class="nav-sub">Serving fundamentals</p>
+          <ul>
+                <li><a href="/articles/kv-cache-memory-bound-decoding/" data-path="/articles/kv-cache-memory-bound-decoding/">The KV cache, and why decoding is memory-bound</a></li>
+                <li><a href="/articles/grouped-query-attention/" data-path="/articles/grouped-query-attention/">Grouped-query attention: the middle ground between MHA and MQA</a></li>
+              </ul>
+              <p class="nav-sub">Decoding</p>
+          <ul>
+                <li><a href="/articles/temperature-top-k-top-p-and-t0/" data-path="/articles/temperature-top-k-top-p-and-t0/">Temperature, top-k, top-p, and why T = 0 is not deterministic</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Test-time compute and reasoning models</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="agents">
+          <summary>Agentic AI</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="agent-architectures">
+              <summary>Agent architectures, tool use and MCP</summary>
+              <p class="nav-sub">Agent loops</p>
+          <ul>
+                <li><a href="/articles/function-calling-model-and-application/" data-path="/articles/function-calling-model-and-application/">Function calling: how the model decides, and what your code must do</a></li>
+                <li><a href="/articles/react-pattern-and-function-calling/" data-path="/articles/react-pattern-and-function-calling/">The ReAct pattern as a loop of function calls</a></li>
+                <li><a href="/articles/agent-loop-termination-and-failure-modes/" data-path="/articles/agent-loop-termination-and-failure-modes/">How an agent loop ends, and the three ways it fails to</a></li>
+                <li><a href="/articles/react-vs-plan-and-execute/" data-path="/articles/react-vs-plan-and-execute/">ReAct versus plan-and-execute, and the hybrid that production uses</a></li>
+                <li><a href="/articles/agent-framework-vs-hand-rolled-loop/" data-path="/articles/agent-framework-vs-hand-rolled-loop/">Agent framework or hand-rolled loop: what each buys you, and what changes your mind</a></li>
+              </ul>
+              <p class="nav-sub">Tool design</p>
+          <ul>
+                <li><a href="/articles/tool-schema-design/" data-path="/articles/tool-schema-design/">What makes a good tool schema, and why the description outranks the name</a></li>
+                <li><a href="/articles/idempotent-tool-calls/" data-path="/articles/idempotent-tool-calls/">Idempotent tool calls: which tools need a key, and how to derive one</a></li>
+              </ul>
+              <p class="nav-sub">MCP</p>
+          <ul>
+                <li><a href="/articles/model-context-protocol/" data-path="/articles/model-context-protocol/">The Model Context Protocol: hosts, clients, servers, and where the adapter work went</a></li>
+              </ul>
+              <p class="nav-sub">Design exercises</p>
+          <ul>
+                <li><a href="/articles/designing-a-support-agent/" data-path="/articles/designing-a-support-agent/">Designing a customer-support agent over 30 backend operations</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Multi-agent systems, orchestration and human-in-the-loop</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="rag">
+          <summary>RAG</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="rag-ingestion">
+              <summary>RAG ingestion, chunking and indexing</summary>
+              <p class="nav-sub">Core concepts</p>
+          <ul>
+                <li><a href="/articles/chunk-size-recall-vs-faithfulness/" data-path="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall falls, faithfulness rises</a></li>
+                <li><a href="/articles/chunk-is-not-the-embedding/" data-path="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve</a></li>
+                <li><a href="/articles/chunk-metadata-and-llm-extraction/" data-path="/articles/chunk-metadata-and-llm-extraction/">Metadata on chunks, and the care needed when a model writes it</a></li>
+              </ul>
+              <p class="nav-sub">Chunking patterns</p>
+          <ul>
+                <li><a href="/articles/chunking-wiki-pages/" data-path="/articles/chunking-wiki-pages/">How to chunk wiki pages</a></li>
+                <li><a href="/articles/semantic-chunking-regression/" data-path="/articles/semantic-chunking-regression/">Semantic chunking made my retrieval evals worse</a></li>
+              </ul>
+              <p class="nav-sub">Multi-tenant indexes</p>
+          <ul>
+                <li><a href="/articles/cross-tenant-leakage-in-rag/" data-path="/articles/cross-tenant-leakage-in-rag/">Cross-tenant leakage in vector search, and how to test for it</a></li>
+                <li><a href="/articles/chunk-permissions-in-sync/" data-path="/articles/chunk-permissions-in-sync/">Permissions on chunks, and keeping them in sync</a></li>
+              </ul>
+              <p class="nav-sub">Build breakdowns</p>
+          <ul>
+                <li><a href="/articles/telugu-gita-rag/" data-path="/articles/telugu-gita-rag/">How I built a RAG on the Bhagavad Gita in Telugu</a></li>
+                <li><a href="/articles/telugu-purana-rag/" data-path="/articles/telugu-purana-rag/">Sanskrit in, Telugu out: a RAG over 17 Puranas</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>RAG retrieval: embeddings, hybrid search and reranking</span></li>
+            <li class="nav-topic empty"><span>RAG generation, grounding and debugging</span></li>
+            <li class="nav-topic empty"><span>Advanced RAG: agentic RAG, GraphRAG, memory and long context</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="evaluation" open>
+          <summary>Evaluation, observability and ops</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Evaluation fundamentals, benchmarks and LLM-as-judge</span></li>
+            <li class="nav-topic"><details data-id="eval-systems" open>
+              <summary>Evaluating RAG, agents and production systems</summary>
+              <p class="nav-sub">RAG evaluation</p>
+          <ul>
+                <li><a href="/articles/rag-component-failures/" class="current" aria-current="page" data-path="/articles/rag-component-failures/">Which RAG component broke? Why an end-to-end score cannot tell you</a></li>
+              </ul>
+              <p class="nav-sub">Agent evaluation</p>
+          <ul>
+                <li><a href="/articles/agent-success-vs-process/" data-path="/articles/agent-success-vs-process/">Agent task success versus process quality</a></li>
+                <li><a href="/articles/tool-call-correctness/" data-path="/articles/tool-call-correctness/">Evaluating tool-call correctness: right tool, right arguments, result used correctly</a></li>
+                <li><a href="/articles/eval-vs-real-sessions-gap/" data-path="/articles/eval-vs-real-sessions-gap/">The agent passes 92% of eval tasks and 60% of real sessions. What explains the gap?</a></li>
+              </ul>
+              <p class="nav-sub">Suites and safety</p>
+          <ul>
+                <li><a href="/articles/llm-regression-suite-in-ci/" data-path="/articles/llm-regression-suite-in-ci/">An LLM regression suite in CI: size, runtime, thresholds and flakes</a></li>
+                <li><a href="/articles/safety-eval-both-sides/" data-path="/articles/safety-eval-both-sides/">Evaluating safety behaviour: harmful compliance and over-refusal together</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Observability, tracing and monitoring</span></li>
+            <li class="nav-topic empty"><span>LLMOps, cost, reliability and product engineering</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="security">
+          <summary>Security, red teaming and governance</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Prompt injection and LLM application security</span></li>
+            <li class="nav-topic empty"><span>Red teaming, adversarial testing and guardrails</span></li>
+            <li class="nav-topic empty"><span>AI governance, risk and compliance</span></li>
+            <li class="nav-topic empty"><span>Responsible AI, safety, alignment and societal risk</span></li>
+          </ul>
+    </details>
+    <!-- /site:nav -->
+  </aside>
+  <main class="content">
+
+  <p class="crumbs"><!-- site:crumbs -->
+    <a href="/#evaluation">Evaluation, observability and ops</a> / <a href="/#eval-systems">Evaluating RAG, agents and production systems</a> / Which RAG component broke? Why an end-to-end score cannot tell you
+    <!-- /site:crumbs --></p>
+
+  <article class="post">
+    <header>
+      <h1>Which RAG component broke? Why an end-to-end score cannot tell you</h1>
+      <p class="lede">An answer-correctness score of 70 percent tells you that three answers in ten are wrong. It does not tell you whether the retriever never found the passage, the reranker buried it, the assembler truncated it, or the model had it in front of it and ignored it. Each of those has a different fix, and the end-to-end number is identical for all of them. This note names the stages that can fail, gives each its own measurement, and shows how to attribute every wrong answer to the stage that caused it.</p>
+      <div class="byline"><span>25 Oct 2026</span><span>10 min read</span></div>
+    </header>
+
+    <div class="concept">
+      <span class="label">The short version</span>
+      <p>A RAG answer passes through query understanding, retrieval, reranking, context assembly and generation, and any of the five can lose it. The end-to-end score is roughly the product of their individual success rates, so it cannot be inverted to find the culprit. Measure each stage against the one before it: did the gold passage enter the candidate set, survive reranking, survive assembly, and get used by the model. Two oracle experiments separate the halves: give the model the gold context and score generation alone; give a judge the retrieved context and the gold answer and score retrieval sufficiency alone. Then run every failing case through a short decision tree that stops at the first stage where the gold was lost.</p>
+    </div>
+
+    <div class="toc">
+      <p>Contents</p>
+      <ol>
+        <li><a href="#stages">Five stages, five ways to lose the answer</a></li>
+        <li><a href="#why">Why the end-to-end score cannot be inverted</a></li>
+        <li><a href="#labels">What you need labelled</a></li>
+        <li><a href="#per-stage">A metric per stage</a></li>
+        <li><a href="#oracles">Two oracle experiments</a></li>
+        <li><a href="#tree">Attributing each failure</a></li>
+        <li><a href="#reading">Reading the result</a></li>
+        <li><a href="#takeaways">Takeaways</a></li>
+      </ol>
+    </div>
+
+    <h2 id="stages"><span class="num">01</span>Five stages, five ways to lose the answer</h2>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Stage</th><th>What it does</th><th>How it fails</th><th>What you see</th></tr>
+        <tr><td>Query understanding</td><td>Rewrites the question, resolves references to earlier turns, extracts filters such as dates or product names, decides whether to retrieve at all</td><td>Rewrites away the key term; extracts a wrong filter that excludes everything relevant; misses that "it" refers to last turn's product</td><td>Retrieval looks healthy on the rewritten query and still returns the wrong passages</td></tr>
+        <tr><td>Retrieval</td><td>Finds candidate chunks by vector, lexical or hybrid search under the filters</td><td>The gold chunk is not in the top-<var>k</var>: embedding mismatch, a chunk that is too long or too short, a filter applied too early, the document never indexed</td><td>Gold absent from candidates</td></tr>
+        <tr><td>Reranking</td><td>Reorders candidates with a stronger model and cuts to the final few</td><td>Gold was in the candidates and is pushed below the cut; the reranker prefers a near-duplicate or a passage that merely mentions the entity</td><td>Gold present before reranking, absent after</td></tr>
+        <tr><td>Context assembly</td><td>Deduplicates, expands children to parents, orders, fits to a token budget</td><td>Truncation drops the gold; parent expansion dilutes it; two near-identical passages fill the budget; the order buries it in the middle</td><td>Gold present after reranking, absent or mangled in the final prompt</td></tr>
+        <tr><td>Generation</td><td>Answers from the assembled context</td><td>Ignores the context and answers from memory; answers from the wrong passage; is faithful but incomplete; right content in the wrong format</td><td>Gold present in the prompt, answer still wrong</td></tr>
+      </table>
+    </div>
+
+    <p>Each row's "what you see" is defined in terms of the previous row. That is the whole trick: a stage is judged on what it did with what it was given, not on the final answer.</p>
+
+    <h2 id="why"><span class="num">02</span>Why the end-to-end score cannot be inverted</h2>
+
+    <p>Suppose each stage passes the gold through 90 percent of the time. End to end you get about 0.9<sup>5</sup>, roughly 59 percent. Now suppose retrieval drops to 70 percent and everything else is perfect: the end-to-end score is 70 percent. Or generation drops to 70 percent and the rest is perfect: also 70 percent. One number, two completely different problems, two completely different fixes. The first wants a better embedding model or chunking; the second wants a better prompt or model.</p>
+
+    <p>Three further reasons the aggregate hides the cause.</p>
+
+    <ul>
+      <li><strong>Stages mask each other.</strong> A strong reranker can rescue a weak retriever, so the retriever's problems do not show in the final score until the day the reranker's cut is tightened. A generous model can answer correctly from memory when retrieval fails, so retrieval looks fine until a question arrives that memory cannot answer.</li>
+      <li><strong>Failures compound in one direction.</strong> A loss at any stage is final; nothing downstream can recover a passage that was never retrieved. So an early-stage failure rate puts a ceiling on every later stage's apparent performance, and improving generation cannot move the score past that ceiling.</li>
+      <li><strong>The score is noisy.</strong> An end-to-end judge on a few hundred questions has a confidence interval of several points. A change that fixes one stage and slightly hurts another can look like no change at all.</li>
+    </ul>
+
+    <h2 id="labels"><span class="num">03</span>What you need labelled</h2>
+
+    <p>Per-stage measurement needs more than question-and-answer pairs. For each evaluation question you want:</p>
+
+    <ul>
+      <li><strong>The gold answer</strong>, as before.</li>
+      <li><strong>The gold evidence</strong>: which document, and which span within it, contains the answer. Label it on something stable, the document id and a character range or a section id, not a chunk id, since chunk ids change whenever chunking changes. The <a href="/articles/semantic-chunking-regression/">semantic chunking note</a> covers why.</li>
+      <li><strong>The expected filters</strong>, where the system extracts any: the date range, the product, the tenant.</li>
+      <li><strong>For multi-turn questions, the resolved standalone form</strong>, so query rewriting can be scored.</li>
+    </ul>
+
+    <p>Gold evidence is the expensive label and the one that unlocks everything else. A practical way to get it is to generate questions from passages, so the passage is known by construction, and then have people check that the question is natural and the passage really answers it.</p>
+
+    <h2 id="per-stage"><span class="num">04</span>A metric per stage</h2>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Stage</th><th>Metric</th><th>Computed how</th></tr>
+        <tr><td>Query understanding</td><td>Rewrite fidelity; filter accuracy</td><td>Judge compares the rewrite to the resolved standalone question; filters compared field by field to expected</td></tr>
+        <tr><td>Retrieval</td><td>Recall@<var>k</var> on gold evidence; MRR</td><td>A candidate counts as a hit if its span overlaps the gold span; <var>k</var> is the number passed to the reranker</td></tr>
+        <tr><td>Reranking</td><td>Gold-in-top-<var>n</var> after reranking, conditioned on gold-in-candidates; nDCG@<var>n</var> before versus after</td><td>Only cases where retrieval succeeded count; <var>n</var> is the number passed to assembly</td></tr>
+        <tr><td>Context assembly</td><td>Gold-in-prompt, conditioned on gold-in-top-<var>n</var>; context precision</td><td>Does the final prompt text contain the gold span; what fraction of prompt tokens come from relevant passages</td></tr>
+        <tr><td>Generation</td><td>Faithfulness; answer correctness, conditioned on gold-in-prompt</td><td>Judge checks every claim in the answer is supported by the prompt; correctness against gold, only on cases where the prompt contained the evidence</td></tr>
+      </table>
+    </div>
+
+    <p>The conditioning is what makes these stage metrics rather than restatements of the end-to-end score. Reranking is only scored on cases the retriever got right; generation only on cases where the evidence was in the prompt. Each stage's number then answers one question: given a fair chance, how often did this stage do its job.</p>
+
+    <h2 id="oracles"><span class="num">05</span>Two oracle experiments</h2>
+
+    <p>Conditioning on logs gives you attribution for the system as it is. Two controlled experiments give you the ceiling of each half, which tells you where effort will pay.</p>
+
+    <h3>Gold-context oracle: how good is generation on its own?</h3>
+
+    <p>Bypass retrieval entirely. For every question, put the gold evidence passage in the prompt and generate. The resulting correctness is the best your generation stage can do with perfect retrieval. If it is 95 percent and the full system scores 70, retrieval is where the thirty points are. If it is 75 percent, generation is losing most of them and a better retriever will barely move the final score.</p>
+
+    <h3>Retrieved-context sufficiency: how good is retrieval on its own?</h3>
+
+    <p>Take the context the real pipeline assembled, and instead of generating, ask a judge: does this context contain enough to produce the gold answer? This scores retrieval, reranking and assembly together, independent of the model's ability to use what it was given. A sufficiency rate well above the final correctness means the model is being handed answers it fails to use.</p>
+
+    <pre class="tree">full system correctness        70%
+gold-context oracle            95%   <span class="c">generation is capable when given the evidence</span>
+retrieved-context sufficiency  72%   <span class="c">the evidence is reaching the prompt 72% of the time</span>
+                                     <span class="k">→ almost all loss is upstream of generation</span>
+
+full system correctness        70%
+gold-context oracle            74%   <span class="c">generation fails even with the evidence</span>
+retrieved-context sufficiency  93%
+                                     <span class="k">→ the loss is in generation; fix prompt or model first</span></pre>
+
+    <h2 id="tree"><span class="num">06</span>Attributing each failure</h2>
+
+    <p>With gold evidence labelled and every stage's intermediate output logged, each wrong answer can be walked down a short tree. Stop at the first stage where the gold was lost.</p>
+
+    <pre class="tree"><span class="k">answer wrong</span>
+ │
+ ├─ was the rewritten query or extracted filter wrong?      → <span class="k">query understanding</span>
+ │
+ ├─ was the gold span in the retrieval candidates?    no   → <span class="k">retrieval</span>
+ │
+ ├─ was it in the top-n after reranking?              no   → <span class="k">reranking</span>
+ │
+ ├─ was it in the final prompt, intact?               no   → <span class="k">context assembly</span>
+ │
+ └─ it was in the prompt                                   → <span class="k">generation</span>
+        ├─ answer unsupported by the prompt      → ignored context, answered from memory
+        ├─ answer supported by a wrong passage   → used the wrong evidence; often an assembly ordering issue
+        └─ answer supported and incomplete       → partial extraction</pre>
+
+    <p>Run every failing case through this and you get a histogram of failures by stage. That histogram, not the end-to-end score, is what tells you what to work on. It also tells you what not to work on: if four percent of failures are reranking, a better reranker is not this quarter's project.</p>
+
+    <h2 id="reading"><span class="num">07</span>Reading the result</h2>
+
+    <p>Some patterns recur often enough to name.</p>
+
+    <ul>
+      <li><strong>Retrieval dominates on specific, rare questions</strong> and generation dominates on broad ones. Split the histogram by question type before deciding.</li>
+      <li><strong>Assembly failures cluster at the token budget.</strong> If gold-in-prompt is well below gold-in-top-<var>n</var>, the budget or the parent expansion is the cause, and both are cheap to change.</li>
+      <li><strong>Query understanding failures are invisible in single-turn evaluation sets.</strong> They appear in multi-turn sets and in sets with filters. If your set has neither, the stage is unmeasured, not healthy.</li>
+      <li><strong>Generation failures split into two kinds that need different fixes.</strong> Ignoring the context is a prompting and model problem; using the wrong passage is usually an assembly problem wearing a generation costume.</li>
+    </ul>
+
+    <h2 id="takeaways"><span class="num">08</span>Takeaways</h2>
+    <ol>
+      <li><strong>Five stages, each judged on what it did with what it received</strong>, not on the final answer.</li>
+      <li><strong>The end-to-end score is a product</strong> and cannot be inverted; the same number has different causes with different fixes.</li>
+      <li><strong>Label gold evidence</strong>, on document and span, not chunk id. It is the label that unlocks per-stage measurement.</li>
+      <li><strong>Condition each stage's metric on the previous stage's success.</strong> Reranking is scored only where retrieval found the gold.</li>
+      <li><strong>Run the two oracles.</strong> Gold-context correctness bounds generation; retrieved-context sufficiency bounds the retrieval half.</li>
+      <li><strong>Walk every failure down the tree</strong> and work on the stage with the tallest bar.</li>
+    </ol>
+
+    <div class="cta">
+      <a class="btn primary" href="/articles/semantic-chunking-regression/">Semantic chunking made my retrieval evals worse →</a>
+      <a class="btn" href="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall falls, faithfulness rises →</a>
+    </div>
+  </article>
+
+  <nav class="pager" aria-label="Reading order">
+    <!-- site:pager -->
+    <a class="prev" href="/articles/telugu-purana-rag/"><small>Previous</small>Sanskrit in, Telugu out: a RAG over 17 Puranas</a>
+    <a class="next" href="/articles/agent-success-vs-process/"><small>Next</small>Agent task success versus process quality</a>
+    <!-- /site:pager -->
+  </nav>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+  </main>
+  <aside class="onpage" aria-label="On this page">
+    <!-- site:onpage -->
+    <p class="nav-title">On this page</p>
+    <ol>
+      <li><a href="#stages">Five stages, five ways to lose the answer</a></li>
+      <li><a href="#why">Why the end-to-end score cannot be inverted</a></li>
+      <li><a href="#labels">What you need labelled</a></li>
+      <li><a href="#per-stage">A metric per stage</a></li>
+      <li><a href="#oracles">Two oracle experiments</a></li>
+      <li><a href="#tree">Attributing each failure</a></li>
+      <li><a href="#reading">Reading the result</a></li>
+      <li><a href="#takeaways">Takeaways</a></li>
+    </ol>
+    <!-- /site:onpage -->
+  </aside>
+  </div>
+
+</div>
+<script src="/site.js?v=3"></script>
+</body>
+</html>

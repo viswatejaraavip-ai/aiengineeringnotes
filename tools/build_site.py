@@ -207,6 +207,48 @@ AGENT_ARCHITECTURES_GROUPS = [
     },
 ]
 
+EVAL_SYSTEMS_GROUPS = [
+    {
+        "title": "RAG evaluation",
+        "pages": [
+            {"path": "/articles/rag-component-failures/",
+             "title": "Which RAG component broke? Why an end-to-end score cannot tell you",
+             "sub": "Query understanding, retrieval, reranking, context assembly and generation can each lose the answer, and the end-to-end score is their product, so the same number has different causes with different fixes. A metric per stage conditioned on the stage before, two oracle experiments that bound each half, and a decision tree that attributes every wrong answer.",
+             "meta": "25 Oct 2026 \u00b7 10 min read"},
+        ],
+    },
+    {
+        "title": "Agent evaluation",
+        "pages": [
+            {"path": "/articles/agent-success-vs-process/",
+             "title": "Agent task success versus process quality",
+             "sub": "Finishing the task and taking a sensible path are different questions, and an agent can succeed by trying everything, guessing, or destroying and rebuilding, because the task did not punish it this time. Why outcome-only scoring rewards those paths, which process metrics to record from the trace, scoring against constraints rather than one golden path, and the two-by-two to read both scores together.",
+             "meta": "25 Oct 2026 \u00b7 9 min read"},
+            {"path": "/articles/tool-call-correctness/",
+             "title": "Evaluating tool-call correctness: right tool, right arguments, result used correctly",
+             "sub": "Four layers that fail separately: whether to call, which tool, which arguments, how the result was used. Selection as a confusion matrix, why exact-match arguments are wrong for most fields and what schema-aware comparison does type by type, counterfactual stubs to test result use, and derived-argument checks in multi-step sequences.",
+             "meta": "25 Oct 2026 \u00b7 10 min read"},
+            {"path": "/articles/eval-vs-real-sessions-gap/",
+             "title": "The agent passes 92% of eval tasks and 60% of real sessions. What explains the gap?",
+             "sub": "Part of the gap is definitional: task-spec success is not user-goal success. The rest is structural: real sessions are ambiguous, wrong about their own details, multi-turn, uncooperative, interrupted and unevenly distributed. How to diagnose which differences matter, then redesign with cases from real sessions, simulated users, tasks where the right move is to ask or to notice an error, injected tool failures, whole-session grading and production weighting.",
+             "meta": "25 Oct 2026 \u00b7 11 min read"},
+        ],
+    },
+    {
+        "title": "Suites and safety",
+        "pages": [
+            {"path": "/articles/llm-regression-suite-in-ci/",
+             "title": "An LLM regression suite in CI: size, runtime, thresholds and flakes",
+             "sub": "A chosen smoke set on every change and a large nightly set, and why one tier cannot do both jobs. What a case fixes, graders from mechanical to human, thresholds against a baseline with a measured noise band and gates at 100 percent for safety and policy, and a flake policy: three runs, re-run failures, cache by request hash, pin model versions, quarantine the inconsistent.",
+             "meta": "25 Oct 2026 \u00b7 11 min read"},
+            {"path": "/articles/safety-eval-both-sides/",
+             "title": "Evaluating safety behaviour: harmful compliance and over-refusal together",
+             "sub": "Safety is a classifier with two error types, and measuring only harmful compliance has a trivial optimum: refuse everything. A harmful set with adversarial variants, a benign set built as matched pairs on the same topics, three response labels plus a separate harm grade, the pair reported per category with an operating point chosen per severity, and a regression rule that neither rate may be spent to buy the other without a person agreeing.",
+             "meta": "25 Oct 2026 \u00b7 10 min read"},
+        ],
+    },
+]
+
 NAV = [
     {"id": "foundations", "title": "Foundations", "topics": [
         T("llm-fundamentals", "LLM fundamentals", LLM_FUNDAMENTALS_GROUPS,
@@ -234,7 +276,8 @@ NAV = [
     ]},
     {"id": "evaluation", "title": "Evaluation, observability and ops", "topics": [
         T("eval-fundamentals", "Evaluation fundamentals, benchmarks and LLM-as-judge"),
-        T("eval-systems", "Evaluating RAG, agents and production systems"),
+        T("eval-systems", "Evaluating RAG, agents and production systems", EVAL_SYSTEMS_GROUPS,
+          desc="How to know whether a retrieval pipeline or an agent works, which part of it broke, and whether the evaluation itself is telling the truth."),
         T("observability", "Observability, tracing and monitoring"),
         T("llmops", "LLMOps, cost, reliability and product engineering"),
     ]},
