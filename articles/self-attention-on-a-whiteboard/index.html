@@ -218,7 +218,6 @@
         <li><a href="#softmax">Softmax: the bank row becomes a recipe</a></li>
         <li><a href="#values">Spending the weights on the values</a></li>
         <li><a href="#heads">Heads and the causal mask</a></li>
-        <li><a href="#making">How the video was made</a></li>
         <li><a href="#takeaways">Takeaways</a></li>
       </ol>
     </div>
@@ -320,16 +319,7 @@
 
     <p>A model that generates text one token at a time cannot look at tokens it has not produced yet. Every score to the right of the diagonal is set to −∞ before the softmax, which becomes a weight of exactly 0. That is causal attention, and it is what GPT-style decoders use. The video ends where the block's other half begins: the feed-forward network, where each token digests what it gathered on its own. Attention mixes across tokens; the MLP thinks within one; residual, normalise, repeat, dozens of layers deep.</p>
 
-    <h2 id="making"><span class="num">08</span>How the video was made</h2>
-
-    <p>Since this site is about building things, briefly: the film is an HTML composition rendered frame by frame with <a href="https://hyperframes.heygen.com">HyperFrames</a>, eleven whiteboard scenes whose strokes, numbers and labels are timed to the word that names them. The two voices are Google's Gemini-TTS (Puck as the lead teacher, Leda as the co-teacher who asks the questions), steered by a style prompt rather than a speed setting, and the narration script is the single source of truth: synthesise the lines, measure each one, lay the scenes out from the measured durations. The music bed is one 33-second Lyria clip, looped. The whole thing cost about 45 cents in API calls: roughly 15,000 audio tokens of narration at $20 per million, one music generation, and a local render.</p>
-
-    <div class="lesson">
-      <span class="label">One thing that bit</span>
-      <p>Google Fonts serves a handwriting face as several unicode-range subsets, and the first one listed is not Latin. Download the wrong block and every Latin character silently falls back to a serif. The frames looked plausible on a contact sheet and wrong on a second look. Check the <code>unicode-range</code> before embedding a font.</p>
-    </div>
-
-    <h2 id="takeaways"><span class="num">09</span>Takeaways</h2>
+    <h2 id="takeaways"><span class="num">08</span>Takeaways</h2>
     <ol>
       <li><strong>Attention is "look at the neighbours" made into arithmetic.</strong> The sentence resolves "bank" the same way the layer does.</li>
       <li><strong>Query, key and value are three jobs.</strong> Ask, be found, hand over. Matching happens between queries and keys; content flows through values.</li>
@@ -368,7 +358,6 @@
       <li><a href="#softmax">Softmax: the bank row becomes a recipe</a></li>
       <li><a href="#values">Spending the weights on the values</a></li>
       <li><a href="#heads">Heads and the causal mask</a></li>
-      <li><a href="#making">How the video was made</a></li>
       <li><a href="#takeaways">Takeaways</a></li>
     </ol>
     <!-- /site:onpage -->
