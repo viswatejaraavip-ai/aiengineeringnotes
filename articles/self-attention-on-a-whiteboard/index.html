@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Self-attention derived on a whiteboard, with one sentence (video) · AI Engineering Notes</title>
+  <meta name="description" content="A ten-minute video that builds softmax(QKᵀ/√d_k)V from one sentence, 'The river bank flooded'. The transformer in one picture, the three jobs every token does, the dot product, the 4×4 score grid, why the square root is there, the softmax, the weighted values, heads and the causal mask. The worked numbers are in the note.">
+  <meta property="og:title" content="Self-attention derived on a whiteboard, with one sentence (video)">
+  <meta property="og:description" content="Ten minutes from 'The river bank flooded' to softmax(QKᵀ/√d_k)V, with every number worked.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://aiengineeringnotes.com/articles/self-attention-on-a-whiteboard/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/articles/self-attention-on-a-whiteboard/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css?v=3">
+  <style>
+    .formula { font-family: var(--serif); font-size: 19px; text-align: center; margin: 22px 0; padding: 12px 16px; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; }
+    .formula var, var { font-style: italic; font-family: var(--serif); }
+    .formula sup, .formula sub { font-size: .7em; }
+    .num { text-align: right; }
+    .bar { display: inline-block; vertical-align: middle; text-align: center; }
+    .bar span { display: block; padding: 0 4px; }
+    .bar span:first-child { border-bottom: 1px solid currentColor; }
+    .video { position: relative; width: 100%; aspect-ratio: 16 / 9; margin: 20px 0 8px; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
+    .video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+    .chapters td:first-child { font-family: var(--mono); white-space: nowrap; }
+    .grid { border-collapse: collapse; margin: 0 auto; }
+    .grid td, .grid th { border: 1px solid var(--rule); padding: 6px 14px; text-align: center; font-family: var(--serif); }
+    .grid th { font-weight: 600; background: var(--surface); }
+    .grid .hi { background: var(--accent-soft); font-weight: 600; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- site:header -->
+    <header class="site">
+    <button class="menu" type="button" aria-controls="sidenav" aria-expanded="false">Contents</button>
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/">Introduction</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+    <!-- /site:header -->
+
+  <div class="layout">
+  <aside class="sidenav" id="sidenav" aria-label="All notes">
+    <!-- site:nav -->
+    <a class="nav-home" href="/" data-path="/">Introduction</a>
+    <details class="nav-section" data-id="foundations" open>
+          <summary>Foundations</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="llm-fundamentals" open>
+              <summary>LLM fundamentals</summary>
+              <p class="nav-sub">Tokenization</p>
+          <ul>
+                <li><a href="/articles/byte-pair-encoding/" data-path="/articles/byte-pair-encoding/">Byte-pair encoding, and why tokenizers work on bytes</a></li>
+              </ul>
+              <p class="nav-sub">Transformer internals</p>
+          <ul>
+                <li><a href="/articles/attention-qkv-and-scaling/" data-path="/articles/attention-qkv-and-scaling/">Why attention has separate Q, K and V, and why it divides by √d_k</a></li>
+                <li><a href="/articles/self-attention-on-a-whiteboard/" class="current" aria-current="page" data-path="/articles/self-attention-on-a-whiteboard/">Self-attention derived on a whiteboard, with one sentence (video)</a></li>
+                <li><a href="/articles/mixture-of-experts-active-vs-total/" data-path="/articles/mixture-of-experts-active-vs-total/">Mixture of experts: active parameters versus total parameters</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Frontier models and the model landscape</span></li>
+            <li class="nav-topic empty"><span>Prompting and context engineering</span></li>
+            <li class="nav-topic empty"><span>Fine-tuning, alignment and post-training</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="inference">
+          <summary>Inference and reasoning</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="inference-scaling">
+              <summary>Inference scaling and serving</summary>
+              <p class="nav-sub">Serving fundamentals</p>
+          <ul>
+                <li><a href="/articles/kv-cache-memory-bound-decoding/" data-path="/articles/kv-cache-memory-bound-decoding/">The KV cache, and why decoding is memory-bound</a></li>
+                <li><a href="/articles/grouped-query-attention/" data-path="/articles/grouped-query-attention/">Grouped-query attention: the middle ground between MHA and MQA</a></li>
+              </ul>
+              <p class="nav-sub">Decoding</p>
+          <ul>
+                <li><a href="/articles/temperature-top-k-top-p-and-t0/" data-path="/articles/temperature-top-k-top-p-and-t0/">Temperature, top-k, top-p, and why T = 0 is not deterministic</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Test-time compute and reasoning models</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="agents">
+          <summary>Agentic AI</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="agent-architectures">
+              <summary>Agent architectures, tool use and MCP</summary>
+              <p class="nav-sub">Agent loops</p>
+          <ul>
+                <li><a href="/articles/function-calling-model-and-application/" data-path="/articles/function-calling-model-and-application/">Function calling: how the model decides, and what your code must do</a></li>
+                <li><a href="/articles/react-pattern-and-function-calling/" data-path="/articles/react-pattern-and-function-calling/">The ReAct pattern as a loop of function calls</a></li>
+                <li><a href="/articles/agent-loop-termination-and-failure-modes/" data-path="/articles/agent-loop-termination-and-failure-modes/">How an agent loop ends, and the three ways it fails to</a></li>
+                <li><a href="/articles/react-vs-plan-and-execute/" data-path="/articles/react-vs-plan-and-execute/">ReAct versus plan-and-execute, and the hybrid that production uses</a></li>
+                <li><a href="/articles/agent-framework-vs-hand-rolled-loop/" data-path="/articles/agent-framework-vs-hand-rolled-loop/">Agent framework or hand-rolled loop: what each buys you, and what changes your mind</a></li>
+              </ul>
+              <p class="nav-sub">Tool design</p>
+          <ul>
+                <li><a href="/articles/tool-schema-design/" data-path="/articles/tool-schema-design/">What makes a good tool schema, and why the description outranks the name</a></li>
+                <li><a href="/articles/idempotent-tool-calls/" data-path="/articles/idempotent-tool-calls/">Idempotent tool calls: which tools need a key, and how to derive one</a></li>
+              </ul>
+              <p class="nav-sub">MCP</p>
+          <ul>
+                <li><a href="/articles/model-context-protocol/" data-path="/articles/model-context-protocol/">The Model Context Protocol: hosts, clients, servers, and where the adapter work went</a></li>
+              </ul>
+              <p class="nav-sub">Design exercises</p>
+          <ul>
+                <li><a href="/articles/designing-a-support-agent/" data-path="/articles/designing-a-support-agent/">Designing a customer-support agent over 30 backend operations</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Multi-agent systems, orchestration and human-in-the-loop</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="rag">
+          <summary>RAG</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="rag-ingestion">
+              <summary>RAG ingestion, chunking and indexing</summary>
+              <p class="nav-sub">Core concepts</p>
+          <ul>
+                <li><a href="/articles/chunk-size-recall-vs-faithfulness/" data-path="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall falls, faithfulness rises</a></li>
+                <li><a href="/articles/chunk-is-not-the-embedding/" data-path="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve</a></li>
+                <li><a href="/articles/chunk-metadata-and-llm-extraction/" data-path="/articles/chunk-metadata-and-llm-extraction/">Metadata on chunks, and the care needed when a model writes it</a></li>
+              </ul>
+              <p class="nav-sub">Chunking patterns</p>
+          <ul>
+                <li><a href="/articles/chunking-wiki-pages/" data-path="/articles/chunking-wiki-pages/">How to chunk wiki pages</a></li>
+                <li><a href="/articles/semantic-chunking-regression/" data-path="/articles/semantic-chunking-regression/">Semantic chunking made my retrieval evals worse</a></li>
+              </ul>
+              <p class="nav-sub">Multi-tenant indexes</p>
+          <ul>
+                <li><a href="/articles/cross-tenant-leakage-in-rag/" data-path="/articles/cross-tenant-leakage-in-rag/">Cross-tenant leakage in vector search, and how to test for it</a></li>
+                <li><a href="/articles/chunk-permissions-in-sync/" data-path="/articles/chunk-permissions-in-sync/">Permissions on chunks, and keeping them in sync</a></li>
+              </ul>
+              <p class="nav-sub">Build breakdowns</p>
+          <ul>
+                <li><a href="/articles/telugu-gita-rag/" data-path="/articles/telugu-gita-rag/">How I built a RAG on the Bhagavad Gita in Telugu</a></li>
+                <li><a href="/articles/telugu-purana-rag/" data-path="/articles/telugu-purana-rag/">Sanskrit in, Telugu out: a RAG over 17 Puranas</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>RAG retrieval: embeddings, hybrid search and reranking</span></li>
+            <li class="nav-topic empty"><span>RAG generation, grounding and debugging</span></li>
+            <li class="nav-topic empty"><span>Advanced RAG: agentic RAG, GraphRAG, memory and long context</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="evaluation">
+          <summary>Evaluation, observability and ops</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Evaluation fundamentals, benchmarks and LLM-as-judge</span></li>
+            <li class="nav-topic"><details data-id="eval-systems">
+              <summary>Evaluating RAG, agents and production systems</summary>
+              <p class="nav-sub">RAG evaluation</p>
+          <ul>
+                <li><a href="/articles/rag-component-failures/" data-path="/articles/rag-component-failures/">Which RAG component broke? Why an end-to-end score cannot tell you</a></li>
+              </ul>
+              <p class="nav-sub">Agent evaluation</p>
+          <ul>
+                <li><a href="/articles/agent-success-vs-process/" data-path="/articles/agent-success-vs-process/">Agent task success versus process quality</a></li>
+                <li><a href="/articles/tool-call-correctness/" data-path="/articles/tool-call-correctness/">Evaluating tool-call correctness: right tool, right arguments, result used correctly</a></li>
+                <li><a href="/articles/eval-vs-real-sessions-gap/" data-path="/articles/eval-vs-real-sessions-gap/">The agent passes 92% of eval tasks and 60% of real sessions. What explains the gap?</a></li>
+              </ul>
+              <p class="nav-sub">Suites and safety</p>
+          <ul>
+                <li><a href="/articles/llm-regression-suite-in-ci/" data-path="/articles/llm-regression-suite-in-ci/">An LLM regression suite in CI: size, runtime, thresholds and flakes</a></li>
+                <li><a href="/articles/safety-eval-both-sides/" data-path="/articles/safety-eval-both-sides/">Evaluating safety behaviour: harmful compliance and over-refusal together</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Observability, tracing and monitoring</span></li>
+            <li class="nav-topic empty"><span>LLMOps, cost, reliability and product engineering</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="security">
+          <summary>Security, red teaming and governance</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Prompt injection and LLM application security</span></li>
+            <li class="nav-topic empty"><span>Red teaming, adversarial testing and guardrails</span></li>
+            <li class="nav-topic empty"><span>AI governance, risk and compliance</span></li>
+            <li class="nav-topic empty"><span>Responsible AI, safety, alignment and societal risk</span></li>
+          </ul>
+    </details>
+    <!-- /site:nav -->
+  </aside>
+  <main class="content">
+
+  <p class="crumbs"><!-- site:crumbs -->
+    <a href="/#foundations">Foundations</a> / <a href="/#llm-fundamentals">LLM fundamentals</a> / Self-attention derived on a whiteboard, with one sentence (video)
+    <!-- /site:crumbs --></p>
+
+  <article class="post">
+    <header>
+      <h1>Self-attention derived on a whiteboard, with one sentence (video)</h1>
+      <p class="lede">The written note on <a href="/articles/attention-qkv-and-scaling/">Q, K, V and the √<var>d<sub>k</sub></var></a> answers two questions about the attention equation. This one builds the whole equation from nothing, on a whiteboard, with a single four-word sentence as the running example: "The river bank flooded". Two teachers, ten minutes, every number worked by hand. The chapter list and the worked numbers are below the video so you can check each step.</p>
+      <div class="byline"><span>26 Oct 2026</span><span>10 min video · 6 min read</span></div>
+    </header>
+
+    <div class="video">
+      <iframe src="https://www.youtube-nocookie.com/embed/VIDEO_ID" title="Self-attention derived on a whiteboard" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen loading="lazy"></iframe>
+    </div>
+    <p class="post-meta"><a href="https://www.youtube.com/watch?v=VIDEO_ID">Watch on YouTube</a> if the embed does not load.</p>
+
+    <div class="concept">
+      <span class="label">The short version</span>
+      <p>You know "bank" means the edge of a river because "river" is next to it. Self-attention is that move, made into arithmetic: every token asks a question (its query), wears a name tag (its key) and carries a package (its value). A dot product scores each question against each name tag, the scores are divided by √<var>d<sub>k</sub></var> so the softmax does not saturate, the softmax turns a row of scores into weights that sum to 1, and the weights blend the packages. "bank" walks in ambiguous and walks out meaning river bank.</p>
+    </div>
+
+    <div class="toc">
+      <p>Contents</p>
+      <ol>
+        <li><a href="#chapters">Chapters</a></li>
+        <li><a href="#example">The worked example, so you can check the video</a></li>
+        <li><a href="#scores">Scores: Q Kᵀ</a></li>
+        <li><a href="#scale">Why divide by √d_k</a></li>
+        <li><a href="#softmax">Softmax: the bank row becomes a recipe</a></li>
+        <li><a href="#values">Spending the weights on the values</a></li>
+        <li><a href="#heads">Heads and the causal mask</a></li>
+        <li><a href="#making">How the video was made</a></li>
+        <li><a href="#takeaways">Takeaways</a></li>
+      </ol>
+    </div>
+
+    <h2 id="chapters"><span class="num">01</span>Chapters</h2>
+
+    <div class="table-wrap">
+      <table class="chapters">
+        <tr><th>Time</th><th>Chapter</th><th>What goes on the board</th></tr>
+        <tr><td>0:00</td><td>The sentence</td><td>"The river bank flooded"; bank circled; river and money-bank sketches; the formula lands</td></tr>
+        <tr><td>0:41</td><td>The transformer in one picture</td><td>tokens → embeddings + position → a block of self-attention and feed-forward with residuals and norm, stacked N times → a probability over the next token</td></tr>
+        <tr><td>2:08</td><td>Every word does three jobs</td><td>a question (query), a name tag (key), a package (value)</td></tr>
+        <tr><td>3:04</td><td>One tool: the dot product</td><td><var>q</var> = (2, 1), <var>k</var> = (2, 0), <var>q</var>·<var>k</var> = 4; a key pointing away scores 0</td></tr>
+        <tr><td>3:49</td><td>Where Q, K and V come from</td><td><var>x W<sub>Q</sub></var>, <var>x W<sub>K</sub></var>, <var>x W<sub>V</sub></var>; why three matrices and not one</td></tr>
+        <tr><td>4:48</td><td>Score every query against every key</td><td>the 4×4 grid of <var>Q K</var><sup>T</sup>; the bank row reads 1, 4, 3, 2</td></tr>
+        <tr><td>5:40</td><td>Why divide by √<var>d<sub>k</sub></var></td><td>spread grows with <var>d<sub>k</sub></var>; the softmax goes one-hot; variance back to 1</td></tr>
+        <tr><td>6:43</td><td>Softmax: scores → a recipe</td><td>0.7, 2.8, 2.1, 1.4 → 6%, 54%, 27%, 13%</td></tr>
+        <tr><td>7:38</td><td>Spend the weights on the values</td><td>the packages blend into bank′ = (0.61, 0.27); bank → river bank</td></tr>
+        <tr><td>8:33</td><td>Many heads, and a mask</td><td>heads in parallel, concat, <var>W<sub>O</sub></var>; −∞ above the diagonal → weight 0</td></tr>
+        <tr><td>9:40</td><td>One more time, in one breath</td><td>the formula with every symbol annotated</td></tr>
+      </table>
+    </div>
+
+    <h2 id="example"><span class="num">02</span>The worked example, so you can check the video</h2>
+
+    <p>The video uses two-dimensional queries and keys so every number fits on a board. Real models use 64 or 128 per head; nothing in the derivation changes except the spread of the scores, which is exactly what chapter 7 is about.</p>
+
+    <p>The four tokens, and the toy query, key and value vectors the video assigns to them:</p>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Token</th><th>Query <var>q</var></th><th>Key <var>k</var></th><th>Value <var>v</var></th><th>What the value "means"</th></tr>
+        <tr><td>The</td><td>(1, 0)</td><td>(0, 1)</td><td>(0, 0)</td><td>nothing much</td></tr>
+        <tr><td>river</td><td>(1, 1)</td><td>(2, 0)</td><td>(1, 0)</td><td>water</td></tr>
+        <tr><td>bank</td><td>(2, 1)</td><td>(1, 1)</td><td>(0, 1)</td><td>bank-ness</td></tr>
+        <tr><td>flooded</td><td>(0, 1)</td><td>(1, 0)</td><td>(0.5, 0)</td><td>some water</td></tr>
+      </table>
+    </div>
+
+    <p>In a real model each of these comes from the token's embedding <var>x</var> through a learned matrix: <var>q</var> = <var>x W<sub>Q</sub></var>, <var>k</var> = <var>x W<sub>K</sub></var>, <var>v</var> = <var>x W<sub>V</sub></var>. The video's chapter 5 is about why those are three matrices rather than one: with a single matrix, "bank" could only match things that look like "bank". Separate projections let it <em>ask</em> for water-words while "river" <em>answers</em> to that question. Asking and answering become different skills. The <a href="/articles/attention-qkv-and-scaling/">written note</a> makes the same argument with the bilinear form.</p>
+
+    <h2 id="scores"><span class="num">03</span>Scores: <var>Q K</var><sup>T</sup></h2>
+
+    <p>Stack the queries as the rows of <var>Q</var> and the keys as the rows of <var>K</var>. Transposing <var>K</var> turns its keys into columns, so <var>Q K</var><sup>T</sup> does every dot product at once. Row <var>i</var>, column <var>j</var> is how much token <var>i</var> cares about token <var>j</var>:</p>
+
+    <figure>
+      <div class="fig-body">
+        <table class="grid">
+          <tr><th></th><th>The</th><th>river</th><th>bank</th><th>flooded</th></tr>
+          <tr><th>The</th><td>0</td><td>2</td><td>1</td><td>1</td></tr>
+          <tr><th>river</th><td>1</td><td>2</td><td>2</td><td>1</td></tr>
+          <tr><th>bank</th><td class="hi">1</td><td class="hi">4</td><td class="hi">3</td><td class="hi">2</td></tr>
+          <tr><th>flooded</th><td>1</td><td>0</td><td>1</td><td>0</td></tr>
+        </table>
+      </div>
+      <figcaption>Raw scores <var>Q K</var><sup>T</sup>. The bank row is the one the video follows: river wins with 4.</figcaption>
+    </figure>
+
+    <p>Check one cell: <var>q</var><sub>bank</sub> · <var>k</var><sub>river</sub> = 2·2 + 1·0 = 4. A big dot product means the two vectors point the same way; a key pointing away from the query, such as (−1, 2), scores −2 + 2 = 0. That is the whole matching rule, and it is one multiply-and-add per pair, which is why GPUs are so good at it.</p>
+
+    <h2 id="scale"><span class="num">04</span>Why divide by √<var>d<sub>k</sub></var></h2>
+
+    <p>A dot product adds up <var>d<sub>k</sub></var> terms. If each component has mean 0 and variance 1, the sum has variance <var>d<sub>k</sub></var>, so its spread is √<var>d<sub>k</sub></var>: about 1.4 for the toy example, 8 for a 64-dimensional head. Feed a softmax scores that are 8 or 16 apart and it goes almost one-hot, one weight near 1 and the rest near 0. The softmax Jacobian is <var>s<sub>i</sub></var>(<var>δ<sub>ij</sub></var> − <var>s<sub>j</sub></var>), which is near zero everywhere in that state, so almost no gradient reaches <var>W<sub>Q</sub></var> and <var>W<sub>K</sub></var> and the attention pattern never learns to move.</p>
+
+    <p class="formula">Var<span class="bar"><span><var>q</var> · <var>k</var></span><span>√<var>d<sub>k</sub></var></span></span> = <span class="bar"><span><var>d<sub>k</sub></var></span><span><var>d<sub>k</sub></var></span></span> = 1</p>
+
+    <p>Dividing by √<var>d<sub>k</sub></var> puts the scores back on unit scale no matter how wide the head is. It is a fixed softmax temperature, chosen so that width does not change the learning dynamics. Not magic, just a sensible scale. For the toy example the bank row becomes 1/√2, 4/√2, 3/√2, 2/√2 = 0.71, 2.83, 2.12, 1.41.</p>
+
+    <h2 id="softmax"><span class="num">05</span>Softmax: the bank row becomes a recipe</h2>
+
+    <p>Softmax exponentiates each score and divides by the sum, so every weight is positive and the row adds up to 1:</p>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th></th><th>The</th><th>river</th><th>bank</th><th>flooded</th><th>sum</th></tr>
+        <tr><td>scaled score <var>s</var></td><td class="num">0.71</td><td class="num">2.83</td><td class="num">2.12</td><td class="num">1.41</td><td></td></tr>
+        <tr><td><var>e</var><sup><var>s</var></sup></td><td class="num">2.03</td><td class="num">16.9</td><td class="num">8.33</td><td class="num">4.11</td><td class="num">31.4</td></tr>
+        <tr><td>weight</td><td class="num">0.065</td><td class="num">0.539</td><td class="num">0.266</td><td class="num">0.131</td><td class="num">1.000</td></tr>
+      </table>
+    </div>
+
+    <p>So "bank" will listen to "river" about half the time, to itself about a quarter, a little to "flooded", and mostly ignore "The". Every token gets its own row, its own recipe for who to listen to. The full matrix is softmax(<var>Q K</var><sup>T</sup> / √<var>d<sub>k</sub></var>), and the whole thing has been about how to earn one row of it.</p>
+
+    <h2 id="values"><span class="num">06</span>Spending the weights on the values</h2>
+
+    <p>The last factor, <var>V</var>, is where the weights get spent. The new vector for "bank" is the weighted sum of the four value packages:</p>
+
+    <p class="formula">bank′ = 0.065·(0, 0) + 0.539·(1, 0) + 0.266·(0, 1) + 0.131·(0.5, 0) = (0.60, 0.27)</p>
+
+    <p>River's value said "water" and bank's said "bank-ness", and the mix is mostly water with some bank. The vector that leaves the layer means river bank. The ambiguity was resolved by context, not by a dictionary, and the only arithmetic involved was dot products, an exponential and a weighted sum. (The board in the video shows 0.61 for the first component; the exact value is 0.604, so the rounding on the board is one digit generous.)</p>
+
+    <p class="formula">Attention(<var>Q</var>, <var>K</var>, <var>V</var>) = softmax<span class="bar"><span><var>Q K</var><sup>T</sup></span><span>√<var>d<sub>k</sub></var></span></span> <var>V</var></p>
+
+    <p>Read it left to right now: queries ask, keys answer, <var>Q K</var><sup>T</sup> scores the match, √<var>d<sub>k</sub></var> keeps the scores sane, softmax turns scores into a recipe, and the recipe blends the values.</p>
+
+    <h2 id="heads"><span class="num">07</span>Heads and the causal mask</h2>
+
+    <p>One attention pattern is a bottleneck: "bank" may need "river" for meaning and "flooded" for grammar at the same time. So a layer runs several attentions in parallel, each with its own <var>W<sub>Q</sub></var>, <var>W<sub>K</sub></var> and <var>W<sub>V</sub></var>, each in a smaller space of <var>d</var><sub>model</sub> / <var>h</var> dimensions. Their outputs are concatenated and mixed by one more matrix, <var>W<sub>O</sub></var>. That is multi-head attention, and it costs about the same as one wide head.</p>
+
+    <p>A model that generates text one token at a time cannot look at tokens it has not produced yet. Every score to the right of the diagonal is set to −∞ before the softmax, which becomes a weight of exactly 0. That is causal attention, and it is what GPT-style decoders use. The video ends where the block's other half begins: the feed-forward network, where each token digests what it gathered on its own. Attention mixes across tokens; the MLP thinks within one; residual, normalise, repeat, dozens of layers deep.</p>
+
+    <h2 id="making"><span class="num">08</span>How the video was made</h2>
+
+    <p>Since this site is about building things, briefly: the film is an HTML composition rendered frame by frame with <a href="https://hyperframes.heygen.com">HyperFrames</a>, eleven whiteboard scenes whose strokes, numbers and labels are timed to the word that names them. The two voices are Google's Gemini-TTS (Puck as the lead teacher, Leda as the co-teacher who asks the questions), steered by a style prompt rather than a speed setting, and the narration script is the single source of truth: synthesise the lines, measure each one, lay the scenes out from the measured durations. The music bed is one 33-second Lyria clip, looped. The whole thing cost about 45 cents in API calls: roughly 15,000 audio tokens of narration at $20 per million, one music generation, and a local render.</p>
+
+    <div class="lesson">
+      <span class="label">One thing that bit</span>
+      <p>Google Fonts serves a handwriting face as several unicode-range subsets, and the first one listed is not Latin. Download the wrong block and every Latin character silently falls back to a serif. The frames looked plausible on a contact sheet and wrong on a second look. Check the <code>unicode-range</code> before embedding a font.</p>
+    </div>
+
+    <h2 id="takeaways"><span class="num">09</span>Takeaways</h2>
+    <ol>
+      <li><strong>Attention is "look at the neighbours" made into arithmetic.</strong> The sentence resolves "bank" the same way the layer does.</li>
+      <li><strong>Query, key and value are three jobs.</strong> Ask, be found, hand over. Matching happens between queries and keys; content flows through values.</li>
+      <li><strong>The dot product is the matching rule.</strong> Agree → big score; disagree → near zero or negative; one multiply-and-add per pair.</li>
+      <li><strong><var>Q K</var><sup>T</sup> is every pair at once.</strong> Row <var>i</var>, column <var>j</var> is how much <var>i</var> cares about <var>j</var>.</li>
+      <li><strong>√<var>d<sub>k</sub></var> keeps the scores at unit variance.</strong> Without it the softmax goes one-hot and its gradient vanishes.</li>
+      <li><strong>Softmax turns a row of scores into a recipe</strong> that sums to 1; the recipe blends the values into a context-aware vector.</li>
+      <li><strong>Heads run the same thing in parallel; the mask hides the future.</strong> Everything else in the block works one token at a time.</li>
+    </ol>
+
+    <div class="cta">
+      <a class="btn primary" href="/articles/attention-qkv-and-scaling/">The written note on Q, K, V and √d_k →</a>
+      <a class="btn" href="/">All notes</a>
+    </div>
+  </article>
+
+  <nav class="pager" aria-label="Reading order">
+    <!-- site:pager -->
+    <a class="prev" href="/articles/attention-qkv-and-scaling/"><small>Previous</small>Why attention has separate Q, K and V, and why it divides by √d_k</a>
+    <a class="next" href="/articles/mixture-of-experts-active-vs-total/"><small>Next</small>Mixture of experts: active parameters versus total parameters</a>
+    <!-- /site:pager -->
+  </nav>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+  </main>
+  <aside class="onpage" aria-label="On this page">
+    <!-- site:onpage -->
+    <p class="nav-title">On this page</p>
+    <ol>
+      <li><a href="#chapters">Chapters</a></li>
+      <li><a href="#example">The worked example, so you can check the video</a></li>
+      <li><a href="#scores">Scores: Q KT</a></li>
+      <li><a href="#scale">Why divide by √dk</a></li>
+      <li><a href="#softmax">Softmax: the bank row becomes a recipe</a></li>
+      <li><a href="#values">Spending the weights on the values</a></li>
+      <li><a href="#heads">Heads and the causal mask</a></li>
+      <li><a href="#making">How the video was made</a></li>
+      <li><a href="#takeaways">Takeaways</a></li>
+    </ol>
+    <!-- /site:onpage -->
+  </aside>
+  </div>
+
+</div>
+<script src="/site.js?v=3"></script>
+</body>
+</html>

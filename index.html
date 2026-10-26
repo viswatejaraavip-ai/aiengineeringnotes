@@ -42,6 +42,7 @@
               <p class="nav-sub">Transformer internals</p>
           <ul>
                 <li><a href="/articles/attention-qkv-and-scaling/" data-path="/articles/attention-qkv-and-scaling/">Why attention has separate Q, K and V, and why it divides by √d_k</a></li>
+                <li><a href="/articles/self-attention-on-a-whiteboard/" data-path="/articles/self-attention-on-a-whiteboard/">Self-attention derived on a whiteboard, with one sentence (video)</a></li>
                 <li><a href="/articles/mixture-of-experts-active-vs-total/" data-path="/articles/mixture-of-experts-active-vs-total/">Mixture of experts: active parameters versus total parameters</a></li>
               </ul>
             </details></li>
@@ -204,6 +205,13 @@
           </a>
           <span class="post-sub">Three projections let a token ask one thing, advertise another and hand over a third, which one similarity matrix cannot express. The dot product of two d_k-dimensional vectors has variance d_k, so without scaling the softmax saturates and its gradient vanishes.</span>
           <span class="post-meta">24 Oct 2026 · 8 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/self-attention-on-a-whiteboard/">
+            <span class="post-title">Self-attention derived on a whiteboard, with one sentence (video)</span>
+          </a>
+          <span class="post-sub">A ten-minute video that builds softmax(QKᵀ/√d_k)V from &#x27;The river bank flooded&#x27;: the transformer in one picture, the three jobs every token does, the dot product, the 4×4 score grid, why the square root is there, the softmax, the weighted values, heads and the causal mask. The chapter list and every worked number are in the note.</span>
+          <span class="post-meta">26 Oct 2026 · 10 min video</span>
         </li>
         <li>
           <a class="post-link" href="/articles/mixture-of-experts-active-vs-total/">
