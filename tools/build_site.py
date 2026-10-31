@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent
 GITHUB = "https://github.com/viswatejaraavip-ai"
 
 # Bump when style.css or site.js changes, so cached copies are not used with new pages.
-ASSET_VERSION = "3"
+ASSET_VERSION = "4"
 
 # ---------------------------------------------------------------------------
 # The taxonomy: sections > topics > (optional sub-groups of) notes.
@@ -293,17 +293,28 @@ NAV = [
     ]},
 ]
 
-HOME = {"path": "/", "title": "Introduction"}
+# ---------------------------------------------------------------------------
+# Two shelves. The root page (/) is a static selector between them; each shelf
+# has its own home, sidebar tree and reading order.
+# ---------------------------------------------------------------------------
+import sys
+sys.path.insert(0, str(ROOT / "tools"))
+from build_dsa import nav_structure as dsa_nav  # noqa: E402
+
+SITES = [
+    {"id": "ai", "label": "AI engineering", "home": {"path": "/ai/", "title": "Introduction"}, "nav": NAV},
+    {"id": "dsa", "label": "DSA patterns", "home": {"path": "/dsa/", "title": "Introduction"}, "nav": dsa_nav()},
+]
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def flat_pages():
-    """Reading order: (section, topic, group, page). The home page comes first."""
-    out = [(None, None, None, HOME)]
-    for sec in NAV:
+def flat_pages(site):
+    """Reading order: (section, topic, group, page). The shelf's home page comes first."""
+    out = [(None, None, None, site["home"])]
+    for sec in site["nav"]:
         for topic in sec["topics"]:
             for group in topic["groups"]:
                 for page in group["pages"]:
@@ -319,13 +330,15 @@ def esc(s):
     return html.escape(s, quote=True)
 
 
-def header_html():
+def header_html(site):
+    other = [x for x in SITES if x["id"] != site["id"]][0]
     return (
         '<header class="site">\n'
         '    <button class="menu" type="button" aria-controls="sidenav" aria-expanded="false">Contents</button>\n'
         '    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>\n'
         '    <nav>\n'
-        '      <a href="/">Introduction</a>\n'
+        f'      <a href="{site["home"]["path"]}">{esc(site["label"])}</a>\n'
+        f'      <a href="{other["home"]["path"]}">{esc(other["label"])}</a>\n'
         f'      <a href="{GITHUB}">GitHub</a>\n'
         '    </nav>\n'
         '  </header>'
@@ -336,17 +349,23 @@ def topic_has(topic, path):
     return any(p["path"] == path for g in topic["groups"] for p in g["pages"])
 
 
-def sidebar_html(current):
+def sidebar_html(site, current):
     """A tree: section > topic > (group label) > notes. Open along the current path.
 
     On the home page the one topic that has notes is opened, so the tree is not
     a wall of closed sections for a first-time visitor.
     """
-    home_attrs = ' class="nav-home current" aria-current="page"' if current == "/" else ' class="nav-home"'
-    out = [f'<a{home_attrs} href="/" data-path="/">Introduction</a>']
-    for sec in NAV:
+    home = site["home"]["path"]
+    home_attrs = ' class="nav-home current" aria-current="page"' if current == home else ' class="nav-home"'
+    links = []
+    for x in SITES:
+        on = ' class="on"' if x["id"] == site["id"] else ""
+        links.append(f'<a href="{x["home"]["path"]}"{on}>{esc(x["label"])}</a>')
+    switch = '<div class="nav-switch">' + "".join(links) + "</div>"
+    out = [switch, f'<a{home_attrs} href="{home}" data-path="{home}">Introduction</a>']
+    for sec in site["nav"]:
         sec_open = any(topic_has(t, current) for t in sec["topics"]) or (
-            current == "/" and any(t["groups"] for t in sec["topics"]))
+            current == home and any(t["groups"] for t in sec["topics"]))
         out.append(f'<details class="nav-section" data-id="{sec["id"]}"{" open" if sec_open else ""}>')
         out.append(f'      <summary>{esc(sec["title"])}</summary>')
         out.append("      <ul>")
@@ -354,11 +373,11 @@ def sidebar_html(current):
             if not t["groups"]:
                 out.append(f'        <li class="nav-topic empty"><span>{esc(t["title"])}</span></li>')
                 continue
-            t_open = topic_has(t, current) or current == "/"
+            t_open = topic_has(t, current) or (current == home and site["id"] == "ai")
             out.append(f'        <li class="nav-topic"><details data-id="{t["id"]}"{" open" if t_open else ""}>')
             out.append(f'          <summary>{esc(t["title"])}</summary>')
             for g in t["groups"]:
-                out.append(f'          <p class="nav-sub">{esc(g["title"])}</p>\n          <ul>')
+                out.append((f'          <p class="nav-sub">{esc(g["title"])}</p>\n' if g["title"] else "") + '          <ul>')
                 for p in g["pages"]:
                     cls = ' class="current" aria-current="page"' if p["path"] == current else ""
                     out.append(f'            <li><a href="{p["path"]}"{cls} data-path="{p["path"]}">{esc(p["title"])}</a></li>')
@@ -396,15 +415,16 @@ def pager_html(idx, pages):
     return "\n    ".join(a)
 
 
-def crumbs_html(sec, topic, page):
-    return (f'<a href="/#{sec["id"]}">{esc(sec["title"])}</a> / '
-            f'<a href="/#{topic["id"]}">{esc(topic["title"])}</a> / {esc(page["title"])}')
+def crumbs_html(site, sec, topic, page):
+    home = site["home"]["path"]
+    return (f'<a href="{home}#{sec["id"]}">{esc(sec["title"])}</a> / '
+            f'<a href="{home}#{topic["id"]}">{esc(topic["title"])}</a> / {esc(page["title"])}')
 
 
-def groups_html():
-    """The section and topic listing for the home page."""
+def groups_html(site):
+    """The section and topic listing for a shelf's home page."""
     out = []
-    for sec in NAV:
+    for sec in site["nav"]:
         out.append(f'  <section id="{sec["id"]}">\n    <h2 id="h-{sec["id"]}">{esc(sec["title"])}</h2>')
         for t in sec["topics"]:
             out.append(f'    <div class="topic" id="{t["id"]}">\n      <h3>{esc(t["title"])}</h3>')
@@ -414,7 +434,7 @@ def groups_html():
             if t["desc"]:
                 out.append(f'      <p class="series-desc">{esc(t["desc"])}</p>')
             for g in t["groups"]:
-                out.append(f'      <p class="eyebrow">{esc(g["title"])}</p>\n      <ol class="posts">')
+                out.append((f'      <p class="eyebrow">{esc(g["title"])}</p>\n' if g["title"] else "") + '      <ol class="posts">')
                 for p in g["pages"]:
                     out.append(
                         '        <li>\n'
@@ -477,17 +497,18 @@ def convert(page_html):
 
 
 def build():
-    pages = flat_pages()
+  for site in SITES:
+    pages = flat_pages(site)
     for idx, (sec, topic, group, page) in enumerate(pages):
         f = file_for(page["path"])
         s = f.read_text()
         s = convert(s)
-        s = fill(s, "header", header_html())
-        s = fill(s, "nav", sidebar_html(page["path"]))
-        if page["path"] == "/":
-            s = fill(s, "groups", groups_html())
+        s = fill(s, "header", header_html(site))
+        s = fill(s, "nav", sidebar_html(site, page["path"]))
+        if page["path"] == site["home"]["path"]:
+            s = fill(s, "groups", groups_html(site))
         else:
-            s = fill(s, "crumbs", crumbs_html(sec, topic, page))
+            s = fill(s, "crumbs", crumbs_html(site, sec, topic, page))
         s = fill(s, "onpage", onpage_html(s))
         s = fill(s, "pager", pager_html(idx, pages))
         s = re.sub(r'href="/style\.css(\?v=[^"]*)?"', f'href="/style.css?v={ASSET_VERSION}"', s)

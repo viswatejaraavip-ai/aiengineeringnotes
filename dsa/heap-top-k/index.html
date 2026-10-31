@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Top-k with a size-k heap · AI Engineering Notes</title>
+  <meta name="description" content="Keep a min-heap of the k best; a newcomer replaces the root only if it beats it. Pattern 69 of 154 behind Google&#x27;s DSA interview questions, with a 41 s walk-through video.">
+  <meta property="og:title" content="Top-k with a size-k heap">
+  <meta property="og:description" content="Keep a min-heap of the k best; a newcomer replaces the root only if it beats it. Pattern 69 of 154 behind Google&#x27;s DSA interview questions, with a 41 s walk-through video.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://aiengineeringnotes.com/dsa/heap-top-k/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/dsa/heap-top-k/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css?v=4">
+</head>
+<body>
+<div class="wrap">
+
+  <!-- site:header -->
+    <header class="site">
+    <button class="menu" type="button" aria-controls="sidenav" aria-expanded="false">Contents</button>
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/dsa/">DSA patterns</a>
+      <a href="/ai/">AI engineering</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+    <!-- /site:header -->
+
+  <div class="layout">
+  <aside class="sidenav" id="sidenav" aria-label="All notes">
+    <!-- site:nav -->
+    <div class="nav-switch"><a href="/ai/">AI engineering</a><a href="/dsa/" class="on">DSA patterns</a></div>
+    <a class="nav-home" href="/dsa/" data-path="/dsa/">Introduction</a>
+    <details class="nav-section" data-id="dsa-arrays">
+          <summary>Arrays and strings</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="dsa-arrays-hashing">
+              <summary>Arrays &amp; Hashing</summary>
+              <ul>
+                <li><a href="/dsa/hash-complement/" data-path="/dsa/hash-complement/">001 · Hash the complement</a></li>
+                <li><a href="/dsa/frequency-count/" data-path="/dsa/frequency-count/">002 · Frequency counting</a></li>
+                <li><a href="/dsa/canonical-key/" data-path="/dsa/canonical-key/">003 · Canonical key hashing</a></li>
+                <li><a href="/dsa/index-as-hash/" data-path="/dsa/index-as-hash/">004 · In-place index hashing</a></li>
+                <li><a href="/dsa/longest-consecutive/" data-path="/dsa/longest-consecutive/">005 · Set-start expansion</a></li>
+                <li><a href="/dsa/hash-set-cycle/" data-path="/dsa/hash-set-cycle/">006 · Seen-set cycle detection</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic"><details data-id="dsa-prefix-sums">
+              <summary>Prefix Sums</summary>
+              <ul>
+                <li><a href="/dsa/prefix-sum-hash/" data-path="/dsa/prefix-sum-hash/">007 · Prefix sum + hashmap</a></li>
+                <li><a href="/dsa/prefix-product-both-sides/" data-path="/dsa/prefix-product-both-sides/">008 · Prefix and suffix products</a></li>
+                <li><a href="/dsa/difference-array/" data-path="/dsa/difference-array/">009 · Difference array (range add)</a></li>
+                <li><a href="/dsa/prefix-sum-2d/" data-path="/dsa/prefix-sum-2d/">010 · 2D prefix sums</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic"><details data-id="dsa-two-pointers">
+              <summary>Two Pointers</summary>
+              <ul>
+                <li><a href="/dsa/two-pointers-converge/" data-path="/dsa/two-pointers-converge/">011 · Opposite ends converge</a></li>
+                <li><a href="/dsa/three-sum-fix-one/" data-path="/dsa/three-sum-fix-one/">012 · Fix one, two-pointer the rest</a></li>
+                <li><a href="/dsa/fast-slow-writer/" data-path="/dsa/fast-slow-writer/">013 · Reader / writer pointers</a></li>
+                <li><a href="/dsa/dutch-flag/" data-path="/dsa/dutch-flag/">014 · Dutch national flag partition</a></li>
+                <li><a href="/dsa/merge-two-sorted/" data-path="/dsa/merge-two-sorted/">015 · Merge two sorted sequences</a></li>
+                <li><a href="/dsa/trapping-water-pointers/" data-path="/dsa/trapping-water-pointers/">016 · Two-sided max walls</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic"><details data-id="dsa-sliding-window">
+              <summary>Sliding Window</summary>
+              <ul>
+                <li><a href="/dsa/window-fixed/" data-path="/dsa/window-fixed/">017 · Fixed-size window</a></li>
+                <li><a href="/dsa/window-variable-longest/" data-path="/dsa/window-variable-longest/">018 · Longest valid window</a></li>
+                <li><a href="/dsa/window-variable-shortest/" data-path="/dsa/window-variable-shortest/">019 · Shortest satisfying window</a></li>
+                <li><a href="/dsa/window-count-at-most/" data-path="/dsa/window-count-at-most/">020 · Count windows via at-most(k) trick</a></li>
+                <li><a href="/dsa/window-with-counter/" data-path="/dsa/window-with-counter/">021 · Window with a need-counter</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic"><details data-id="dsa-string-algorithms">
+              <summary>String Algorithms</summary>
+              <ul>
+                <li><a href="/dsa/string-kmp/" data-path="/dsa/string-kmp/">124 · KMP failure function</a></li>
+                <li><a href="/dsa/string-rolling-hash/" data-path="/dsa/string-rolling-hash/">125 · Rolling hash (Rabin–Karp)</a></li>
+                <li><a href="/dsa/string-build-reverse/" data-path="/dsa/string-build-reverse/">126 · Reverse-and-build string transforms</a></li>
+                <li><a href="/dsa/string-parse-state/" data-path="/dsa/string-parse-state/">127 · Parse with a state machine</a></li>
+                <li><a href="/dsa/string-two-string-alternate/" data-path="/dsa/string-two-string-alternate/">128 · Merge / compare two strings in lockstep</a></li>
+                <li><a href="/dsa/string-matching-automaton/" data-path="/dsa/string-matching-automaton/">152 · Multi-pattern scan with a set of lengths</a></li>
+              </ul>
+            </details></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="dsa-stacks">
+          <summary>Stacks and queues</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="dsa-stack">
+              <summary>Stack</summary>
+              <ul>
+                <li><a href="/dsa/stack-matching/" data-path="/dsa/stack-matching/">022 · Matching with a stack</a></li>
+                <li><a href="/dsa/stack-nested-decode/" data-path="/dsa/stack-nested-decode/">023 · Nested structure via stack</a></li>
+                <li><a href="/dsa/stack-expression-eval/" data-path="/dsa/stack-expression-eval/">024 · Expression evaluation</a></li>
+                <li><a href="/dsa/stack-min-tracking/" data-path="/dsa/stack-min-tracking/">025 · Auxiliary-min stack</a></li>
+                <li><a href="/dsa/stack-simulation-collision/" data-path="/dsa/stack-simulation-collision/">026 · Collision simulation</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic"><details data-id="dsa-monotonic-stack">
+              <summary>Monotonic Stack</summary>
+              <ul>
+                <li><a href="/dsa/mono-next-greater/" data-path="/dsa/mono-next-greater/">027 · Next greater element</a></li>
+                <li><a href="/dsa/mono-histogram/" data-path="/dsa/mono-histogram/">028 · Largest rectangle (bounds by pops)</a></li>
+                <li><a href="/dsa/mono-remove-k/" data-path="/dsa/mono-remove-k/">029 · Greedy removal with a stack</a></li>
+                <li><a href="/dsa/mono-two-sided/" data-path="/dsa/mono-two-sided/">030 · Previous and next smaller (both sides)</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic"><details data-id="dsa-queue-deque">
+              <summary>Queue &amp; Deque</summary>
+              <ul>
+                <li><a href="/dsa/mono-deque-window-max/" data-path="/dsa/mono-deque-window-max/">031 · Monotonic deque window max</a></li>
+                <li><a href="/dsa/queue-moving-stats/" data-path="/dsa/queue-moving-stats/">032 · Queue over a time window</a></li>
+                <li><a href="/dsa/two-stack-queue/" data-path="/dsa/two-stack-queue/">033 · Queue from two stacks</a></li>
+              </ul>
+            </details></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="dsa-search">
+          <summary>Searching and sorting</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="dsa-binary-search">
+              <summary>Binary Search</summary>
+              <ul>
+                <li><a href="/dsa/binary-search-exact/" data-path="/dsa/binary-search-exact/">034 · Classic binary search</a></li>
+                <li><a href="/dsa/binary-search-boundary/" data-path="/dsa/binary-search-boundary/">035 · First true (predicate boundary)</a></li>
+                <li><a href="/dsa/binary-search-answer/" data-path="/dsa/binary-search-answer/">036 · Binary search on the answer</a></li>
+                <li><a href="/dsa/binary-search-rotated/" data-path="/dsa/binary-search-rotated/">037 · Rotated / mountain search</a></li>
+                <li><a href="/dsa/binary-search-two-arrays/" data-path="/dsa/binary-search-two-arrays/">038 · Partition two sorted arrays</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic"><details data-id="dsa-sorting">
+              <summary>Sorting</summary>
+              <ul>
+                <li><a href="/dsa/custom-sort-comparator/" data-path="/dsa/custom-sort-comparator/">042 · Custom comparator / key sort</a></li>
+                <li><a href="/dsa/cyclic-sort/" data-path="/dsa/cyclic-sort/">043 · Cyclic sort (1..n placement)</a></li>
+                <li><a href="/dsa/quickselect/" data-path="/dsa/quickselect/">044 · Quickselect (kth element)</a></li>
+                <li><a href="/dsa/merge-sort-count/" data-path="/dsa/merge-sort-count/">045 · Merge sort with counting</a></li>
+                <li><a href="/dsa/bucket-counting-sort/" data-path="/dsa/bucket-counting-sort/">046 · Bucket / counting sort</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic"><details data-id="dsa-intervals">
+              <summary>Intervals</summary>
+              <ul>
+                <li><a href="/dsa/intervals-merge/" data-path="/dsa/intervals-merge/">039 · Sort and merge intervals</a></li>
+                <li><a href="/dsa/intervals-sweep-line/" data-path="/dsa/intervals-sweep-line/">040 · Sweep line (events ±1)</a></li>
+                <li><a href="/dsa/intervals-greedy-end/" data-path="/dsa/intervals-greedy-end/">041 · Earliest finish first</a></li>
+              </ul>
+            </details></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="dsa-lists">
+          <summary>Linked lists and design</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="dsa-linked-list">
+              <summary>Linked List</summary>
+              <ul>
+                <li><a href="/dsa/ll-fast-slow/" data-path="/dsa/ll-fast-slow/">047 · Fast and slow pointers</a></li>
+                <li><a href="/dsa/ll-reverse/" data-path="/dsa/ll-reverse/">048 · In-place reversal</a></li>
+                <li><a href="/dsa/ll-dummy-head/" data-path="/dsa/ll-dummy-head/">049 · Dummy head and splice</a></li>
+                <li><a href="/dsa/ll-carry-arith/" data-path="/dsa/ll-carry-arith/">050 · Digit-by-digit with carry</a></li>
+                <li><a href="/dsa/ll-random-pointer-copy/" data-path="/dsa/ll-random-pointer-copy/">051 · Clone with a map or interleaving</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic"><details data-id="dsa-design">
+              <summary>Design</summary>
+              <ul>
+                <li><a href="/dsa/lru-cache/" data-path="/dsa/lru-cache/">052 · Hash map + doubly linked list (LRU)</a></li>
+                <li><a href="/dsa/design-hashmap-with-list/" data-path="/dsa/design-hashmap-with-list/">139 · Hash map + array for O(1) random</a></li>
+                <li><a href="/dsa/design-time-versioned/" data-path="/dsa/design-time-versioned/">140 · Time-versioned map</a></li>
+                <li><a href="/dsa/design-iterator/" data-path="/dsa/design-iterator/">141 · Lazy iterators</a></li>
+                <li><a href="/dsa/design-range-module/" data-path="/dsa/design-range-module/">142 · Ordered intervals (range module)</a></li>
+                <li><a href="/dsa/reservoir-stream-design/" data-path="/dsa/reservoir-stream-design/">151 · Streaming data structures</a></li>
+              </ul>
+            </details></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="dsa-trees" open>
+          <summary>Trees, heaps and tries</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="dsa-trees">
+              <summary>Trees</summary>
+              <ul>
+                <li><a href="/dsa/tree-dfs-recursive/" data-path="/dsa/tree-dfs-recursive/">053 · Recursive DFS (post-order fold)</a></li>
+                <li><a href="/dsa/tree-path-through-node/" data-path="/dsa/tree-path-through-node/">054 · Best path through each node</a></li>
+                <li><a href="/dsa/tree-bfs-levels/" data-path="/dsa/tree-bfs-levels/">055 · Level-order BFS</a></li>
+                <li><a href="/dsa/tree-root-to-leaf/" data-path="/dsa/tree-root-to-leaf/">056 · Root-to-leaf path carry</a></li>
+                <li><a href="/dsa/tree-lca/" data-path="/dsa/tree-lca/">057 · Lowest common ancestor</a></li>
+                <li><a href="/dsa/tree-build-from-traversals/" data-path="/dsa/tree-build-from-traversals/">058 · Build from traversals</a></li>
+                <li><a href="/dsa/tree-iterative-inorder/" data-path="/dsa/tree-iterative-inorder/">059 · Iterative traversal with a stack</a></li>
+                <li><a href="/dsa/tree-vertical-coords/" data-path="/dsa/tree-vertical-coords/">060 · Column / coordinate traversal</a></li>
+                <li><a href="/dsa/tree-rerooting/" data-path="/dsa/tree-rerooting/">061 · Rerooting DP (sum over all roots)</a></li>
+                <li><a href="/dsa/tree-delete-forest/" data-path="/dsa/tree-delete-forest/">062 · Post-order deletion / pruning</a></li>
+                <li><a href="/dsa/tree-distance-k/" data-path="/dsa/tree-distance-k/">063 · Tree as a graph (parent pointers)</a></li>
+                <li><a href="/dsa/tree-dp-choose-skip/" data-path="/dsa/tree-dp-choose-skip/">064 · Tree DP: take or skip this node</a></li>
+                <li><a href="/dsa/bfs-tree-serialization/" data-path="/dsa/bfs-tree-serialization/">153 · Serialize / deserialize by BFS</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic"><details data-id="dsa-binary-search-tree">
+              <summary>Binary Search Tree</summary>
+              <ul>
+                <li><a href="/dsa/bst-bounds-validate/" data-path="/dsa/bst-bounds-validate/">065 · BST range bounds</a></li>
+                <li><a href="/dsa/bst-inorder-sorted/" data-path="/dsa/bst-inorder-sorted/">066 · Inorder = sorted order</a></li>
+                <li><a href="/dsa/bst-insert-delete/" data-path="/dsa/bst-insert-delete/">067 · BST insert / delete / search</a></li>
+                <li><a href="/dsa/bst-build-balanced/" data-path="/dsa/bst-build-balanced/">068 · Build a balanced BST from sorted input</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic"><details data-id="dsa-heap" open>
+              <summary>Heap</summary>
+              <ul>
+                <li><a href="/dsa/heap-top-k/" class="current" aria-current="page" data-path="/dsa/heap-top-k/">069 · Top-k with a size-k heap</a></li>
+                <li><a href="/dsa/heap-two-heaps-median/" data-path="/dsa/heap-two-heaps-median/">070 · Two heaps (running median)</a></li>
+                <li><a href="/dsa/heap-k-way-merge/" data-path="/dsa/heap-k-way-merge/">071 · K-way merge</a></li>
+                <li><a href="/dsa/heap-scheduling-greedy/" data-path="/dsa/heap-scheduling-greedy/">072 · Greedy scheduling with a heap</a></li>
+                <li><a href="/dsa/heap-lazy-deletion/" data-path="/dsa/heap-lazy-deletion/">073 · Lazy deletion heap</a></li>
+                <li><a href="/dsa/heap-frequency-rebuild/" data-path="/dsa/heap-frequency-rebuild/">074 · Pop-k-then-rebuild (frequency greedy)</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic"><details data-id="dsa-trie">
+              <summary>Trie</summary>
+              <ul>
+                <li><a href="/dsa/trie-prefix/" data-path="/dsa/trie-prefix/">121 · Trie for prefix queries</a></li>
+                <li><a href="/dsa/trie-grid-search/" data-path="/dsa/trie-grid-search/">122 · Trie-guided grid DFS</a></li>
+                <li><a href="/dsa/trie-xor/" data-path="/dsa/trie-xor/">123 · Binary trie for maximum XOR</a></li>
+              </ul>
+            </details></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="dsa-graphs">
+          <summary>Graphs</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="dsa-graphs">
+              <summary>Graphs</summary>
+              <ul>
+                <li><a href="/dsa/grid-dfs-islands/" data-path="/dsa/grid-dfs-islands/">075 · Grid flood fill (components)</a></li>
+                <li><a href="/dsa/bfs-multi-source/" data-path="/dsa/bfs-multi-source/">076 · Multi-source BFS</a></li>
+                <li><a href="/dsa/bfs-shortest-unweighted/" data-path="/dsa/bfs-shortest-unweighted/">077 · BFS shortest path (unweighted)</a></li>
+                <li><a href="/dsa/bfs-state-space/" data-path="/dsa/bfs-state-space/">078 · BFS over an augmented state</a></li>
+                <li><a href="/dsa/bfs-0-1/" data-path="/dsa/bfs-0-1/">079 · 0-1 BFS (deque)</a></li>
+                <li><a href="/dsa/dfs-cycle-coloring/" data-path="/dsa/dfs-cycle-coloring/">080 · DFS three-colour cycle detection</a></li>
+                <li><a href="/dsa/topo-kahn/" data-path="/dsa/topo-kahn/">081 · Topological sort (Kahn&#x27;s)</a></li>
+                <li><a href="/dsa/union-find/" data-path="/dsa/union-find/">082 · Union–Find (disjoint sets)</a></li>
+                <li><a href="/dsa/dijkstra/" data-path="/dsa/dijkstra/">083 · Dijkstra (weighted shortest path)</a></li>
+                <li><a href="/dsa/bellman-ford-k-stops/" data-path="/dsa/bellman-ford-k-stops/">084 · Bellman–Ford with k rounds</a></li>
+                <li><a href="/dsa/mst-kruskal-prim/" data-path="/dsa/mst-kruskal-prim/">085 · Minimum spanning tree</a></li>
+                <li><a href="/dsa/graph-bipartite/" data-path="/dsa/graph-bipartite/">086 · Bipartite colouring</a></li>
+                <li><a href="/dsa/eulerian-path/" data-path="/dsa/eulerian-path/">087 · Eulerian path (Hierholzer)</a></li>
+                <li><a href="/dsa/tarjan-bridges/" data-path="/dsa/tarjan-bridges/">088 · Bridges / articulation (low-link)</a></li>
+                <li><a href="/dsa/graph-clone-traverse/" data-path="/dsa/graph-clone-traverse/">089 · Clone / traverse with a visited map</a></li>
+                <li><a href="/dsa/implicit-graph-search/" data-path="/dsa/implicit-graph-search/">090 · Implicit graph (states as nodes)</a></li>
+              </ul>
+            </details></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="dsa-dp">
+          <summary>Recursion, DP and greedy</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="dsa-backtracking">
+              <summary>Backtracking</summary>
+              <ul>
+                <li><a href="/dsa/bt-subsets/" data-path="/dsa/bt-subsets/">091 · Subsets (include / exclude)</a></li>
+                <li><a href="/dsa/bt-permutations/" data-path="/dsa/bt-permutations/">092 · Permutations with a used set</a></li>
+                <li><a href="/dsa/bt-combination-sum/" data-path="/dsa/bt-combination-sum/">093 · Combination sum with a start index</a></li>
+                <li><a href="/dsa/bt-grid-word-search/" data-path="/dsa/bt-grid-word-search/">094 · Grid DFS with undo</a></li>
+                <li><a href="/dsa/bt-constraint-prune/" data-path="/dsa/bt-constraint-prune/">095 · Constraint placement with pruning</a></li>
+                <li><a href="/dsa/bt-generate-parentheses/" data-path="/dsa/bt-generate-parentheses/">096 · Generate valid sequences</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic"><details data-id="dsa-dynamic-programming">
+              <summary>Dynamic Programming</summary>
+              <ul>
+                <li><a href="/dsa/dp-1d-linear/" data-path="/dsa/dp-1d-linear/">097 · 1-D linear DP</a></li>
+                <li><a href="/dsa/dp-kadane/" data-path="/dsa/dp-kadane/">098 · Kadane (best ending here)</a></li>
+                <li><a href="/dsa/dp-lis/" data-path="/dsa/dp-lis/">099 · Longest increasing subsequence</a></li>
+                <li><a href="/dsa/dp-grid-paths/" data-path="/dsa/dp-grid-paths/">100 · Grid path DP</a></li>
+                <li><a href="/dsa/dp-knapsack-01/" data-path="/dsa/dp-knapsack-01/">101 · 0/1 knapsack (subset sum)</a></li>
+                <li><a href="/dsa/dp-unbounded-coin/" data-path="/dsa/dp-unbounded-coin/">102 · Unbounded knapsack (coin change)</a></li>
+                <li><a href="/dsa/dp-lcs-edit/" data-path="/dsa/dp-lcs-edit/">103 · Two-sequence DP (LCS / edit distance)</a></li>
+                <li><a href="/dsa/dp-pattern-matching/" data-path="/dsa/dp-pattern-matching/">104 · Wildcard / regex matching DP</a></li>
+                <li><a href="/dsa/dp-palindrome-expand/" data-path="/dsa/dp-palindrome-expand/">105 · Palindromes: expand or table</a></li>
+                <li><a href="/dsa/dp-word-break/" data-path="/dsa/dp-word-break/">106 · Prefix segmentation DP</a></li>
+                <li><a href="/dsa/dp-interval/" data-path="/dsa/dp-interval/">107 · Interval DP (last operation)</a></li>
+                <li><a href="/dsa/dp-state-machine-stock/" data-path="/dsa/dp-state-machine-stock/">108 · State-machine DP (stocks)</a></li>
+                <li><a href="/dsa/dp-bitmask/" data-path="/dsa/dp-bitmask/">109 · Bitmask DP over subsets</a></li>
+                <li><a href="/dsa/dp-memo-dfs/" data-path="/dsa/dp-memo-dfs/">110 · Memoised DFS (top-down)</a></li>
+                <li><a href="/dsa/dp-digit/" data-path="/dsa/dp-digit/">111 · Digit DP</a></li>
+                <li><a href="/dsa/dp-game-minimax/" data-path="/dsa/dp-game-minimax/">112 · Game DP (minimax on a range)</a></li>
+                <li><a href="/dsa/dp-count-ways-mod/" data-path="/dsa/dp-count-ways-mod/">113 · Counting ways with modulo</a></li>
+                <li><a href="/dsa/dp-longest-string-chain/" data-path="/dsa/dp-longest-string-chain/">114 · DP over sorted keys (chains)</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic"><details data-id="dsa-greedy">
+              <summary>Greedy</summary>
+              <ul>
+                <li><a href="/dsa/greedy-jump-reach/" data-path="/dsa/greedy-jump-reach/">115 · Furthest reach (jump game)</a></li>
+                <li><a href="/dsa/greedy-exchange-argument/" data-path="/dsa/greedy-exchange-argument/">116 · Sort, then take greedily</a></li>
+                <li><a href="/dsa/greedy-gas-station/" data-path="/dsa/greedy-gas-station/">117 · Reset-on-negative sweep</a></li>
+                <li><a href="/dsa/greedy-partition-labels/" data-path="/dsa/greedy-partition-labels/">118 · Last-occurrence partition</a></li>
+                <li><a href="/dsa/greedy-candy-two-pass/" data-path="/dsa/greedy-candy-two-pass/">119 · Two-pass neighbour constraints</a></li>
+                <li><a href="/dsa/greedy-count-sort-small/" data-path="/dsa/greedy-count-sort-small/">120 · Counting-based greedy (small alphabet)</a></li>
+                <li><a href="/dsa/greedy-two-pointer-assign/" data-path="/dsa/greedy-two-pointer-assign/">154 · Two-pointer assignment after sorting</a></li>
+              </ul>
+            </details></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="dsa-math">
+          <summary>Math, bits and matrices</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="dsa-bit-manipulation">
+              <summary>Bit Manipulation</summary>
+              <ul>
+                <li><a href="/dsa/bit-xor-cancel/" data-path="/dsa/bit-xor-cancel/">129 · XOR cancels pairs</a></li>
+                <li><a href="/dsa/bit-tricks/" data-path="/dsa/bit-tricks/">130 · Bit tricks (n &amp; (n−1), masks)</a></li>
+                <li><a href="/dsa/bit-subset-enumeration/" data-path="/dsa/bit-subset-enumeration/">131 · Enumerate subsets by mask</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic"><details data-id="dsa-math">
+              <summary>Math</summary>
+              <ul>
+                <li><a href="/dsa/math-fast-power/" data-path="/dsa/math-fast-power/">132 · Fast exponentiation</a></li>
+                <li><a href="/dsa/math-gcd-number-theory/" data-path="/dsa/math-gcd-number-theory/">133 · GCD and number theory</a></li>
+                <li><a href="/dsa/math-digit-manipulation/" data-path="/dsa/math-digit-manipulation/">134 · Digit-by-digit arithmetic</a></li>
+                <li><a href="/dsa/math-randomized/" data-path="/dsa/math-randomized/">135 · Random pick and reservoir sampling</a></li>
+                <li><a href="/dsa/geometry-points/" data-path="/dsa/geometry-points/">136 · Coordinate geometry with hashing</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic"><details data-id="dsa-matrix">
+              <summary>Matrix</summary>
+              <ul>
+                <li><a href="/dsa/matrix-rotate-spiral/" data-path="/dsa/matrix-rotate-spiral/">137 · Matrix traversal and rotation</a></li>
+                <li><a href="/dsa/matrix-staircase-search/" data-path="/dsa/matrix-staircase-search/">138 · Staircase search in a sorted matrix</a></li>
+              </ul>
+            </details></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="dsa-advanced">
+          <summary>Advanced structures and simulation</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="dsa-advanced-structures">
+              <summary>Advanced Structures</summary>
+              <ul>
+                <li><a href="/dsa/segment-tree/" data-path="/dsa/segment-tree/">143 · Segment tree (range query + point update)</a></li>
+                <li><a href="/dsa/fenwick-tree/" data-path="/dsa/fenwick-tree/">144 · Fenwick tree (binary indexed tree)</a></li>
+                <li><a href="/dsa/ordered-set-sliding/" data-path="/dsa/ordered-set-sliding/">145 · Ordered set / sorted container</a></li>
+                <li><a href="/dsa/sqrt-bucket/" data-path="/dsa/sqrt-bucket/">146 · Bucketing by value range</a></li>
+                <li><a href="/dsa/matrix-exponentiation/" data-path="/dsa/matrix-exponentiation/">147 · Matrix exponentiation for recurrences</a></li>
+                <li><a href="/dsa/meet-in-the-middle/" data-path="/dsa/meet-in-the-middle/">150 · Meet in the middle</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic"><details data-id="dsa-interactive">
+              <summary>Interactive</summary>
+              <ul>
+                <li><a href="/dsa/interactive-guess-elimination/" data-path="/dsa/interactive-guess-elimination/">148 · Candidate elimination (Guess the Word)</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic"><details data-id="dsa-simulation">
+              <summary>Simulation</summary>
+              <ul>
+                <li><a href="/dsa/simulation-careful/" data-path="/dsa/simulation-careful/">149 · Careful state simulation</a></li>
+              </ul>
+            </details></li>
+          </ul>
+    </details>
+    <!-- /site:nav -->
+  </aside>
+  <main class="content">
+
+  <p class="crumbs"><!-- site:crumbs -->
+    <a href="/dsa/#dsa-trees">Trees, heaps and tries</a> / <a href="/dsa/#dsa-heap">Heap</a> / 069 · Top-k with a size-k heap
+    <!-- /site:crumbs --></p>
+
+  <article class="post">
+    <header>
+      <h1>Top-k with a size-k heap</h1>
+      <p class="lede">Keep a min-heap of the k best; a newcomer replaces the root only if it beats it.</p>
+      <div class="byline"><span>Pattern 069 of 154</span><span>Heap</span><span>O(n log k) time</span><span>31 Oct 2026 · 41 s video</span></div>
+    </header>
+
+    <div class="video">
+      <video controls preload="none" playsinline poster="/dsa/heap-top-k/poster.jpg">
+        <source src="https://github.com/viswatejaraavip-ai/aiengineeringnotes/releases/download/dsa-videos-v1/heap-top-k.mp4" type="video/mp4">
+      </video>
+    </div>
+    <p class="post-meta">41 s · title card, the worked example step by step, then a recap. The captions carry the explanation; there is no narration. <a href="https://github.com/viswatejaraavip-ai/aiengineeringnotes/releases/download/dsa-videos-v1/heap-top-k.mp4">Download the MP4</a>.</p>
+
+    <div class="concept">
+      <span class="label">The invariant</span>
+      <p>The heap holds the k largest seen so far; its root is the kth largest.</p>
+    </div>
+
+    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <p>Keep a min-heap of the k best; a newcomer replaces the root only if it beats it.</p>
+    <p><strong>Reach for it when:</strong> Kth largest, k closest points, top-k frequent, kth largest in a stream.</p>
+    <p><strong>Cost:</strong> O(n log k) time.</p>
+
+    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <p>The video works one example: <strong>Kth largest (k=3) stream on [4,5,8,2,3,5,10,9]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
+    <ol class="steps">
+      <li>Keep a <em>min-heap of size k</em>: its root is the kth largest</li><li>Heap has room: push 4</li><li>Heap has room: push 5</li><li>Heap has room: push 8</li><li>2 ≤ root 4: it cannot be in the top 3, <em>skip</em></li><li>3 ≤ root 4: it cannot be in the top 3, <em>skip</em></li><li>5 beats the root 4: <em>replace</em> the root and sift down</li><li>10 beats the root 5: <em>replace</em> the root and sift down</li><li>9 beats the root 5: <em>replace</em> the root and sift down</li><li>After the stream the root is the 3rd largest: <em>8</em></li><li>Each item costs one heap op of size k: <em>O(n log k)</em></li>
+    </ol>
+
+    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <p>7 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
+    <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/top-k-frequent-elements">Top K Frequent Elements</a></td><td><span class="diff medium">Medium</span></td><td class="num">59</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/kth-largest-element-in-an-array">Kth Largest Element in an Array</a></td><td><span class="diff medium">Medium</span></td><td class="num">55</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-k-closest-elements">Find K Closest Elements</a></td><td><span class="diff medium">Medium</span></td><td class="num">38</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/kth-largest-element-in-a-stream">Kth Largest Element in a Stream</a></td><td><span class="diff easy">Easy</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/top-k-frequent-words">Top K Frequent Words</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/sort-characters-by-frequency">Sort Characters By Frequency</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/k-closest-points-to-origin">K Closest Points to Origin</a></td><td><span class="diff medium">Medium</span></td><td class="num">27</td><td></td></tr></table></div>
+
+    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <p>Other patterns in <a href="/dsa/#dsa-heap">Heap</a>: <a href="/dsa/heap-two-heaps-median/">Two heaps (running median)</a>, <a href="/dsa/heap-k-way-merge/">K-way merge</a>, <a href="/dsa/heap-scheduling-greedy/">Greedy scheduling with a heap</a>, <a href="/dsa/heap-lazy-deletion/">Lazy deletion heap</a>, <a href="/dsa/heap-frequency-rebuild/">Pop-k-then-rebuild (frequency greedy)</a>.</p>
+  </article>
+
+  <nav class="pager" aria-label="Reading order">
+    <!-- site:pager -->
+    <a class="prev" href="/dsa/bst-build-balanced/"><small>Previous</small>068 · Build a balanced BST from sorted input</a>
+    <a class="next" href="/dsa/heap-two-heaps-median/"><small>Next</small>070 · Two heaps (running median)</a>
+    <!-- /site:pager -->
+  </nav>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="/">Home</a> · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+  </main>
+  <aside class="onpage" aria-label="On this page">
+    <!-- site:onpage -->
+    <p class="nav-title">On this page</p>
+    <ol>
+      <li><a href="#idea">The idea</a></li>
+      <li><a href="#walkthrough">The walk-through, step by step</a></li>
+      <li><a href="#google">Asked at Google</a></li>
+      <li><a href="#related">Related patterns</a></li>
+    </ol>
+    <!-- /site:onpage -->
+  </aside>
+  </div>
+
+</div>
+<script src="/site.js?v=4"></script>
+</body>
+</html>

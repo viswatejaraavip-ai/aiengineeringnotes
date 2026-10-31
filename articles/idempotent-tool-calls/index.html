@@ -11,7 +11,7 @@
   <meta property="og:url" content="https://aiengineeringnotes.com/articles/idempotent-tool-calls/">
   <link rel="canonical" href="https://aiengineeringnotes.com/articles/idempotent-tool-calls/">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/style.css?v=3">
+  <link rel="stylesheet" href="/style.css?v=4">
   <style>
     .tree { font-family: var(--mono); font-size: 14px; line-height: 1.5; }
     .tree .k { color: var(--accent); font-weight: 600; }
@@ -27,7 +27,8 @@
     <button class="menu" type="button" aria-controls="sidenav" aria-expanded="false">Contents</button>
     <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
     <nav>
-      <a href="/">Introduction</a>
+      <a href="/ai/">AI engineering</a>
+      <a href="/dsa/">DSA patterns</a>
       <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
     </nav>
   </header>
@@ -36,7 +37,8 @@
   <div class="layout">
   <aside class="sidenav" id="sidenav" aria-label="All notes">
     <!-- site:nav -->
-    <a class="nav-home" href="/" data-path="/">Introduction</a>
+    <div class="nav-switch"><a href="/ai/" class="on">AI engineering</a><a href="/dsa/">DSA patterns</a></div>
+    <a class="nav-home" href="/ai/" data-path="/ai/">Introduction</a>
     <details class="nav-section" data-id="foundations">
           <summary>Foundations</summary>
           <ul>
@@ -178,7 +180,7 @@
   <main class="content">
 
   <p class="crumbs"><!-- site:crumbs -->
-    <a href="/#agents">Agentic AI</a> / <a href="/#agent-architectures">Agent architectures, tool use and MCP</a> / Idempotent tool calls: which tools need a key, and how to derive one
+    <a href="/ai/#agents">Agentic AI</a> / <a href="/ai/#agent-architectures">Agent architectures, tool use and MCP</a> / Idempotent tool calls: which tools need a key, and how to derive one
     <!-- /site:crumbs --></p>
 
   <article class="post">
@@ -379,6 +381,6 @@ return calendar.create(title, start, key=key)</code></pre>
   </div>
 
 </div>
-<script src="/site.js?v=3"></script>
+<script src="/site.js?v=4"></script>
 </body>
 </html>

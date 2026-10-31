@@ -273,3 +273,31 @@ section > h2 { font-size: 26px; margin: 0 0 6px; }
 .topic-empty { color: var(--muted); font-size: 14px; margin: 0; }
 .topic .eyebrow { margin: 16px 0 4px; }
 .topic .series-desc { margin-bottom: 4px; }
+
+/* ---------- root selector ---------- */
+.choose-page .hero { padding-block: 64px 36px; }
+.choose { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 28px; }
+.choice { display: flex; flex-direction: column; gap: 10px; background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 28px; color: var(--text); text-decoration: none; }
+.choice:hover { border-color: var(--accent); }
+.choice h2 { font-size: 28px; margin: 0; }
+.choice p { margin: 0; color: var(--muted); }
+.choice .eyebrow { margin: 0; }
+.choice-meta { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.choice .btn { align-self: flex-start; margin-top: 8px; }
+.choose-continue { color: var(--muted); font-size: 15px; }
+
+/* ---------- sidebar shelf switch ---------- */
+.nav-switch { display: flex; gap: 6px; margin-bottom: 10px; }
+.nav-switch a { flex: 1; text-align: center; font: 12px var(--mono); padding: 5px 6px; border: 1px solid var(--rule); border-radius: 6px; color: var(--muted); text-decoration: none; }
+.nav-switch a.on { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+
+/* ---------- DSA pattern pages ---------- */
+.video { position: relative; width: 100%; aspect-ratio: 16 / 9; margin: 20px 0 8px; background: #0B1220; border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
+.video iframe, .video video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+ol.steps { counter-reset: step; list-style: none; padding-left: 0; }
+ol.steps li { counter-increment: step; position: relative; padding-left: 2.6em; margin-bottom: 8px; }
+ol.steps li::before { content: counter(step, decimal-leading-zero); position: absolute; left: 0; top: 2px; font-family: var(--mono); font-size: 13px; color: var(--accent); }
+ol.steps em, .lede em, .concept em { font-style: normal; color: var(--accent); font-weight: 600; }
+.diff { font-family: var(--mono); font-size: 12px; padding: 1px 7px; border-radius: 4px; background: var(--accent-soft); }
+.diff.easy { color: #1e7e4a; } .diff.medium { color: #a86b00; } .diff.hard { color: #b42323; }
+@media (prefers-color-scheme: dark) { .diff.easy { color: #5fd38f; } .diff.medium { color: #f0b33a; } .diff.hard { color: #f27d7d; } }

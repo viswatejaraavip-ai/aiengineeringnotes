@@ -30,6 +30,9 @@
   }
   paint();
 
+  // Remember which shelf the reader is on, for the root page's 'continue' link.
+  try { localStorage.setItem('aen-site', location.pathname.indexOf('/dsa/') === 0 ? 'dsa' : 'ai'); } catch (e) {}
+
   // Remember which branches of the sidebar tree the reader opened or closed.
   // A branch holding the current page always stays open.
   var TREE = 'aen-tree';

@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Engineering Notes</title>
+  <meta name="description" content="Notes from building AI systems — retrieval, fine-tuning, evaluation — explained in plain English with the real numbers.">
+  <meta property="og:title" content="AI Engineering Notes">
+  <meta property="og:description" content="Notes from building AI systems, explained in plain English with the real numbers.">
+  <meta property="og:url" content="https://aiengineeringnotes.com/ai/">
+  <link rel="canonical" href="https://aiengineeringnotes.com/ai/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css?v=4">
+</head>
+<body>
+<div class="wrap">
+
+  <!-- site:header -->
+    <header class="site">
+    <button class="menu" type="button" aria-controls="sidenav" aria-expanded="false">Contents</button>
+    <a class="logo" href="/">ai<span>/</span>engineering<span>/</span>notes</a>
+    <nav>
+      <a href="/ai/">AI engineering</a>
+      <a href="/dsa/">DSA patterns</a>
+      <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+    </nav>
+  </header>
+    <!-- /site:header -->
+
+  <div class="layout">
+  <aside class="sidenav" id="sidenav" aria-label="All notes">
+    <!-- site:nav -->
+    <div class="nav-switch"><a href="/ai/" class="on">AI engineering</a><a href="/dsa/">DSA patterns</a></div>
+    <a class="nav-home current" aria-current="page" href="/ai/" data-path="/ai/">Introduction</a>
+    <details class="nav-section" data-id="foundations" open>
+          <summary>Foundations</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="llm-fundamentals" open>
+              <summary>LLM fundamentals</summary>
+              <p class="nav-sub">Tokenization</p>
+          <ul>
+                <li><a href="/articles/byte-pair-encoding/" data-path="/articles/byte-pair-encoding/">Byte-pair encoding, and why tokenizers work on bytes</a></li>
+              </ul>
+              <p class="nav-sub">Transformer internals</p>
+          <ul>
+                <li><a href="/articles/attention-qkv-and-scaling/" data-path="/articles/attention-qkv-and-scaling/">Why attention has separate Q, K and V, and why it divides by √d_k</a></li>
+                <li><a href="/articles/self-attention-on-a-whiteboard/" data-path="/articles/self-attention-on-a-whiteboard/">Self-attention derived on a whiteboard, with one sentence (video)</a></li>
+                <li><a href="/articles/mixture-of-experts-active-vs-total/" data-path="/articles/mixture-of-experts-active-vs-total/">Mixture of experts: active parameters versus total parameters</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Frontier models and the model landscape</span></li>
+            <li class="nav-topic empty"><span>Prompting and context engineering</span></li>
+            <li class="nav-topic empty"><span>Fine-tuning, alignment and post-training</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="inference" open>
+          <summary>Inference and reasoning</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="inference-scaling" open>
+              <summary>Inference scaling and serving</summary>
+              <p class="nav-sub">Serving fundamentals</p>
+          <ul>
+                <li><a href="/articles/kv-cache-memory-bound-decoding/" data-path="/articles/kv-cache-memory-bound-decoding/">The KV cache, and why decoding is memory-bound</a></li>
+                <li><a href="/articles/grouped-query-attention/" data-path="/articles/grouped-query-attention/">Grouped-query attention: the middle ground between MHA and MQA</a></li>
+              </ul>
+              <p class="nav-sub">Decoding</p>
+          <ul>
+                <li><a href="/articles/temperature-top-k-top-p-and-t0/" data-path="/articles/temperature-top-k-top-p-and-t0/">Temperature, top-k, top-p, and why T = 0 is not deterministic</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Test-time compute and reasoning models</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="agents" open>
+          <summary>Agentic AI</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="agent-architectures" open>
+              <summary>Agent architectures, tool use and MCP</summary>
+              <p class="nav-sub">Agent loops</p>
+          <ul>
+                <li><a href="/articles/function-calling-model-and-application/" data-path="/articles/function-calling-model-and-application/">Function calling: how the model decides, and what your code must do</a></li>
+                <li><a href="/articles/react-pattern-and-function-calling/" data-path="/articles/react-pattern-and-function-calling/">The ReAct pattern as a loop of function calls</a></li>
+                <li><a href="/articles/agent-loop-termination-and-failure-modes/" data-path="/articles/agent-loop-termination-and-failure-modes/">How an agent loop ends, and the three ways it fails to</a></li>
+                <li><a href="/articles/react-vs-plan-and-execute/" data-path="/articles/react-vs-plan-and-execute/">ReAct versus plan-and-execute, and the hybrid that production uses</a></li>
+                <li><a href="/articles/agent-framework-vs-hand-rolled-loop/" data-path="/articles/agent-framework-vs-hand-rolled-loop/">Agent framework or hand-rolled loop: what each buys you, and what changes your mind</a></li>
+              </ul>
+              <p class="nav-sub">Tool design</p>
+          <ul>
+                <li><a href="/articles/tool-schema-design/" data-path="/articles/tool-schema-design/">What makes a good tool schema, and why the description outranks the name</a></li>
+                <li><a href="/articles/idempotent-tool-calls/" data-path="/articles/idempotent-tool-calls/">Idempotent tool calls: which tools need a key, and how to derive one</a></li>
+              </ul>
+              <p class="nav-sub">MCP</p>
+          <ul>
+                <li><a href="/articles/model-context-protocol/" data-path="/articles/model-context-protocol/">The Model Context Protocol: hosts, clients, servers, and where the adapter work went</a></li>
+              </ul>
+              <p class="nav-sub">Design exercises</p>
+          <ul>
+                <li><a href="/articles/designing-a-support-agent/" data-path="/articles/designing-a-support-agent/">Designing a customer-support agent over 30 backend operations</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Multi-agent systems, orchestration and human-in-the-loop</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="rag" open>
+          <summary>RAG</summary>
+          <ul>
+            <li class="nav-topic"><details data-id="rag-ingestion" open>
+              <summary>RAG ingestion, chunking and indexing</summary>
+              <p class="nav-sub">Core concepts</p>
+          <ul>
+                <li><a href="/articles/chunk-size-recall-vs-faithfulness/" data-path="/articles/chunk-size-recall-vs-faithfulness/">Chunk size: recall falls, faithfulness rises</a></li>
+                <li><a href="/articles/chunk-is-not-the-embedding/" data-path="/articles/chunk-is-not-the-embedding/">The chunk you embed is not the chunk you retrieve</a></li>
+                <li><a href="/articles/chunk-metadata-and-llm-extraction/" data-path="/articles/chunk-metadata-and-llm-extraction/">Metadata on chunks, and the care needed when a model writes it</a></li>
+              </ul>
+              <p class="nav-sub">Chunking patterns</p>
+          <ul>
+                <li><a href="/articles/chunking-wiki-pages/" data-path="/articles/chunking-wiki-pages/">How to chunk wiki pages</a></li>
+                <li><a href="/articles/semantic-chunking-regression/" data-path="/articles/semantic-chunking-regression/">Semantic chunking made my retrieval evals worse</a></li>
+              </ul>
+              <p class="nav-sub">Multi-tenant indexes</p>
+          <ul>
+                <li><a href="/articles/cross-tenant-leakage-in-rag/" data-path="/articles/cross-tenant-leakage-in-rag/">Cross-tenant leakage in vector search, and how to test for it</a></li>
+                <li><a href="/articles/chunk-permissions-in-sync/" data-path="/articles/chunk-permissions-in-sync/">Permissions on chunks, and keeping them in sync</a></li>
+              </ul>
+              <p class="nav-sub">Build breakdowns</p>
+          <ul>
+                <li><a href="/articles/telugu-gita-rag/" data-path="/articles/telugu-gita-rag/">How I built a RAG on the Bhagavad Gita in Telugu</a></li>
+                <li><a href="/articles/telugu-purana-rag/" data-path="/articles/telugu-purana-rag/">Sanskrit in, Telugu out: a RAG over 17 Puranas</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>RAG retrieval: embeddings, hybrid search and reranking</span></li>
+            <li class="nav-topic empty"><span>RAG generation, grounding and debugging</span></li>
+            <li class="nav-topic empty"><span>Advanced RAG: agentic RAG, GraphRAG, memory and long context</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="evaluation" open>
+          <summary>Evaluation, observability and ops</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Evaluation fundamentals, benchmarks and LLM-as-judge</span></li>
+            <li class="nav-topic"><details data-id="eval-systems" open>
+              <summary>Evaluating RAG, agents and production systems</summary>
+              <p class="nav-sub">RAG evaluation</p>
+          <ul>
+                <li><a href="/articles/rag-component-failures/" data-path="/articles/rag-component-failures/">Which RAG component broke? Why an end-to-end score cannot tell you</a></li>
+              </ul>
+              <p class="nav-sub">Agent evaluation</p>
+          <ul>
+                <li><a href="/articles/agent-success-vs-process/" data-path="/articles/agent-success-vs-process/">Agent task success versus process quality</a></li>
+                <li><a href="/articles/tool-call-correctness/" data-path="/articles/tool-call-correctness/">Evaluating tool-call correctness: right tool, right arguments, result used correctly</a></li>
+                <li><a href="/articles/eval-vs-real-sessions-gap/" data-path="/articles/eval-vs-real-sessions-gap/">The agent passes 92% of eval tasks and 60% of real sessions. What explains the gap?</a></li>
+              </ul>
+              <p class="nav-sub">Suites and safety</p>
+          <ul>
+                <li><a href="/articles/llm-regression-suite-in-ci/" data-path="/articles/llm-regression-suite-in-ci/">An LLM regression suite in CI: size, runtime, thresholds and flakes</a></li>
+                <li><a href="/articles/safety-eval-both-sides/" data-path="/articles/safety-eval-both-sides/">Evaluating safety behaviour: harmful compliance and over-refusal together</a></li>
+              </ul>
+            </details></li>
+            <li class="nav-topic empty"><span>Observability, tracing and monitoring</span></li>
+            <li class="nav-topic empty"><span>LLMOps, cost, reliability and product engineering</span></li>
+          </ul>
+    </details>
+    <details class="nav-section" data-id="security">
+          <summary>Security, red teaming and governance</summary>
+          <ul>
+            <li class="nav-topic empty"><span>Prompt injection and LLM application security</span></li>
+            <li class="nav-topic empty"><span>Red teaming, adversarial testing and guardrails</span></li>
+            <li class="nav-topic empty"><span>AI governance, risk and compliance</span></li>
+            <li class="nav-topic empty"><span>Responsible AI, safety, alignment and societal risk</span></li>
+          </ul>
+    </details>
+    <!-- /site:nav -->
+  </aside>
+  <main class="content">
+
+  <div class="hero">
+    <h1>Notes from building AI systems.</h1>
+    <p class="lede">Retrieval, fine-tuning and evaluation — explained in plain English, with the real numbers, including the experiments that didn't work.</p>
+  </div>
+
+  <section id="how-to-read">
+    <h2 id="h-how-to-read">How to read these notes</h2>
+    <p>The sidebar is a map of AI engineering in six sections: foundations, inference and reasoning, agentic AI, RAG, evaluation and ops, and security and governance. Each section has a few topics. Most of the notes written so far sit under one topic, <a href="#rag-ingestion">RAG ingestion, chunking and indexing</a>, in four groups: the core concepts, chunking patterns for real corpora, what changes when an index holds documents not everyone may read, and two systems built end to end with their measurements. <a href="#llm-fundamentals">LLM fundamentals</a> has started with tokenization and the Transformer’s attention mechanism, and <a href="#inference-scaling">Inference scaling and serving</a> with the KV cache, and <a href="#agent-architectures">Agent architectures, tool use and MCP</a> with the ReAct loop, and <a href="#eval-systems">Evaluating RAG, agents and production systems</a> with six notes on measuring what actually broke. The other topics are listed so the shape of the whole is visible, and will fill in.</p>
+    <p>Read top to bottom if you are new to retrieval. Each page ends with a link to the next one in that order, and the sidebar ticks the pages you have finished, in this browser only. If you already build these systems, open the topic you need; every note stands on its own.</p>
+  </section>
+
+  <!-- site:groups -->
+      <section id="foundations">
+    <h2 id="h-foundations">Foundations</h2>
+    <div class="topic" id="llm-fundamentals">
+      <h3>LLM fundamentals</h3>
+      <p class="series-desc">How the models themselves work: how text becomes tokens, the pieces of the Transformer, and the reasons behind the choices in them.</p>
+      <p class="eyebrow">Tokenization</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/byte-pair-encoding/">
+            <span class="post-title">Byte-pair encoding, and why tokenizers work on bytes</span>
+          </a>
+          <span class="post-sub">Merge the most frequent adjacent pair until the vocabulary is full, with the classic four-word example worked by hand. Then why the base alphabet is the 256 UTF-8 bytes: no unknown token, a tiny base vocabulary, one pipeline for every script and for code, at the cost of more tokens for scripts the corpus is thin on.</span>
+          <span class="post-meta">24 Oct 2026 · 9 min read</span>
+        </li>
+      </ol>
+      <p class="eyebrow">Transformer internals</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/attention-qkv-and-scaling/">
+            <span class="post-title">Why attention has separate Q, K and V, and why it divides by √d_k</span>
+          </a>
+          <span class="post-sub">Three projections let a token ask one thing, advertise another and hand over a third, which one similarity matrix cannot express. The dot product of two d_k-dimensional vectors has variance d_k, so without scaling the softmax saturates and its gradient vanishes.</span>
+          <span class="post-meta">24 Oct 2026 · 8 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/self-attention-on-a-whiteboard/">
+            <span class="post-title">Self-attention derived on a whiteboard, with one sentence (video)</span>
+          </a>
+          <span class="post-sub">A ten-minute video that builds softmax(QKᵀ/√d_k)V from &#x27;The river bank flooded&#x27;: the transformer in one picture, the three jobs every token does, the dot product, the 4×4 score grid, why the square root is there, the softmax, the weighted values, heads and the causal mask. The chapter list and every worked number are in the note.</span>
+          <span class="post-meta">26 Oct 2026 · 10 min video</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/mixture-of-experts-active-vs-total/">
+            <span class="post-title">Mixture of experts: active parameters versus total parameters</span>
+          </a>
+          <span class="post-sub">Several feed-forward experts and a router that sends each token to one or two of them. Why memory is paid on the total count and arithmetic on the active count, with Mixtral and DeepSeek-V3 as examples, where the bandwidth advantage fades under batching, and what learned routing costs in training.</span>
+          <span class="post-meta">24 Oct 2026 · 9 min read</span>
+        </li>
+      </ol>
+    </div>
+    <div class="topic" id="frontier-models">
+      <h3>Frontier models and the model landscape</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+    <div class="topic" id="prompting">
+      <h3>Prompting and context engineering</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+    <div class="topic" id="fine-tuning">
+      <h3>Fine-tuning, alignment and post-training</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+  </section>
+  <section id="inference">
+    <h2 id="h-inference">Inference and reasoning</h2>
+    <div class="topic" id="inference-scaling">
+      <h3>Inference scaling and serving</h3>
+      <p class="series-desc">What it costs to run a model: where the time goes in a decode step, what memory is spent on, and the levers a serving stack has.</p>
+      <p class="eyebrow">Serving fundamentals</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/kv-cache-memory-bound-decoding/">
+            <span class="post-title">The KV cache, and why decoding is memory-bound</span>
+          </a>
+          <span class="post-sub">Caching keys and values makes generation linear instead of quadratic, and leaves each decode step streaming the whole model and cache for one token&#x27;s worth of arithmetic. The size formula, worked for a 70B model at 2k and 128k with and without grouped-query attention, and the mitigations: MQA, GQA, paged attention, cache quantisation.</span>
+          <span class="post-meta">24 Oct 2026 · 10 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/grouped-query-attention/">
+            <span class="post-title">Grouped-query attention: the middle ground between MHA and MQA</span>
+          </a>
+          <span class="post-sub">One key-value pair per query head, per group, or for all heads. Why sharing one pair per group shrinks the cache by the group ratio, keeps quality close to multi-head, and became the default in Llama, Mistral and Gemma, with the real head counts. How a trained multi-head model converts by mean-pooling and uptraining.</span>
+          <span class="post-meta">24 Oct 2026 · 7 min read</span>
+        </li>
+      </ol>
+      <p class="eyebrow">Decoding</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/temperature-top-k-top-p-and-t0/">
+            <span class="post-title">Temperature, top-k, top-p, and why T = 0 is not deterministic</span>
+          </a>
+          <span class="post-sub">The sampling pipeline in the order it runs: temperature divides, top-k cuts by rank, top-p cuts by mass, then softmax and a draw. Temperature zero is argmax, and still varies run to run: floating-point sums depend on order, kernels change strategy with batch size, near-ties at the top flip, and the continuation diverges.</span>
+          <span class="post-meta">24 Oct 2026 · 9 min read</span>
+        </li>
+      </ol>
+    </div>
+    <div class="topic" id="test-time-compute">
+      <h3>Test-time compute and reasoning models</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+  </section>
+  <section id="agents">
+    <h2 id="h-agents">Agentic AI</h2>
+    <div class="topic" id="agent-architectures">
+      <h3>Agent architectures, tool use and MCP</h3>
+      <p class="series-desc">How a model is turned into something that acts: the loop, the tools, the protocol between them, and the controls around it.</p>
+      <p class="eyebrow">Agent loops</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/function-calling-model-and-application/">
+            <span class="post-title">Function calling: how the model decides, and what your code must do</span>
+          </a>
+          <span class="post-sub">Tool definitions are prompt text; the decision to call is learned judgement; strict mode guarantees the arguments&#x27; shape but not their sense. Then the application&#x27;s four steps, parse, validate and authorise, execute, return, with a worked order-lookup example and the mistakes that matter, starting with treating the model&#x27;s arguments as permission.</span>
+          <span class="post-meta">25 Oct 2026 · 9 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/react-pattern-and-function-calling/">
+            <span class="post-title">The ReAct pattern as a loop of function calls</span>
+          </a>
+          <span class="post-sub">Thought, action and observation mapped onto a modern API: the reasoning before a call, the structured tool-call block and its stop reason, the tool-result message your code appends, and the exit when the model answers without a tool. A full loop in pseudocode, why structured calls beat parsing text, and what the loop needs that the paper did not cover.</span>
+          <span class="post-meta">25 Oct 2026 · 10 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/agent-loop-termination-and-failure-modes/">
+            <span class="post-title">How an agent loop ends, and the three ways it fails to</span>
+          </a>
+          <span class="post-sub">The model&#x27;s exit plus the runtime&#x27;s breakers: step cap, time and cost budgets, and a told budget. Reading the stop reason, including truncation as its own case. Then infinite loops, premature stops and repeated identical calls, each with its root cause and fix: retryable flags, validation gates, deduplication, and observations that say what they mean.</span>
+          <span class="post-meta">25 Oct 2026 · 11 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/react-vs-plan-and-execute/">
+            <span class="post-title">ReAct versus plan-and-execute, and the hybrid that production uses</span>
+          </a>
+          <span class="post-sub">Interleaving reasons after each observation and wins when the next step depends on the last; planning first reasons before any and wins on known shapes, independent parts and long horizons. The plan-execute-replan hybrid: a planner without tools, executors running local ReAct loops in their own contexts, a replanner that revises what remains, with a walkthrough of a task that does not go to plan.</span>
+          <span class="post-meta">25 Oct 2026 · 11 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/agent-framework-vs-hand-rolled-loop/">
+            <span class="post-title">Agent framework or hand-rolled loop: what each buys you, and what changes your mind</span>
+          </a>
+          <span class="post-sub">The loop is fifty lines; a framework sells the infrastructure around it. What a framework actually provides, when to hand-roll, when to use one, the provider loop helpers and managed runtimes the usual comparison misses, a three-way table, and the production pressures that move teams in each direction.</span>
+          <span class="post-meta">25 Oct 2026 · 10 min read</span>
+        </li>
+      </ol>
+      <p class="eyebrow">Tool design</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/tool-schema-design/">
+            <span class="post-title">What makes a good tool schema, and why the description outranks the name</span>
+          </a>
+          <span class="post-sub">The schema is a briefing the model reads. Name the action; spend the effort on a description that says what, when, when not, and what it costs; type every parameter, enum the fixed sets, require only what the function cannot run without. A weak schema rewritten, and why selection is decided by the description: a name has no room for conditions.</span>
+          <span class="post-meta">25 Oct 2026 · 9 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/idempotent-tool-calls/">
+            <span class="post-title">Idempotent tool calls: which tools need a key, and how to derive one</span>
+          </a>
+          <span class="post-sub">Reads and absolute writes are safe to retry; creates, sends, charges and increments are not. How an idempotency key works, why it must be derived from the operation and never the attempt or the model, guarding both transport retries and model re-issues, a ledger with a unique constraint when the service has no key support, and why read-before-write is not enough on its own.</span>
+          <span class="post-meta">25 Oct 2026 · 10 min read</span>
+        </li>
+      </ol>
+      <p class="eyebrow">MCP</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/model-context-protocol/">
+            <span class="post-title">The Model Context Protocol: hosts, clients, servers, and where the adapter work went</span>
+          </a>
+          <span class="post-sub">What the protocol fixes and what it leaves alone. Host, client and server; tools, resources and prompts told apart by who triggers them; discovery at connection time; the N×M problem and why it was N×M. Then the question that confuses people: the adapter work did not disappear, it moved into the server once per service and the host once per app.</span>
+          <span class="post-meta">25 Oct 2026 · 11 min read</span>
+        </li>
+      </ol>
+      <p class="eyebrow">Design exercises</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/designing-a-support-agent/">
+            <span class="post-title">Designing a customer-support agent over 30 backend operations</span>
+          </a>
+          <span class="post-sub">One concrete system worked end to end: thirty operations classified by kind, reversibility and blast radius; merged and intent-loaded into a tool surface with a verified finish tool; scopes per principal with ownership checked by the adapter; idempotency keys for every create, send and money movement; the loop&#x27;s gates; and a four-level evaluation plan with the live metrics that decide rollout.</span>
+          <span class="post-meta">25 Oct 2026 · 16 min read</span>
+        </li>
+      </ol>
+    </div>
+    <div class="topic" id="multi-agent">
+      <h3>Multi-agent systems, orchestration and human-in-the-loop</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+  </section>
+  <section id="rag">
+    <h2 id="h-rag">RAG</h2>
+    <div class="topic" id="rag-ingestion">
+      <h3>RAG ingestion, chunking and indexing</h3>
+      <p class="series-desc">Everything that happens before a query arrives: how text is split, what is embedded, what metadata rides along, and how an index stays correct when it holds documents not everyone may read.</p>
+      <p class="eyebrow">Core concepts</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/chunk-size-recall-vs-faithfulness/">
+            <span class="post-title">Chunk size: recall falls, faithfulness rises</span>
+          </a>
+          <span class="post-sub">What happens to a RAG system as chunks grow from 128 to 2,000 tokens: vector dilution hurts search while whole paragraphs help the answer, and why the fix is not a size in the middle.</span>
+          <span class="post-meta">19 Oct 2026 · 6 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/chunk-is-not-the-embedding/">
+            <span class="post-title">The chunk you embed is not the chunk you retrieve</span>
+          </a>
+          <span class="post-sub">Search wants small text and the model wants big text. Decouple the indexed text from the retrieved text: parent-document retrieval, contextual embeddings, and summary or question indexes.</span>
+          <span class="post-meta">19 Oct 2026 · 7 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/chunk-metadata-and-llm-extraction/">
+            <span class="post-title">Metadata on chunks, and the care needed when a model writes it</span>
+          </a>
+          <span class="post-sub">What metadata buys a retrieval system, and the three things that go wrong when a model generates it at ingestion: hallucinated and drifting fields, cost, and injection from the documents. Constrain the schema, validate after, derive security fields from the system.</span>
+          <span class="post-meta">21 Oct 2026 · 10 min read</span>
+        </li>
+      </ol>
+      <p class="eyebrow">Chunking patterns</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/chunking-wiki-pages/">
+            <span class="post-title">How to chunk wiki pages</span>
+          </a>
+          <span class="post-sub">Split on the heading tree, not on token counts. Prepend the page title and heading path, flatten infoboxes to key-value lines, fall back to paragraphs only in long sections, and retrieve the section when a paragraph matches.</span>
+          <span class="post-meta">19 Oct 2026 · 8 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/semantic-chunking-regression/">
+            <span class="post-title">Semantic chunking made my retrieval evals worse</span>
+          </a>
+          <span class="post-sub">Five reasons the switch from fixed 512-token chunks lowers MRR, NDCG and hit rate: variable length, lost overlap, tiny chunks starving the top-k budget, one global distance threshold, and ground truth labelled on the old boundaries. A four-step diagnostic that tells them apart.</span>
+          <span class="post-meta">21 Oct 2026 · 10 min read</span>
+        </li>
+      </ol>
+      <p class="eyebrow">Multi-tenant indexes</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/cross-tenant-leakage-in-rag/">
+            <span class="post-title">Cross-tenant leakage in vector search, and how to test for it</span>
+          </a>
+          <span class="post-sub">Four ways an ACL-filtered RAG still leaks between tenants: post-filtering after top-k, filters at the prompt layer, a shared semantic cache, and exposed scores. A canary and starvation-probe test plan that finds each one.</span>
+          <span class="post-meta">20 Oct 2026 · 9 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/chunk-permissions-in-sync/">
+            <span class="post-title">Permissions on chunks, and keeping them in sync</span>
+          </a>
+          <span class="post-sub">Put a stable document id on the vector, keep the ACL in a store built for change, pre-filter at query time from the auth token, and let the source system&#x27;s webhooks or change data capture drive the sync. Filter on groups, not users.</span>
+          <span class="post-meta">20 Oct 2026 · 8 min read</span>
+        </li>
+      </ol>
+      <p class="eyebrow">Build breakdowns</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/telugu-gita-rag/">
+            <span class="post-title">How I built a RAG on the Bhagavad Gita in Telugu</span>
+          </a>
+          <span class="post-sub">Preparing the dataset, choosing and fine-tuning the embedding model and reranker, hybrid search, and how it was evaluated.</span>
+          <span class="post-meta">15 Sep 2026 · 20 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/telugu-purana-rag/">
+            <span class="post-title">Sanskrit in, Telugu out: a RAG over 17 Puranas</span>
+          </a>
+          <span class="post-sub">The texts exist only in Sanskrit and the users ask in Telugu. Chapter cards, in-memory retrieval, verse-level citation and on-demand translation, with the measured numbers.</span>
+          <span class="post-meta">16 Sep 2026 · 16 min read</span>
+        </li>
+      </ol>
+    </div>
+    <div class="topic" id="rag-retrieval">
+      <h3>RAG retrieval: embeddings, hybrid search and reranking</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+    <div class="topic" id="rag-generation">
+      <h3>RAG generation, grounding and debugging</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+    <div class="topic" id="rag-advanced">
+      <h3>Advanced RAG: agentic RAG, GraphRAG, memory and long context</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+  </section>
+  <section id="evaluation">
+    <h2 id="h-evaluation">Evaluation, observability and ops</h2>
+    <div class="topic" id="eval-fundamentals">
+      <h3>Evaluation fundamentals, benchmarks and LLM-as-judge</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+    <div class="topic" id="eval-systems">
+      <h3>Evaluating RAG, agents and production systems</h3>
+      <p class="series-desc">How to know whether a retrieval pipeline or an agent works, which part of it broke, and whether the evaluation itself is telling the truth.</p>
+      <p class="eyebrow">RAG evaluation</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/rag-component-failures/">
+            <span class="post-title">Which RAG component broke? Why an end-to-end score cannot tell you</span>
+          </a>
+          <span class="post-sub">Query understanding, retrieval, reranking, context assembly and generation can each lose the answer, and the end-to-end score is their product, so the same number has different causes with different fixes. A metric per stage conditioned on the stage before, two oracle experiments that bound each half, and a decision tree that attributes every wrong answer.</span>
+          <span class="post-meta">25 Oct 2026 · 10 min read</span>
+        </li>
+      </ol>
+      <p class="eyebrow">Agent evaluation</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/agent-success-vs-process/">
+            <span class="post-title">Agent task success versus process quality</span>
+          </a>
+          <span class="post-sub">Finishing the task and taking a sensible path are different questions, and an agent can succeed by trying everything, guessing, or destroying and rebuilding, because the task did not punish it this time. Why outcome-only scoring rewards those paths, which process metrics to record from the trace, scoring against constraints rather than one golden path, and the two-by-two to read both scores together.</span>
+          <span class="post-meta">25 Oct 2026 · 9 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/tool-call-correctness/">
+            <span class="post-title">Evaluating tool-call correctness: right tool, right arguments, result used correctly</span>
+          </a>
+          <span class="post-sub">Four layers that fail separately: whether to call, which tool, which arguments, how the result was used. Selection as a confusion matrix, why exact-match arguments are wrong for most fields and what schema-aware comparison does type by type, counterfactual stubs to test result use, and derived-argument checks in multi-step sequences.</span>
+          <span class="post-meta">25 Oct 2026 · 10 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/eval-vs-real-sessions-gap/">
+            <span class="post-title">The agent passes 92% of eval tasks and 60% of real sessions. What explains the gap?</span>
+          </a>
+          <span class="post-sub">Part of the gap is definitional: task-spec success is not user-goal success. The rest is structural: real sessions are ambiguous, wrong about their own details, multi-turn, uncooperative, interrupted and unevenly distributed. How to diagnose which differences matter, then redesign with cases from real sessions, simulated users, tasks where the right move is to ask or to notice an error, injected tool failures, whole-session grading and production weighting.</span>
+          <span class="post-meta">25 Oct 2026 · 11 min read</span>
+        </li>
+      </ol>
+      <p class="eyebrow">Suites and safety</p>
+      <ol class="posts">
+        <li>
+          <a class="post-link" href="/articles/llm-regression-suite-in-ci/">
+            <span class="post-title">An LLM regression suite in CI: size, runtime, thresholds and flakes</span>
+          </a>
+          <span class="post-sub">A chosen smoke set on every change and a large nightly set, and why one tier cannot do both jobs. What a case fixes, graders from mechanical to human, thresholds against a baseline with a measured noise band and gates at 100 percent for safety and policy, and a flake policy: three runs, re-run failures, cache by request hash, pin model versions, quarantine the inconsistent.</span>
+          <span class="post-meta">25 Oct 2026 · 11 min read</span>
+        </li>
+        <li>
+          <a class="post-link" href="/articles/safety-eval-both-sides/">
+            <span class="post-title">Evaluating safety behaviour: harmful compliance and over-refusal together</span>
+          </a>
+          <span class="post-sub">Safety is a classifier with two error types, and measuring only harmful compliance has a trivial optimum: refuse everything. A harmful set with adversarial variants, a benign set built as matched pairs on the same topics, three response labels plus a separate harm grade, the pair reported per category with an operating point chosen per severity, and a regression rule that neither rate may be spent to buy the other without a person agreeing.</span>
+          <span class="post-meta">25 Oct 2026 · 10 min read</span>
+        </li>
+      </ol>
+    </div>
+    <div class="topic" id="observability">
+      <h3>Observability, tracing and monitoring</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+    <div class="topic" id="llmops">
+      <h3>LLMOps, cost, reliability and product engineering</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+  </section>
+  <section id="security">
+    <h2 id="h-security">Security, red teaming and governance</h2>
+    <div class="topic" id="prompt-injection">
+      <h3>Prompt injection and LLM application security</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+    <div class="topic" id="red-teaming">
+      <h3>Red teaming, adversarial testing and guardrails</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+    <div class="topic" id="governance">
+      <h3>AI governance, risk and compliance</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+    <div class="topic" id="responsible-ai">
+      <h3>Responsible AI, safety, alignment and societal risk</h3>
+      <p class="topic-empty">No notes yet.</p>
+    </div>
+  </section>
+    <!-- /site:groups -->
+
+  <section id="projects">
+    <h2 id="h-projects">Projects</h2>
+    <p class="series-desc">The systems the build breakdowns describe, with live demos and source.</p>
+    <article class="card">
+      <h3>Telugu Purana RAG</h3>
+      <p>Grounded Telugu answers over 17 Puranas that exist only in Sanskrit. A generated Telugu chapter-card layer makes the search same-language; the Sanskrit verses go to the model; every quoted sloka is verified word for word and the meaning is translated on demand.</p>
+      <div class="stats">
+        <div class="stat"><b>2,809</b><small>chapters carded, 141k Sanskrit verses</small></div>
+        <div class="stat"><b>0.90</b><small>recall@10 on 96 Telugu questions</small></div>
+        <div class="stat"><b>0.945</b><small>faithfulness, LLM judge (5 answers)</small></div>
+        <div class="stat"><b>2.8¢</b><small>per chapter card via the Batches API</small></div>
+      </div>
+      <div class="links">
+        <a href="/articles/telugu-purana-rag/">Read the write-up →</a>
+        <a href="https://huggingface.co/spaces/amrithatejaswiservices/telugu-purana-rag">Live demo (private beta) →</a>
+        <a href="https://github.com/viswatejaraavip-ai/telugu-purana-rag">Source on GitHub →</a>
+      </div>
+    </article>
+    <article class="card">
+      <h3>Telugu Bhagavad Gita RAG</h3>
+      <p>Grounded question answering over 699 verses in Telugu. Every quotation is verified word for word against the source verse, and the system refuses rather than answering from the model's memory.</p>
+      <div class="stats">
+        <div class="stat"><b>+75%</b><small>recall@10 after fine-tuning both models</small></div>
+        <div class="stat"><b>+80%</b><small>NDCG@10, 0.260 → 0.468</small></div>
+        <div class="stat"><b>100%</b><small>citations verified against source</small></div>
+        <div class="stat"><b>3.1s</b><small>to first word, down from 45s</small></div>
+      </div>
+      <div class="links">
+        <a href="/articles/telugu-gita-rag/">Read the write-up →</a>
+        <a href="https://huggingface.co/spaces/amrithatejaswiservices/telugu-gita-rag">Live demo →</a>
+        <a href="https://github.com/viswatejaraavip-ai/telugu-gita-rag">Source on GitHub →</a>
+      </div>
+    </article>
+  </section>
+
+  <nav class="pager" aria-label="Reading order">
+    <!-- site:pager -->
+    <span></span>
+    <a class="next" href="/articles/byte-pair-encoding/"><small>Next</small>Byte-pair encoding, and why tokenizers work on bytes</a>
+    <!-- /site:pager -->
+  </nav>
+
+  <footer>
+    © 2026 AI Engineering Notes · <a href="https://github.com/viswatejaraavip-ai">GitHub</a>
+  </footer>
+  </main>
+  <aside class="onpage" aria-label="On this page">
+    <!-- site:onpage -->
+    <p class="nav-title">On this page</p>
+    <ol>
+      <li><a href="#h-how-to-read">How to read these notes</a></li>
+      <li><a href="#h-foundations">Foundations</a></li>
+      <li><a href="#h-inference">Inference and reasoning</a></li>
+      <li><a href="#h-agents">Agentic AI</a></li>
+      <li><a href="#h-rag">RAG</a></li>
+      <li><a href="#h-evaluation">Evaluation, observability and ops</a></li>
+      <li><a href="#h-security">Security, red teaming and governance</a></li>
+      <li><a href="#h-projects">Projects</a></li>
+    </ol>
+    <!-- /site:onpage -->
+  </aside>
+  </div>
+
+</div>
+<script src="/site.js?v=4"></script>
+</body>
+</html>
