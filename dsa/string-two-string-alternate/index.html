@@ -394,24 +394,50 @@
       <p>i and j always point at the next unused character of each string.</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Is <code>abc</code> a subsequence of <code>ahbgdc</code>? A subsequence keeps the letters in order but may skip letters in between. By hand you would look for an <code>a</code> in the long string, then look for a <code>b</code> after it, then a <code>c</code> after that. Easy.</p>
+<p>The careless version of this is slow: for each letter of <code>abc</code>, search the long string from the beginning, or try every way of choosing three positions out of six, which is 20 ways here and billions for long strings. The careful version only ever moves forward, and that is the pattern.</p>
 
+<h3>Build the structure, one piece at a time</h3>
+<p>Two pointers, one per string. <var>i</var> points at the next unmatched letter of the short string <code>s</code>; <var>j</var> points at the next unread letter of the long string <code>t</code>. The rule is simple: compare <code>s[i]</code> with <code>t[j]</code>. On a match, advance both. On a mismatch, advance only <var>j</var>. Stop when either pointer runs off its end.</p>
+<div class="table-wrap"><table>
+<tr><th><var>j</var></th><th><code>t[j]</code></th><th><code>s[i]</code></th><th>match?</th><th><var>i</var> after</th></tr>
+<tr><td>0</td><td>a</td><td>a</td><td>yes</td><td>1</td></tr>
+<tr><td>1</td><td>h</td><td>b</td><td>no</td><td>1</td></tr>
+<tr><td>2</td><td>b</td><td>b</td><td>yes</td><td>2</td></tr>
+<tr><td>3</td><td>g</td><td>c</td><td>no</td><td>2</td></tr>
+<tr><td>4</td><td>d</td><td>c</td><td>no</td><td>2</td></tr>
+<tr><td>5</td><td>c</td><td>c</td><td>yes</td><td>3</td></tr>
+</table></div>
+<p><var>i</var> reached 3, the length of <code>s</code>, so every letter was found in order: true. The same lockstep shape, with a different rule at each step, handles many two-string tasks: merging <code>abc</code> and <code>pqr</code> alternately into <code>apbqcr</code> takes one letter from each in turn and then appends whatever is left over; the longest common prefix of two strings advances both pointers while the letters agree and stops at the first difference.</p>
 
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+<h3>Why it is correct</h3>
+<p>The invariant: <code>s[0..i−1]</code> is a subsequence of <code>t[0..j−1]</code>, and <var>i</var> is the largest value for which that is true. Matching greedily, as early as possible, is safe: if <code>s[i]</code> can be matched at position <var>j</var> and also at some later position, choosing <var>j</var> leaves more of <code>t</code> available for the remaining letters, so it can never hurt. Therefore if any way of embedding <code>s</code> in <code>t</code> exists, the greedy scan finds one, and if the scan ends with <var>i</var> short of the end, no embedding exists. For merging and prefix problems the invariant is the simpler "both pointers sit at the next unused letter of their string", which each step preserves by construction.</p>
+<p class="formula">earliest match for <code>s[i]</code> leaves the longest suffix of <code>t</code> for <code>s[i+1..]</code></p>
+
+<h3>Why it is fast</h3>
+<p>Each step advances at least one pointer, and neither pointer ever moves backwards, so there are at most <var>n</var> + <var>m</var> steps for strings of length <var>n</var> and <var>m</var>: O(<var>n</var> + <var>m</var>) time and O(1) memory. Restarting the search from the beginning for each letter would be O(<var>n</var> · <var>m</var>), and enumerating positions is exponential.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: two strings or two arrays, "in order", "subsequence", "merge", "common prefix", "compare". Say: I will walk both with one pointer each, never moving backwards, and decide at each step which pointer moves. <em>Is Subsequence</em> is the example. <em>Merge Strings Alternately</em> moves both pointers every step and copies the leftover tail. <em>Backspace String Compare</em> walks both strings from the end, skipping the characters that backspaces delete, and compares what survives.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Advance pointers through both strings together; handle leftovers.</p>
     <p><strong>Reach for it when:</strong> Merge strings alternately, is subsequence, longest common prefix, backspace compare.</p>
     <p><strong>Cost:</strong> O(n + m) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Is Subsequence &#x27;abc&#x27; in &#x27;ahbgdc&#x27;</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Two pointers in <em>lockstep</em>: j always moves, i moves only on a match</li><li>t[0] = &#x27;a&#x27; matches s[0]: advance <em>both</em></li><li>t[1] = &#x27;h&#x27; ≠ s[1]: skip it, advance <em>j only</em></li><li>t[2] = &#x27;b&#x27; matches s[1]: advance <em>both</em></li><li>t[3] = &#x27;g&#x27; ≠ s[2]: skip it, advance <em>j only</em></li><li>t[4] = &#x27;d&#x27; ≠ s[2]: skip it, advance <em>j only</em></li><li>t[5] = &#x27;c&#x27; matches s[2]: advance <em>both</em></li><li>i reached the end of s: every character was found in order → <em>true</em></li><li>Each pointer only moves forward: <em>O(n + m)</em> time, <em>O(1)</em> space</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>7 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/longest-common-prefix">Longest Common Prefix</a></td><td><span class="diff easy">Easy</span></td><td class="num">74</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/merge-strings-alternately">Merge Strings Alternately</a></td><td><span class="diff easy">Easy</span></td><td class="num">67</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/greatest-common-divisor-of-strings">Greatest Common Divisor of Strings</a></td><td><span class="diff easy">Easy</span></td><td class="num">41</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/is-subsequence">Is Subsequence</a></td><td><span class="diff easy">Easy</span></td><td class="num">39</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/number-of-matching-subsequences">Number of Matching Subsequences</a></td><td><span class="diff medium">Medium</span></td><td class="num">36</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/backspace-string-compare">Backspace String Compare</a></td><td><span class="diff easy">Easy</span></td><td class="num">34</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/compare-version-numbers">Compare Version Numbers</a></td><td><span class="diff medium">Medium</span></td><td class="num">17</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-string-algorithms">String Algorithms</a>: <a href="/dsa/string-kmp/">KMP failure function</a>, <a href="/dsa/string-rolling-hash/">Rolling hash (Rabin–Karp)</a>, <a href="/dsa/string-build-reverse/">Reverse-and-build string transforms</a>, <a href="/dsa/string-parse-state/">Parse with a state machine</a>, <a href="/dsa/string-matching-automaton/">Multi-pattern scan with a set of lengths</a>.</p>
   </article>
 
@@ -430,6 +456,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

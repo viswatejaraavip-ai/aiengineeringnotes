@@ -1,0 +1,21 @@
+<h3>Start with what you would do by hand</h3>
+<p>A binary search tree keeps smaller values to the left and larger to the right, so finding a value is like the number-guessing game: compare, go left or right, repeat. The tree: 5 at the top; 3 and 6 below; 2 and 4 under 3; 7 under 6. Find 4: 4 &lt; 5 go left, 4 &gt; 3 go right, found. Three comparisons for six values, and the path only ever gets as long as the tree is tall.</p>
+<p>Inserting is just a failed search: look for the value, and when you fall off the tree, hang the new node there. The hard case is deleting. Delete 3 by hand and you have a hole with two children, 2 and 4, dangling. Which one fills the hole? Both must stay on the correct sides of whatever goes there.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: search. Start at the root. If the target equals the node, done. If smaller, go left; if larger, go right. If there is no child to go to, the value is absent.</p>
+<p>Piece two: insert. Search; at the empty spot where the search ends, attach a new node. The new node is a leaf, so the only ordering it must respect is the path that led to it, and the path chose the correct side at every step.</p>
+<p>Piece three: delete, in three cases. A leaf: unlink it. One child: replace the node by that child; the child's whole subtree was already on the correct side of everything above. Two children: find the inorder successor, the smallest value in the right subtree (go right once, then left as far as possible). Copy that value into the node, then delete the successor from the right subtree, which is easy because the smallest value there has no left child, so it is a leaf or a one-child case.</p>
+<div class="table-wrap"><table><tr><th>Step</th><th>Tree (inorder reading)</th></tr><tr><td>start</td><td>2, 3, 4, 5, 6, 7</td></tr><tr><td>find 3: it has two children, 2 and 4</td><td>2, 3, 4, 5, 6, 7</td></tr><tr><td>successor of 3 = smallest in its right subtree = 4</td><td></td></tr><tr><td>copy 4 over 3</td><td>2, 4, 4, 5, 6, 7 (temporarily a duplicate)</td></tr><tr><td>delete the old 4, a leaf: unlink</td><td>2, 4, 5, 6, 7</td></tr></table></div>
+<p>The sorted reading lost exactly one value, 3, and stayed sorted.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: the BST rule holds after every operation. Search changes nothing. Insert adds a leaf at the position the comparisons chose, so every ancestor's rule is satisfied for the new node, and no other node's subtrees changed. For delete with two children, the successor <var>s</var> is the smallest value larger than the deleted value <var>d</var>, so:</p>
+<p class="formula">every value in the left subtree &lt; <var>d</var> &lt; <var>s</var> ≤ every other value in the right subtree</p>
+<p>Putting <var>s</var> where <var>d</var> was keeps the left subtree smaller and the right subtree larger. Removing <var>s</var> from the right subtree is a leaf or one-child deletion, already shown safe. The predecessor, the largest value on the left, works symmetrically.</p>
+
+<h3>Why it is fast</h3>
+<p>Each operation walks one path from the root downward, and the successor search continues along a path too, so the cost is the height <var>h</var>: O(<var>h</var>). For a balanced tree of a million values that is about 20 steps. For a tree that degenerated into a chain it is a million, which is why self-balancing trees exist; interview problems usually just ask for the O(<var>h</var>) version.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>"Insert into a BST", "delete a node from a BST", "search", "closest value to a target", "successor of a node". Say: "I will walk one path by comparison; for deletion with two children I replace the value with the inorder successor and delete that successor instead." Delete Node in a BST is the full three-case version. Insert into a Binary Search Tree is piece two. Closest Binary Search Tree Value is a search that remembers the nearest value seen on the way down, since the closest value is always on the search path or adjacent to it.</p>

@@ -1,0 +1,30 @@
+<h3>Start with what you would do by hand</h3>
+<p>Does the string eidbaooo contain a rearrangement of ab somewhere inside it, as a block of consecutive letters? By hand you would look at every pair of neighbouring letters, ei, id, db, ba, ao, oo, oo, and ask whether the pair uses exactly the letters a and b. "ba" does, so yes.</p>
+<p>For a pattern of length <var>k</var> and a text of length <var>n</var> that is <var>n</var> − <var>k</var> + 1 windows, each needing a comparison of two letter-count tables, which is 26 entries, or <var>k</var> if you sort the window. For a text of a million letters and a pattern of a thousand that is about a billion letter operations. The waste is the full recount at every window when only one letter entered and one left.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a <strong>need table</strong>: how many of each letter the pattern requires. For ab it is {a: 1, b: 1}. Think of it as a shopping list.</p>
+<p>Piece two: a fixed-size window of <var>k</var> letters over the text. When a letter enters the window, cross it off the list: need[letter] −= 1. When a letter leaves, put it back: need[letter] += 1. Letters not on the list simply go negative and positive again; they are never required.</p>
+<p>Piece three, the counter that avoids rescanning the table: <strong>missing</strong>, the number of letters still short. It starts at the pattern length <var>k</var>. When a letter enters and its need was positive <em>before</em> the decrement, missing −= 1 (we filled a real requirement). When a letter leaves and its need becomes positive <em>after</em> the increment, missing += 1 (we uncovered a requirement). The window matches exactly when missing = 0.</p>
+<div class="table-wrap"><table>
+<tr><th>Enters</th><th>Leaves</th><th>need after</th><th>missing</th></tr>
+<tr><td>e</td><td></td><td>{a:1, b:1, e:−1}</td><td>2</td></tr>
+<tr><td>i</td><td>e</td><td>{a:1, b:1, e:0, i:−1}</td><td>2</td></tr>
+<tr><td>d</td><td>i</td><td>{a:1, b:1, d:−1, …}</td><td>2</td></tr>
+<tr><td>b</td><td>d</td><td>{a:1, b:0, …}</td><td>1</td></tr>
+<tr><td>a</td><td>b</td><td>{a:0, b:1, …}</td><td>1</td></tr>
+</table></div>
+<p>Wait: in the last row b left the window, so need[b] went back to 1 and missing went back up. The window "ba" is the one before that step: after a enters and before b leaves, need is {a:0, b:0} and missing is 0, a match. In code the check happens after the entering step and before the leaving step for a fixed window, or the leaving step happens only when the window exceeds size <var>k</var>.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: <em>need[<var>c</var>] equals (count of <var>c</var> in the pattern) − (count of <var>c</var> in the window), and missing equals the sum of the positive entries of need</em>. Both start true (empty window). An entering letter lowers its need by one; that lowers the positive-sum by one exactly when the need was positive before, which is the rule for missing. A leaving letter raises its need by one; that raises the positive-sum by one exactly when the need is positive afterwards. So the invariant is kept by every step.</p>
+<p>Then missing = 0 means no letter is short, and since the window has exactly <var>k</var> letters and the pattern has exactly <var>k</var> letters, no letter can be in surplus either:</p>
+<p class="formula">Σ<sub><var>c</var></sub> need[<var>c</var>] = <var>k</var> − <var>k</var> = 0, and no entry is positive ⇒ every entry is 0</p>
+<p>So the window's letter counts equal the pattern's, which is the definition of an anagram.</p>
+
+<h3>Why it is fast</h3>
+<p>Each of the <var>n</var> text letters enters once and leaves once, and each event is two or three O(1) updates. The match test is a comparison of missing with zero, not a 26-entry scan. Total O(<var>n</var> + alphabet) time, the alphabet term being the need table's size, and O(alphabet) memory. The billion-operation example becomes a few million.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "contains an anagram/permutation of", "all characters of <var>t</var> (with multiplicity)", "find all start indices where the window is a rearrangement". The giveaway is a requirement stated as a multiset of characters. Say: "I will keep a need table from the pattern and a missing counter, update both as letters enter and leave, and report a match whenever missing is zero."</p>
+<p><strong>Permutation in String</strong> and <strong>Find All Anagrams in a String</strong> use a fixed window of the pattern's length. <strong>Minimum Window Substring</strong> uses the same table and counter with a variable window: grow until missing is zero, then shrink while it stays zero.</p>

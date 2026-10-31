@@ -1,0 +1,27 @@
+<h3>Start with what you would do by hand</h3>
+<p>A friend picks a secret six-letter word from a list of candidates you can both see. You guess a word from the list, and the friend answers only with a number: how many positions match exactly. You have ten guesses. With six candidates you might try them one by one and get lucky, but with a hundred candidates and ten guesses, guessing in order fails most of the time.</p>
+<p>The by-hand insight is that each answer tells you something about every candidate, not just the one you guessed. If your guess scores 2, the secret must have exactly 2 positions in common with your guess. Any candidate that has 0, 1, 3 or more positions in common with your guess cannot be the secret, and can be crossed off.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a candidate set, starting as the whole list. Define match(<var>a</var>, <var>b</var>) as the number of positions where words <var>a</var> and <var>b</var> have the same letter.</p>
+<p>Piece two: the filter. After guessing <var>g</var> and hearing the answer <var>k</var>, keep only the candidates <var>c</var> with match(<var>g</var>, <var>c</var>) = <var>k</var>. On the six-word example, guessing abcczz and hearing 2 leaves 2 candidates; guessing ccbazz among those and hearing 2 leaves 1; guessing that one scores 6 and the game is over in three guesses.</p>
+<p>Piece three: choosing the guess well. Not every guess is equally informative. For a candidate <var>g</var>, imagine every possible answer 0 … 6 and count how many candidates would survive each answer. The worst case for <var>g</var> is the largest of those counts. Pick the <var>g</var> whose worst case is smallest; it is the guess that splits the candidates most evenly, so whatever the answer, the fewest survive:</p>
+<div class="table-wrap"><table>
+<tr><th>step</th><th>candidates</th><th>guess chosen</th><th>largest surviving group</th><th>answer</th><th>left</th></tr>
+<tr><td>1</td><td>6</td><td>abcczz</td><td>2</td><td>2</td><td>2</td></tr>
+<tr><td>2</td><td>2</td><td>ccbazz</td><td>1</td><td>2</td><td>1</td></tr>
+<tr><td>3</td><td>1</td><td>eiowzz</td><td>1</td><td>6</td><td>found</td></tr>
+</table></div>
+<p>This is the same shape as binary search: a question whose answer discards as much as possible. In binary search each answer discards half; here the alphabet of answers is 0 to 6, so a good guess can discard much more than half.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant is that the secret is always in the candidate set. It starts true because the secret is on the list. After a guess <var>g</var> with answer <var>k</var>, the secret <var>s</var> satisfies match(<var>g</var>, <var>s</var>) = <var>k</var> by the rules of the game, so it is kept by the filter. Only words that could not be the secret are discarded. The process ends when a guess scores the full length, which happens at the latest when the set shrinks to one word and we guess it.</p>
+<p>Choosing the minimax guess does not affect correctness, only how fast the set shrinks. Any guess from the set keeps the invariant.</p>
+
+<h3>Why it is fast</h3>
+<p>Choosing a guess compares every candidate with every other, <var>n</var><sup>2</sup> pairs, each comparison <var>L</var> letters, so O(<var>n</var><sup>2</sup> <var>L</var>) per round; the filter is O(<var>n</var> <var>L</var>). What matters more is how many rounds are needed. A guess that scores 0 against most words, which is common when words share few letters, still leaves most of them; the minimax choice avoids that. In practice the candidate set shrinks by a large factor per round, and the problem's ten guesses are enough for a hundred words. There is a counting bound too: if every answer left at most a fraction 1/<var>r</var> of the set, <var>n</var> words would need about log<sub><var>r</var></sub> <var>n</var> rounds.</p>
+<p class="formula">rounds ≈ log<sub><var>r</var></sub> <var>n</var>, where each answer keeps at most 1/<var>r</var> of the candidates</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: an "interactive" problem, an oracle or judge that answers a limited query, a cap on the number of queries, "guess", "master", "the array is sorted but you can only call get(<var>i</var>)". Say: "every answer rules out candidates, so I will keep the set of candidates consistent with all answers and choose each query to shrink that set as much as possible in the worst case".</p>
+<p>Guess the Word is the walk-through above. Guess Number Higher or Lower is the same idea where the answer is higher, lower or equal, which makes the best query the midpoint, so it is binary search. Find in Mountain Array queries an oracle with a limited budget and uses three binary searches: one for the peak, then one on each slope.</p>

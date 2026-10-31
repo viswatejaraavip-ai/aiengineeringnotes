@@ -394,24 +394,44 @@
       <p>dp[r][c] is the count/min cost of reaching (r,c) using only right/down moves.</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>A 3×3 grid of tolls:</p>
+<div class="table-wrap"><table><tr><td>1</td><td>3</td><td>1</td></tr><tr><td>1</td><td>5</td><td>1</td></tr><tr><td>4</td><td>2</td><td>1</td></tr></table></div>
+<p>Start at the top-left, finish at the bottom-right, moving only right or down, paying each cell you enter. What is the cheapest route? By hand you list the routes: right, right, down, down costs 1 + 3 + 1 + 1 + 1 = 7; down, down, right, right costs 1 + 1 + 4 + 2 + 1 = 9; and so on. Six routes here, and 7 is the best.</p>
+<p>How many routes in general? Each route is a sequence of 2 rights and 2 downs in some order, and for an <var>m</var>×<var>n</var> grid the count is the binomial number of ways to arrange the moves. A 20×20 grid has about 35 billion routes. Listing them is out.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a second grid, dp, the same size, where dp[<var>r</var>][<var>c</var>] will hold the cheapest cost to reach cell (<var>r</var>, <var>c</var>).</p>
+<p>Piece two: the observation. A cell can only be entered from the cell above or the cell to its left, because moves are right or down. So the cheapest way to reach it is its own toll plus the cheaper of those two neighbours' best costs:</p>
+<p class="formula">dp[<var>r</var>][<var>c</var>] = grid[<var>r</var>][<var>c</var>] + min( dp[<var>r</var> − 1][<var>c</var>], dp[<var>r</var>][<var>c</var> − 1] )</p>
+<p>Piece three: fill the first row and first column, which have only one way in, then fill the rest row by row so that the two neighbours are always ready.</p>
+<div class="table-wrap"><table><tr><td>1</td><td>1 + 3 = 4</td><td>4 + 1 = 5</td></tr><tr><td>1 + 1 = 2</td><td>5 + min(4, 2) = 7</td><td>1 + min(5, 7) = 6</td></tr><tr><td>2 + 4 = 6</td><td>2 + min(7, 6) = 8</td><td>1 + min(6, 8) = 7</td></tr></table></div>
+<p>The bottom-right entry is 7. If the question were "how many routes" instead of "cheapest route", the same table works with addition in place of min and 1 in place of the toll.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: every filled dp entry is the true cheapest cost to that cell. The top-left is right by definition. Edge cells have one way in, so their cost is the previous cell's cost plus their toll. Any other cell is entered last from above or from the left, so the cheapest route to it is the cheapest route to one of those two neighbours followed by one step, and the formula takes the better of the two correct neighbour values. Filling row by row guarantees both neighbours are computed before they are needed.</p>
+<h3>Why it is fast</h3>
+<p>One min and one addition per cell:</p>
+<p class="formula">work = <var>m</var> · <var>n</var>, 400 steps for 20×20 instead of 35 billion routes</p>
+<p>Memory can shrink to one row, since a row needs only the row above and the entry just filled.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "move only right or down", "number of paths", "minimum path sum", "triangle", "falling path", any grid where a cell's answer depends on a fixed set of earlier cells. The first thing to say: "each cell is reached from a constant number of neighbours, so I fill a table in an order where those neighbours come first." Minimum Path Sum is the example above. Unique Paths is the counting version with dp = up + left. Unique Paths II adds obstacles, whose entries are set to 0 so no route passes through them.</p>
 
-
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>dp[r][c] from the cell above and the cell to the left.</p>
     <p><strong>Reach for it when:</strong> Unique paths I/II, min path sum, triangle, falling path, dungeon game.</p>
     <p><strong>Cost:</strong> O(mn) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Minimum Path Sum on [[1,3,1],[1,5,1],[4,2,1]]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Only <em>right</em> and <em>down</em> moves: a cell is reached from above or from the left</li><li>Start: dp[0][0] = <em>1</em></li><li>dp[0][1] = 3 + 1 = <em>4</em> (one way in)</li><li>dp[0][2] = 1 + 4 = <em>5</em> (one way in)</li><li>dp[1][0] = 1 + 1 = <em>2</em> (one way in)</li><li>dp[1][1] = 5 + min(4, 2) = <em>7</em></li><li>dp[1][2] = 1 + min(5, 7) = <em>6</em></li><li>dp[2][0] = 4 + 2 = <em>6</em> (one way in)</li><li>dp[2][1] = 2 + min(7, 6) = <em>8</em></li><li>dp[2][2] = 1 + min(6, 8) = <em>7</em></li><li>Bottom-right holds the answer: <em>7</em> (1→3→1→1→1)</li><li>Each cell looks at two neighbours: <em>O(m·n)</em> time, one row of memory if rolled</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>10 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/maximal-square">Maximal Square</a></td><td><span class="diff medium">Medium</span></td><td class="num">51</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/unique-paths">Unique Paths</a></td><td><span class="diff medium">Medium</span></td><td class="num">49</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/count-square-submatrices-with-all-ones">Count Square Submatrices with All Ones</a></td><td><span class="diff medium">Medium</span></td><td class="num">37</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/minimum-path-sum">Minimum Path Sum</a></td><td><span class="diff medium">Medium</span></td><td class="num">36</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/triangle">Triangle</a></td><td><span class="diff medium">Medium</span></td><td class="num">34</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/unique-paths-ii">Unique Paths II</a></td><td><span class="diff medium">Medium</span></td><td class="num">31</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/minimum-falling-path-sum">Minimum Falling Path Sum</a></td><td><span class="diff medium">Medium</span></td><td class="num">29</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/dungeon-game">Dungeon Game</a></td><td><span class="diff hard">Hard</span></td><td class="num">27</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/cherry-pickup-ii">Cherry Pickup II</a></td><td><span class="diff hard">Hard</span></td><td class="num">24</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/paths-in-matrix-whose-sum-is-divisible-by-k">Paths in Matrix Whose Sum Is Divisible by K</a></td><td><span class="diff hard">Hard</span></td><td class="num">21</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-dynamic-programming">Dynamic Programming</a>: <a href="/dsa/dp-1d-linear/">1-D linear DP</a>, <a href="/dsa/dp-kadane/">Kadane (best ending here)</a>, <a href="/dsa/dp-lis/">Longest increasing subsequence</a>, <a href="/dsa/dp-knapsack-01/">0/1 knapsack (subset sum)</a>, <a href="/dsa/dp-unbounded-coin/">Unbounded knapsack (coin change)</a>, <a href="/dsa/dp-lcs-edit/">Two-sequence DP (LCS / edit distance)</a>, <a href="/dsa/dp-pattern-matching/">Wildcard / regex matching DP</a>, <a href="/dsa/dp-palindrome-expand/">Palindromes: expand or table</a>, <a href="/dsa/dp-word-break/">Prefix segmentation DP</a>, <a href="/dsa/dp-interval/">Interval DP (last operation)</a>, <a href="/dsa/dp-state-machine-stock/">State-machine DP (stocks)</a>, <a href="/dsa/dp-bitmask/">Bitmask DP over subsets</a>, <a href="/dsa/dp-memo-dfs/">Memoised DFS (top-down)</a>, <a href="/dsa/dp-digit/">Digit DP</a>, <a href="/dsa/dp-game-minimax/">Game DP (minimax on a range)</a>, <a href="/dsa/dp-count-ways-mod/">Counting ways with modulo</a>, <a href="/dsa/dp-longest-string-chain/">DP over sorted keys (chains)</a>.</p>
   </article>
 
@@ -430,6 +450,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

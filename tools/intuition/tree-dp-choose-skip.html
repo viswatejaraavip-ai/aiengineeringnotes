@@ -1,0 +1,22 @@
+<h3>Start with what you would do by hand</h3>
+<p>Houses are arranged as a tree, each with some money: 3 at the top; 2 and 3 below; 3 under the left 2 on its right; 1 under the right 3 on its right. A thief cannot rob two houses that are directly joined. What is the most he can take? By hand you would try combinations: rob the root 3 and the two bottom houses 3 and 1, total 7; or skip the root and rob 2 and 3 from the middle, total 5; or 2 and the bottom 3... The best is 7.</p>
+<p>With 5 houses you can try every subset. With <var>n</var> houses there are 2<sup><var>n</var></sup> subsets; for 40 houses, a trillion. Trying them all is hopeless, and a greedy rule like "always rob the richest" fails: sometimes two moderate houses beat one rich one between them.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The tree is the structure. What we add is two numbers per node, computed bottom-up like every post-order fold.</p>
+<p>Piece one: for each node, rob[<var>v</var>] = the most you can take from <var>v</var>'s subtree if you rob <var>v</var>. If you rob <var>v</var>, you cannot rob its children, so you must skip both: rob[<var>v</var>] = value(<var>v</var>) + skip[left] + skip[right].</p>
+<p>Piece two: skip[<var>v</var>] = the most you can take from <var>v</var>'s subtree if you do not rob <var>v</var>. Then each child is free to be robbed or skipped, whichever is better for it: skip[<var>v</var>] = max(rob[left], skip[left]) + max(rob[right], skip[right]).</p>
+<p>Piece three: a missing child contributes 0 to both. The final answer is max(rob[root], skip[root]).</p>
+<div class="table-wrap"><table><tr><th>Node (value)</th><th>rob</th><th>skip</th></tr><tr><td>bottom 3</td><td>3 + 0 + 0 = 3</td><td>0</td></tr><tr><td>left 2</td><td>2 + skip(3) = 2</td><td>max(3, 0) = 3</td></tr><tr><td>bottom 1</td><td>1</td><td>0</td></tr><tr><td>right 3</td><td>3 + skip(1) = 3</td><td>max(1, 0) = 1</td></tr><tr><td>root 3</td><td>3 + 3 + 1 = 7</td><td>max(2, 3) + max(3, 1) = 6</td></tr></table></div>
+<p>Answer: max(7, 6) = 7, and the table shows exactly which choice was better at every house.</p>
+
+<h3>Why it is correct</h3>
+<p>The key observation is that the decision at a node only interacts with its children: whether you rob <var>v</var> constrains the children, and nothing else. So the best for <var>v</var>'s subtree depends only on the two numbers from each child, never on the grandchildren directly, because those are already folded into the children's numbers.</p>
+<p class="formula">rob[<var>v</var>] = val(<var>v</var>) + skip[<var>l</var>] + skip[<var>r</var>], skip[<var>v</var>] = max(rob[<var>l</var>], skip[<var>l</var>]) + max(rob[<var>r</var>], skip[<var>r</var>])</p>
+<p>Both equations consider every legal plan for the subtree: a plan either robs <var>v</var> (first formula, children forced skipped) or does not (second formula, children free). Leaves are correct by inspection, and if the children's pairs are correct the parent's pair is correct, so the root's pair is correct.</p>
+
+<h3>Why it is fast</h3>
+<p>Each node does two additions and two maxima on four numbers from its children: O(<var>n</var>) time, O(<var>h</var>) stack. Compared with 2<sup><var>n</var></sup> subsets, for 40 houses that is 40 operations instead of a trillion. The trick that made it possible is returning a <em>pair</em> instead of a single number; one number would lose the information about whether the child was robbed.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Choices on a tree where picking a node restricts its neighbours: "no two adjacent", "place cameras so every node is watched", "move coins so each node has one". Say: "Each node returns a small set of values, one per state it can be in, computed from its children's values." House Robber III is the two-state version above. Binary Tree Cameras uses three states per node: has a camera, is covered, is not covered. Distribute Coins in Binary Tree returns the surplus of coins in the subtree, and the moves are the absolute surpluses summed over all edges.</p>

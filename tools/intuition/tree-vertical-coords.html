@@ -1,0 +1,21 @@
+<h3>Start with what you would do by hand</h3>
+<p>Draw the tree 3 at the top, 9 to its lower left, 20 to its lower right, and 15 and 7 under 20. Now imagine vertical lines through the drawing. The leftmost line passes through 9. The next passes through 3 and 15, because 15 is one step right of 20 which is one step right of 3, so it comes back to the middle. Then 20, then 7. The vertical order is [[9], [3, 15], [20], [7]].</p>
+<p>By hand you draw and look. The computer has no drawing, only parent-to-child links. We need to give each node a horizontal position without drawing.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a column number for every node. The root is at column 0. A left child is at its parent's column minus 1, a right child at plus 1. That is all a "drawing" is: 9 is at −1, 20 at +1, 15 at 1 − 1 = 0, 7 at 1 + 1 = 2.</p>
+<p>Piece two: a map from column number to a list of nodes. Walk the tree; each time you reach a node, append it to the list for its column. Any walk works for the grouping, but the order within a column matters.</p>
+<p>Piece three: breadth-first order. Walk level by level with a queue, pushing (node, column) pairs. Then nodes higher in the tree are appended to their column before nodes lower down, and within a level left before right, which is the order the problems want.</p>
+<div class="table-wrap"><table><tr><th>Popped</th><th>Column</th><th>Map after</th></tr><tr><td>3</td><td>0</td><td>{0: [3]}</td></tr><tr><td>9</td><td>−1</td><td>{−1: [9], 0: [3]}</td></tr><tr><td>20</td><td>1</td><td>{−1: [9], 0: [3], 1: [20]}</td></tr><tr><td>15</td><td>0</td><td>{−1: [9], 0: [3, 15], 1: [20]}</td></tr><tr><td>7</td><td>2</td><td>{−1: [9], 0: [3, 15], 1: [20], 2: [7]}</td></tr></table></div>
+<p>Finally read the map from the smallest column to the largest. Keeping the minimum and maximum column seen lets you read columns in order without sorting the keys; if you do sort them, that is the O(<var>n</var> log <var>n</var>) in the cost.</p>
+
+<h3>Why it is correct</h3>
+<p>The column rule is exactly how a drawing places nodes: each edge moves one unit left or right. So two nodes are on the same vertical line in the drawing if and only if their column numbers are equal, and the map groups exactly the nodes on each line.</p>
+<p class="formula">column(child) = column(parent) ± 1, so column(<var>v</var>) = (number of right steps) − (number of left steps) on the path from the root to <var>v</var></p>
+<p>Order inside a column: BFS pops nodes in non-decreasing depth, and left children before right children at the same depth, so appends happen top to bottom and left to right. One variant, Vertical Order Traversal of a Binary Tree, asks for ties at the same depth and column to be sorted by value; then store (row, value) with each node and sort inside the column.</p>
+
+<h3>Why it is fast</h3>
+<p>Each node is pushed and popped once and appended to one list: O(<var>n</var>). Reading the map by column from min to max is O(<var>n</var>) more. Sorting column keys costs O(<var>n</var> log <var>n</var>) in the worst case, and the tie-sorting variant can cost that too. Memory is the map plus the queue, O(<var>n</var>).</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>"Vertical order", "columns", "top view", "what you see from above", "diagonal traversal". Say: "I will tag each node with a column that changes by ±1 per step, BFS so each column fills top to bottom, and group by column in a map." Binary Tree Vertical Order Traversal is the plain version. Vertical Order Traversal of a Binary Tree adds the sort-by-value tie rule. Boundary of Binary Tree is a cousin where the tags are "on the left edge", "leaf", "on the right edge" instead of a column.</p>

@@ -1,0 +1,25 @@
+<h3>Start with what you would do by hand</h3>
+<p>XOR (written ⊕) compares two numbers bit by bit and writes 1 where the bits differ. For example 5 ⊕ 2 is 101 ⊕ 010 = 111 = 7. Given the numbers <code>[5, 2, 7, 3]</code> (the video uses these four; the problem's full example has six), which pair has the largest XOR?</p>
+<p>By hand you would compute every pair: 5⊕2 = 7, 5⊕7 = 2, 5⊕3 = 6, 2⊕7 = 5, 2⊕3 = 1, 7⊕3 = 4. The best is 7. Four numbers give 6 pairs; 100,000 numbers give about 5 billion pairs, too many.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The insight is that XOR is decided from the top bit down. Among all partners, the one that gives the largest XOR is the one that differs from my number in the highest possible bit, then in the next highest, and so on. So you want to ask, bit by bit: "is there a number whose top bit is the opposite of mine? and among those, whose next bit is opposite?"</p>
+<p>A trie answers exactly that. Write each number with the same number of bits, say 3, and store it as a path of 0s and 1s from the root, high bit first. Each node has at most two children.</p>
+<ol>
+<li>Insert 5 = 101: root → 1 → 0 → 1.</li>
+<li>Insert 2 = 010: root → 0 → 1 → 0. The root now has both a 0-child and a 1-child.</li>
+<li>Insert 7 = 111: root → 1 (exists) → 1 (new) → 1 (new).</li>
+<li>Insert 3 = 011: root → 0 (exists) → 1 (exists) → 1 (new).</li>
+</ol>
+<p>Levels after all inserts: root → {0 → 1 → {0, 1}, 1 → {0 → 1, 1 → 1}}.</p>
+<p>Now query with 5 = 101. At the root, my bit is 1, so I want a 0-child: it exists, take it, and the result's top bit is 1. Next my bit is 0, I want a 1-child under that node: exists, take it. Next my bit is 1, I want a 0-child: exists. The path walked is 010 = 2, and 5 ⊕ 2 = 111 = 7. Query each number the same way and keep the best; the maximum is 7.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: after deciding the top <var>k</var> bits, the walk is inside the set of stored numbers that share those decisions, and the partial result is the largest achievable for the top <var>k</var> bits. The greedy step is safe because of place value: the bit at position <var>k</var> is worth 2<sup><var>k</var></sup>, more than all lower bits together, since 2<sup><var>k</var>−1</sup> + … + 1 = 2<sup><var>k</var></sup> − 1. So if a 1 can be obtained at this bit by going to the opposite child, no choice at lower bits could ever make up for giving it away. When the opposite child does not exist, every remaining candidate agrees with me at this bit, and the bit is 0 for all of them, so following the same child loses nothing.</p>
+<p class="formula">2<sup><var>k</var></sup> &gt; 2<sup><var>k</var>−1</sup> + 2<sup><var>k</var>−2</sup> + … + 1 = 2<sup><var>k</var></sup> − 1</p>
+
+<h3>Why it is fast</h3>
+<p>Numbers have at most 32 bits, so each insert walks 32 nodes and each query walks 32 nodes. For <var>n</var> numbers that is 32<var>n</var> inserts plus 32<var>n</var> query steps: O(32 · <var>n</var>), which is linear. For 100,000 numbers that is about 6.4 million steps against 5 billion pairs. Memory is at most 32<var>n</var> nodes.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: maximum XOR, "XOR with an element from the array", pairs whose XOR is in a range, anything bitwise with "choose a partner from a set". Say: XOR is decided from the top bit down, so I will store the numbers in a binary trie and walk the opposite bit greedily. <em>Maximum XOR of Two Numbers in an Array</em> is the example. <em>Maximum XOR With an Element From Array</em> adds a limit: sort the queries and insert numbers only up to the limit before answering each.</p>

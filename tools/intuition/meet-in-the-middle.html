@@ -1,0 +1,34 @@
+<h3>Start with what you would do by hand</h3>
+<p>From the numbers 5, −7, 3, 5, choose any of them (possibly none) so that their sum is as close as possible to 6. By hand you list the subsets and their sums: the full list has 2<sup>4</sup> = 16 entries, and you find that 3 + 5 − 7 + 5 = 6 hits the goal exactly. With 40 numbers, 2<sup>40</sup> subsets is about a trillion, too many to list. Dynamic programming over sums does not help either when the numbers can be huge, because the table of possible sums becomes enormous.</p>
+<p>The trick is to notice that a trillion is a million squared, and a million is affordable.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: split the array into two halves, left [5, −7] and right [3, 5]. Every subset of the whole array is some subset of the left half joined with some subset of the right half.</p>
+<p>Piece two: list the subset sums of each half separately. With 2 numbers per half that is 4 sums each:</p>
+<div class="table-wrap"><table>
+<tr><th>left subset</th><th>sum</th><th>right subset</th><th>sum</th></tr>
+<tr><td>{ }</td><td>0</td><td>{ }</td><td>0</td></tr>
+<tr><td>{5}</td><td>5</td><td>{3}</td><td>3</td></tr>
+<tr><td>{−7}</td><td>−7</td><td>{5}</td><td>5</td></tr>
+<tr><td>{5, −7}</td><td>−2</td><td>{3, 5}</td><td>8</td></tr>
+</table></div>
+<p>Piece three: sort the right-hand sums: 0, 3, 5, 8. Now for each left sum <var>a</var>, the right sum we would like is 6 − <var>a</var>, and the closest available one is found by binary search in the sorted list, checking the neighbour on each side of the insertion point:</p>
+<ol>
+<li>Left 0 wants 6: nearest right sums are 5 and 8; 0 + 5 = 5, distance 1.</li>
+<li>Left 5 wants 1: nearest are 0 and 3; 5 + 0 = 5, distance 1.</li>
+<li>Left −7 wants 13: nearest is 8; −7 + 8 = 1, distance 5.</li>
+<li>Left −2 wants 8: exactly 8 exists; −2 + 8 = 6, distance 0.</li>
+</ol>
+<p>The best distance is 0, so a subset sums exactly to 6. Listing the subset sums of a half can itself be done by the mask loop from the subset-enumeration pattern, or by doubling: start with [0], and for each number append a copy of every existing sum plus that number.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant is that every subset of the whole array corresponds to exactly one pair (left subset, right subset), and its sum is the left sum plus the right sum. So the closest subset sum to the goal is the closest value of <var>a</var> + <var>b</var> over all pairs, with <var>a</var> from the left list and <var>b</var> from the right. For a fixed <var>a</var>, |<var>a</var> + <var>b</var> − goal| is smallest when <var>b</var> is nearest to goal − <var>a</var>, and in a sorted list the nearest value to a target is one of the two values around the insertion point, which the binary search finds. Taking the minimum over all <var>a</var> therefore gives the true optimum.</p>
+
+<h3>Why it is fast</h3>
+<p>Each half has <var>n</var>/2 numbers and so 2<sup><var>n</var>/2</sup> subset sums. Listing them costs that much per half; sorting the right list costs 2<sup><var>n</var>/2</sup> · (<var>n</var>/2); and each of the 2<sup><var>n</var>/2</sup> left sums does one binary search of about <var>n</var>/2 steps:</p>
+<p class="formula">time = O(2<sup><var>n</var>/2</sup> · <var>n</var>), against 2<sup><var>n</var></sup> for the full listing</p>
+<p>For <var>n</var> = 40 that is roughly a million times 40, about 40 million steps, against a trillion. The exponent halved, which is why the method is called meeting in the middle. Memory is the two lists, O(2<sup><var>n</var>/2</sup>).</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: <var>n</var> around 30 to 40, "choose a subset", sums or products that are too large for a DP table, "closest to", "minimise the difference", or four arrays to be combined where two at a time is manageable. Say: "2<sup><var>n</var></sup> is too many but 2<sup><var>n</var>/2</sup> is fine, so I will enumerate each half and match the halves with a sorted list or a hash map".</p>
+<p>Closest Subsequence Sum is the walk-through. 4Sum II has four arrays: count the sums <var>a</var> + <var>b</var> from the first two in a hash map, then for each <var>c</var> + <var>d</var> from the last two look up −(<var>c</var> + <var>d</var>), turning <var>n</var><sup>4</sup> into <var>n</var><sup>2</sup>. Partition Array Into Two Arrays to Minimize Sum Difference adds a size constraint, so the lists are kept per subset size and the matching is done size by size.</p>

@@ -1,0 +1,21 @@
+<h3>Start with what you would do by hand</h3>
+<p>A tree: 1 at the top; 2 and 3 below; 4 and 5 under 2; 6 and 7 under 3. Delete the nodes 3 and 5. When a node goes, its children do not vanish; they become the tops of their own little trees. The result is a forest: the tree under 1 (now 1, 2, 4), the tree 6, and the tree 7.</p>
+<p>By hand, you would cross out 3 and 5, then look at every remaining node and ask "is my parent crossed out, or do I have no parent?"; if so, I am a root. This needs parent pointers, which binary tree nodes usually do not have. Doing it from the top down also has a trap: if you remove 3 from its parent first, you lose your only way of reaching 6 and 7.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The tree is unchanged; the structure we add is a set of values to delete, for O(1) membership checks, and a list of forest roots.</p>
+<p>Piece one: handle children before the parent. Visit a node, first recurse into its left and right subtrees, and only then decide about the node itself. Each recursive call returns what should hang in that position afterwards: the same node, or nothing if it was deleted.</p>
+<p>Piece two: deciding at the node. After the children have returned, reattach them: left = whatever the left call returned, right = whatever the right call returned. If this node is in the delete set, its surviving children have no live parent, so add each of them to the forest list, and return nothing to the parent. If it is not deleted, return the node.</p>
+<p>Piece three: the top. Whatever the root call returns, if it is not nothing, is also a forest root.</p>
+<div class="table-wrap"><table><tr><th>Finish visiting</th><th>Deleted?</th><th>Returns to parent</th><th>Added to forest</th></tr><tr><td>4</td><td>no</td><td>4</td><td></td></tr><tr><td>5</td><td>yes</td><td>nothing</td><td>(no children)</td></tr><tr><td>2</td><td>no</td><td>2, now with right = nothing</td><td></td></tr><tr><td>6</td><td>no</td><td>6</td><td></td></tr><tr><td>7</td><td>no</td><td>7</td><td></td></tr><tr><td>3</td><td>yes</td><td>nothing</td><td>6, 7</td></tr><tr><td>1</td><td>no</td><td>1, now with right = nothing</td><td>1 (top of tree)</td></tr></table></div>
+
+<h3>Why it is correct</h3>
+<p>The invariant: a recursive call returns its subtree already pruned, with every deleted node removed and every orphan already recorded. Leaves satisfy it trivially. If both children's calls satisfy it, then after reattaching, the only node not yet decided is this one, and we decide it by one set lookup. So the parent never has to look deeper than its own two children, and the top call returns the fully pruned tree.</p>
+<p>A node becomes a forest root exactly when it survives and its parent does not (or it has no parent). We add children at the moment their parent is deleted, which is the only moment both facts are known together, and the top of the tree is handled separately.</p>
+<p class="formula">roots = { <var>v</var> : <var>v</var> survives and (parent(<var>v</var>) is deleted or <var>v</var> is the root) }</p>
+
+<h3>Why it is fast</h3>
+<p>Every node is visited once, does one set lookup and at most two reattachments: O(<var>n</var>) time, plus the set of size <var>k</var> and the recursion stack of O(<var>h</var>). The by-hand method needed parent pointers and a second scan; this does it in one walk.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>"Delete these nodes and return the remaining trees", "remove every subtree that contains no 1", "delete leaves with a given value, repeatedly", "trim the tree to a range". The shared shape is a decision at a node that depends on what its children became. Say: "I will recurse post-order, let each call return the pruned subtree, and decide about the node after reattaching the children." Delete Nodes And Return Forest is this exactly. Binary Tree Pruning returns nothing for a subtree that ends up with no 1 in it. Delete Leaves With a Given Value works because a node that becomes a leaf after its children are deleted is judged after them.</p>

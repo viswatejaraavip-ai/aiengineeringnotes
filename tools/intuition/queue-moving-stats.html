@@ -1,0 +1,38 @@
+<h3>Start with what you would do by hand</h3>
+<p>A website counts how many times it was visited in the last 5 minutes (300 seconds). Visits arrive at seconds 1, 2, 3, 300, 302, and at various moments someone asks "how many hits in the last 300 seconds?" At second 4 the answer is 3. At second 301 the hit at second 1 is now too old (301 &minus; 300 = 1, and the window is the 300 seconds ending now, so second 1 is just outside), and the answer is 3 again: seconds 2, 3 and 300.</p>
+<p>By hand you keep a list of every visit time, and for each question you walk the whole list and count the ones that are recent enough. If a busy site has a million visits, every question walks a million entries, and most of them are ancient and will never count again.</p>
+<p>The waste is clear: old visits never come back. Once a visit is outside the window it is outside forever, because time only moves forward.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p><strong>Piece 1: a queue.</strong> A queue is a line at a counter: new people join at the back, and the person served is the one at the front. Add to the back, remove from the front, nothing else. We will store the visit times.</p>
+<p><strong>Piece 2: add at the back.</strong> Each visit is appended at the back. Because visits arrive in time order, the queue is automatically sorted: oldest at the front, newest at the back.</p>
+<p><strong>Piece 3: trim the front.</strong> When a question arrives at time <var>t</var>, look at the front. While the front time is &le; <var>t</var> &minus; 300, it is too old: remove it. Stop at the first time that is recent enough. Everything behind it is even more recent, so no further checks are needed.</p>
+<p><strong>Piece 4: answer.</strong> The answer is the length of the queue.</p>
+<div class="table-wrap"><table>
+<tr><th>Event</th><th>Front removals</th><th>Queue after (times)</th><th>Answer</th></tr>
+<tr><td>hit(1)</td><td></td><td>1</td><td></td></tr>
+<tr><td>hit(2)</td><td></td><td>1, 2</td><td></td></tr>
+<tr><td>hit(3)</td><td></td><td>1, 2, 3</td><td></td></tr>
+<tr><td>getHits(4)</td><td>none</td><td>1, 2, 3</td><td>3</td></tr>
+<tr><td>hit(300)</td><td></td><td>1, 2, 3, 300</td><td></td></tr>
+<tr><td>getHits(300)</td><td>none (1 &gt; 0)</td><td>1, 2, 3, 300</td><td>4</td></tr>
+<tr><td>getHits(301)</td><td>1</td><td>2, 3, 300</td><td>3</td></tr>
+<tr><td>hit(302)</td><td></td><td>2, 3, 300, 302</td><td></td></tr>
+<tr><td>getHits(303)</td><td>2, 3</td><td>300, 302</td><td>2</td></tr>
+</table></div>
+
+<h3>Why it is correct</h3>
+<p>The invariant: after a question at time <var>t</var> is answered, the queue holds exactly the visits with time &gt; <var>t</var> &minus; 300, in increasing order.</p>
+<p>Order: visits are appended in time order and removals only happen at the front, so the queue stays sorted. Exactness: the trimming loop removes from the front while the front is too old; it stops at the first recent visit, and since the queue is sorted every later visit is also recent. Nothing recent is removed, nothing old remains.</p>
+<p class="formula">answer(<var>t</var>) = number of visit times <var>v</var> with <var>t</var> &minus; 300 &lt; <var>v</var> &le; <var>t</var> = length of the queue</p>
+<p>A question at a later time can only make more entries old, never fewer, which is why removing permanently is safe.</p>
+
+<h3>Why it is fast</h3>
+<p>Each visit is appended once and removed at most once. A single question may remove many entries, but across all questions the total number of removals cannot exceed the number of visits. So over <var>m</var> visits and <var>q</var> questions the total work is at most <var>m</var> + <var>m</var> + <var>q</var>.</p>
+<p class="formula">total work &le; 2<var>m</var> + <var>q</var>, so each operation costs O(1) on average (amortised)</p>
+<p>"Amortised" means one call might be slow after a long quiet period, but the average over a sequence is constant. Compare with walking a million entries per question.</p>
+<p>If the counts can be huge, store (time, count) pairs instead of one entry per visit; a visit at the same second as the back entry just increments its count.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Listen for "in the last <var>W</var> seconds", "rate limit", "moving average of the last <var>k</var> values", "recent calls". Anything with a time or count window that only moves forward is this pattern. Say: "Events only age out, so a queue with trimming at the front answers each query in amortised constant time."</p>
+<p>Design Hit Counter is the example above. Logger Rate Limiter keeps, per message, the last time it was printed and refuses if the gap is under 10 seconds, the same idea with a map instead of a queue. Moving Average from Data Stream is a queue of the last <var>k</var> values with a running sum, so each average is one subtraction and one division.</p>

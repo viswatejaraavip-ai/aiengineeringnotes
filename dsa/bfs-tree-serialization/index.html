@@ -394,24 +394,55 @@
       <p>The i-th non-null token is the parent of tokens 2i+1 and 2i+2 in the BFS order.</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>You have a binary tree and need to send it to a friend as text, so that the friend can rebuild exactly the same tree. The tree has 1 at the root, children 2 and 3, and 3 has children 4 and 5. Writing the values in order, 1 2 3 4 5, is not enough: the friend cannot tell whether 4 hangs under 2 or under 3. The shape is missing. By hand you might draw it, but text has no drawing, so the shape must be encoded in the sequence itself.</p>
+<p>The missing information is where the gaps are. Node 2 has no children; if we write that down, the friend will know that 4 and 5 cannot belong to 2.</p>
 
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: level order with a queue. Start with the root in a queue; repeatedly take the front node, write its value, and push its left child then its right child. This visits the tree one level at a time: 1, then 2 and 3, then 4 and 5.</p>
+<p>Piece two: a marker for a missing child. When a child is missing, push a placeholder anyway, and when the placeholder reaches the front write # and push nothing. Now the sequence records every gap:</p>
+<div class="table-wrap"><table>
+<tr><th>pop</th><th>write</th><th>push</th><th>output so far</th></tr>
+<tr><td>1</td><td>1</td><td>2, 3</td><td>1</td></tr>
+<tr><td>2</td><td>2</td><td>#, #</td><td>1 2</td></tr>
+<tr><td>3</td><td>3</td><td>4, 5</td><td>1 2 3</td></tr>
+<tr><td>#</td><td>#</td><td>nothing</td><td>1 2 3 #</td></tr>
+<tr><td>#</td><td>#</td><td>nothing</td><td>1 2 3 # #</td></tr>
+<tr><td>4</td><td>4</td><td>#, #</td><td>1 2 3 # # 4</td></tr>
+<tr><td>5</td><td>5</td><td>#, #</td><td>1 2 3 # # 4 5</td></tr>
+</table></div>
+<p>The remaining four markers are trailing and can be dropped. The text is "1 2 3 # # 4 5".</p>
+<p>Piece three: rebuilding. Read the first token as the root and put it in a queue. Then repeatedly take the front node and give it the next two tokens as its left and right children, creating a node for a value and nothing for #, and pushing each created node onto the queue. Node 1 takes tokens 2 and 3; node 2 takes # and #; node 3 takes 4 and 5; nodes 4 and 5 find no more tokens, so they are leaves. The tree is back, shape and all.</p>
 
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+<h3>Why it is correct</h3>
+<p>The invariant during serialisation is that the queue holds, in order, the nodes and gaps of the current level not yet written, and every written node has had its two child slots pushed. So the output lists, level by level, every slot of the tree, with # standing for empty slots. During rebuilding, the invariant is that the <var>i</var>-th non-marker token written was pushed to the queue as the <var>i</var>-th real node, and its two child slots are the tokens that were written when it was popped. Because the serialiser pushes exactly two slots per real node and the rebuilder consumes exactly two tokens per real node in the same order, each node receives exactly the children it had. Dropping trailing markers is safe because a missing token at the end means an empty slot.</p>
+
+<h3>Why it is fast</h3>
+<p>Serialising pops each node once and each empty slot once. A binary tree with <var>n</var> nodes has <var>n</var> + 1 empty child slots, so the queue handles 2<var>n</var> + 1 entries and the text has at most 2<var>n</var> + 1 tokens:</p>
+<p class="formula">tokens = <var>n</var> nodes + (<var>n</var> + 1) markers = 2<var>n</var> + 1</p>
+<p>Rebuilding reads each token once and creates each node once. Both directions are O(<var>n</var>) time and O(<var>w</var>) extra memory for the widest level <var>w</var>, beyond the output itself. A preorder encoding with the same # markers works equally well with a recursive reader; level order is chosen when the input format is level order already, as it is on LeetCode.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "serialize", "deserialize", "encode the tree as a string", "send over the network", "N-ary tree to binary tree". Say: "I will write a level-order traversal with an explicit marker for every missing child, so the shape survives, and rebuild with a queue of parents consuming two tokens each".</p>
+<p>Serialize and Deserialize Binary Tree is the walk-through above. Serialize and Deserialize N-ary Tree writes each node followed by its number of children, so the reader knows how many tokens to consume instead of always two. Serialize and Deserialize BST can omit the markers entirely, because a preorder of a BST is enough to rebuild it using value bounds.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Write nodes level by level with null markers; rebuild with a queue of parents.</p>
     <p><strong>Reach for it when:</strong> Serialize and deserialize binary tree, N-ary tree, tree codec with nulls.</p>
     <p><strong>Cost:</strong> O(n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Serialize [1,2,3,null,null,4,5] by level</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Serialize: BFS, writing <em># for a missing child</em> so the shape survives</li><li>pop 1: write 1, enqueue both children (2, 3)</li><li>pop 2: write 2, enqueue both children (#, #)</li><li>pop 3: write 3, enqueue both children (4, 5)</li><li>pop a null: write <em>#</em> (it has no children to enqueue)</li><li>pop a null: write <em>#</em> (it has no children to enqueue)</li><li>pop 4: write 4, enqueue both children (#, #)</li><li>pop 5: write 5, enqueue both children (#, #)</li><li>Serialized: <em>1 2 3 # # 4 5</em> (trailing nulls can be dropped)</li><li>Deserialize: each parent takes the <em>next two</em> tokens as children</li><li>Token 0 is the root; put it in the queue</li><li>parent 1 takes tokens 1 and 2: 2 and 3</li><li>parent 2 takes tokens 3 and 4: # and #</li><li>parent 3 takes tokens 5 and 6: 4 and 5</li><li>The tree is rebuilt exactly, nulls and all</li><li>Both directions visit each node once: <em>O(n)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>3 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/serialize-and-deserialize-binary-tree">Serialize and Deserialize Binary Tree</a></td><td><span class="diff hard">Hard</span></td><td class="num">38</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/serialize-and-deserialize-n-ary-tree">Serialize and Deserialize N-ary Tree</a></td><td><span class="diff hard">Hard</span></td><td class="num">17</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/serialize-and-deserialize-bst">Serialize and Deserialize BST</a></td><td><span class="diff medium">Medium</span></td><td class="num">6</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-trees">Trees</a>: <a href="/dsa/tree-dfs-recursive/">Recursive DFS (post-order fold)</a>, <a href="/dsa/tree-path-through-node/">Best path through each node</a>, <a href="/dsa/tree-bfs-levels/">Level-order BFS</a>, <a href="/dsa/tree-root-to-leaf/">Root-to-leaf path carry</a>, <a href="/dsa/tree-lca/">Lowest common ancestor</a>, <a href="/dsa/tree-build-from-traversals/">Build from traversals</a>, <a href="/dsa/tree-iterative-inorder/">Iterative traversal with a stack</a>, <a href="/dsa/tree-vertical-coords/">Column / coordinate traversal</a>, <a href="/dsa/tree-rerooting/">Rerooting DP (sum over all roots)</a>, <a href="/dsa/tree-delete-forest/">Post-order deletion / pruning</a>, <a href="/dsa/tree-distance-k/">Tree as a graph (parent pointers)</a>, <a href="/dsa/tree-dp-choose-skip/">Tree DP: take or skip this node</a>.</p>
   </article>
 
@@ -430,6 +461,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

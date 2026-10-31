@@ -1,0 +1,30 @@
+<h3>Start with what you would do by hand</h3>
+<p>Design a stack that, besides push and pop, can answer "what is the smallest value currently in the stack?" at any moment, and every operation must be a single step, not a scan.</p>
+<p>By hand, when asked for the minimum, you would look through everything in the stack: O(<var>n</var>) per question. Keeping a single "current minimum" variable fails the moment that minimum is popped: you no longer know what the next smallest is, and finding out means a scan again. The problem is not computing the minimum; it is <em>remembering what the minimum was before</em> each push, so that a pop can restore it.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: an ordinary stack of values.</p>
+<p>Piece two: beside each value, store the <strong>minimum of everything at or below it</strong>. When you push a value <var>v</var>, the new minimum is min(<var>v</var>, the minimum stored at the old top). So each entry is a pair (value, minSoFar), and computing the second half costs one comparison. You can keep the pairs in one stack or keep a second "min stack" that moves in step with the first; the picture is the same.</p>
+<div class="table-wrap"><table>
+<tr><th>Operation</th><th>Value stack (bottom → top)</th><th>Min-so-far stack</th><th>getMin</th></tr>
+<tr><td>push 5</td><td>5</td><td>5</td><td>5</td></tr>
+<tr><td>push 2</td><td>5, 2</td><td>5, 2</td><td>2</td></tr>
+<tr><td>push 7</td><td>5, 2, 7</td><td>5, 2, 2</td><td>2</td></tr>
+<tr><td>push 1</td><td>5, 2, 7, 1</td><td>5, 2, 2, 1</td><td>1</td></tr>
+<tr><td>pop</td><td>5, 2, 7</td><td>5, 2, 2</td><td>2</td></tr>
+<tr><td>pop</td><td>5, 2</td><td>5, 2</td><td>2</td></tr>
+</table></div>
+<p>Piece three: pop removes the top of both stacks together. The minimum "pops away with its value", and the entry underneath already holds the correct answer for the smaller stack. No recomputation ever happens.</p>
+<p>The idea generalises: store beside each element whatever summary of "everything below me" the query needs. For a max stack it is the maximum so far; for a stack that supports "add <var>k</var> to the bottom <var>i</var> elements" it is a pending increment that is passed down on pop; for "most frequent element" it is a stack per frequency level.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: <em>for every position in the stack, the stored minSoFar equals the minimum of all values from the bottom up to that position</em>. It holds for the first push (the only element is its own minimum). For a push of <var>v</var> on top of a position whose stored value <var>m</var> is correct, the new position's minimum is</p>
+<p class="formula">min(values below and including <var>v</var>) = min(<var>m</var>, <var>v</var>)</p>
+<p>which is exactly what we store. A pop removes a position and leaves every other position's stored value untouched, and those values only depended on positions below, which have not changed. So the invariant survives every operation, and getMin, which reads the top's stored value, returns the minimum of the whole current stack.</p>
+
+<h3>Why it is fast</h3>
+<p>push does one comparison and two writes; pop does two removals; getMin does one read. Each is O(1), with no dependence on the stack's size. The cost is memory: one extra number per element, O(<var>n</var>), which is the trade that replaces the O(<var>n</var>) scan. A common refinement stores an entry on the min stack only when a new value is at most the current minimum, which saves space when values mostly increase; pop then removes from the min stack only when the popped value equals its top.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "design a stack with getMin / getMax in O(1)", "support an extra query in constant time", "undo history where you also need an aggregate". The general cue is a stack where a query depends on all current elements, and the fix is to precompute the query's answer for every prefix at push time. Say: "I will store, with each element, the minimum of everything beneath it, so the minimum pops away with its element."</p>
+<p><strong>Min Stack</strong> is the example. <strong>Design a Stack With Increment Operation</strong> stores a pending increment per position and passes it down on pop. <strong>Maximum Frequency Stack</strong> keeps one stack per frequency count and a current maximum frequency, the same "summary beside the element" idea applied to counts.</p>

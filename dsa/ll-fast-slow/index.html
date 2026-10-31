@@ -394,24 +394,59 @@
       <p>fast is always 2× as far from head as slow (until it meets or ends).</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>A linked list is a chain of boxes, each holding a value and an arrow to the next box. The chain 3 &rarr; 2 &rarr; 0 &rarr; &minus;4 looks normal, except the last box's arrow points back to the box holding 2. Follow the arrows and you go 3, 2, 0, &minus;4, 2, 0, &minus;4, 2, &hellip; forever. Does this chain have a loop? And where does the loop start?</p>
+<p>By hand you would keep a list of every box you have visited, and stop the first time you reach a box already on the list. That works, but the list of visited boxes needs as much memory as the chain itself. For a chain of a million boxes, a million notes.</p>
+<p>Here is a different idea from running tracks. Put two runners on the chain, one walking one box per step and one running two boxes per step. On a straight chain the fast runner reaches the end and the game is over. On a loop, the fast runner goes round and round and must eventually catch up with the slow one from behind. Two runners, no notes.</p>
 
+<h3>Build the structure, one piece at a time</h3>
+<p>No new container is needed, only two pointers into the existing chain.</p>
+<p><strong>Piece 1: two pointers at the head.</strong> slow and fast both start at the box holding 3.</p>
+<p><strong>Piece 2: unequal speeds.</strong> Each step, slow follows one arrow and fast follows two. If fast reaches a box with no next box, the chain is straight: no loop.</p>
+<p><strong>Piece 3: the meeting test.</strong> After each step, if slow and fast are the same box, there is a loop.</p>
+<div class="table-wrap"><table>
+<tr><th>Step</th><th>slow</th><th>fast</th><th>Same box?</th></tr>
+<tr><td>0</td><td>3</td><td>3</td><td>start</td></tr>
+<tr><td>1</td><td>2</td><td>0</td><td>no</td></tr>
+<tr><td>2</td><td>0</td><td>2</td><td>no</td></tr>
+<tr><td>3</td><td>&minus;4</td><td>&minus;4</td><td>yes: a loop exists</td></tr>
+</table></div>
+<p><strong>Piece 4: finding where the loop starts.</strong> Leave one pointer at the meeting box and move the other back to the head. Now walk both one box per step. They meet exactly at the first box of the loop. Here: head pointer 3 &rarr; 2, meeting pointer &minus;4 &rarr; 2. Both at 2, so the loop starts at the box holding 2.</p>
 
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+<h3>Why it is correct</h3>
+<p>The invariant: after <var>t</var> steps, slow is <var>t</var> arrows from the head and fast is 2<var>t</var> arrows from the head.</p>
+<p>Why must they meet inside a loop? Once both are in the loop, look at the gap from slow forward to fast, measured in boxes around the loop. Each step slow moves 1 and fast moves 2, so the gap grows by 1 modulo the loop length <var>L</var>. A gap that grows by 1 each step hits every value, including 0, within <var>L</var> steps. Gap 0 means the same box.</p>
+<p>Why does the second phase find the loop start? Let the straight part before the loop have <var>a</var> boxes and let the meeting point be <var>b</var> boxes into the loop. When they meet, slow has walked <var>a</var> + <var>b</var> and fast has walked twice that, and the difference is some whole number of loops:</p>
+<p class="formula">2(<var>a</var> + <var>b</var>) &minus; (<var>a</var> + <var>b</var>) = <var>a</var> + <var>b</var> = <var>kL</var>, so <var>a</var> = <var>kL</var> &minus; <var>b</var></p>
+<p>So walking <var>a</var> more boxes from the meeting point lands exactly on the loop start (going <var>b</var> boxes back to the start of the loop and then <var>k</var> full loops), and walking <var>a</var> boxes from the head also lands on the loop start. Two pointers walking <var>a</var> steps at the same speed therefore meet there.</p>
+<p>On a straight chain the same two speeds give a bonus: when fast hits the end, slow is at the middle box, since it has walked half as far.</p>
+
+<h3>Why it is fast</h3>
+<p>Slow walks at most <var>a</var> + <var>L</var> boxes before the meeting, and the second phase walks <var>a</var> more.</p>
+<p class="formula">steps &le; <var>a</var> + <var>L</var> + <var>a</var> &le; 2<var>n</var>, so O(<var>n</var>) time with O(1) extra memory</p>
+<p>The visited-list method is also O(<var>n</var>) time but needs O(<var>n</var>) memory; the two runners need two pointers.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The cues are "cycle" in a linked list, "where does the cycle begin", "middle of the list", "is the list a palindrome" (find the middle, reverse the second half, compare), and any sequence defined by "apply this function again" where values must eventually repeat. Say: "Two pointers at different speeds meet inside a cycle and never need extra memory; the fast one reaching the end also drops the slow one at the middle."</p>
+<p>Linked List Cycle is the example above. Middle of the Linked List is the straight-chain bonus. Happy Number treats "sum the squares of the digits" as the next arrow, so a loop that avoids 1 means the number is not happy.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Two speeds: a cycle makes them meet; otherwise slow lands on the middle.</p>
     <p><strong>Reach for it when:</strong> Cycle detection, cycle start, middle node, palindrome list, happy number.</p>
     <p><strong>Cost:</strong> O(n) time, O(1) space.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Cycle detection on 3→2→0→-4→(2)</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Tortoise moves 1, hare moves 2: in a cycle the hare <em>laps</em> the tortoise</li><li>Step 1: slow → 2, fast → 0</li><li>Step 2: slow → 0, fast → 2</li><li>Step 3: both land on <em>-4</em>, they met → a cycle exists</li><li>To find the cycle start: reset one pointer to head, walk both at speed 1</li><li>Both advance one: 2 and 2 — they meet at the <em>cycle start</em></li><li>Cycle begins at node <em>2</em></li><li>No extra memory, at most 2n steps: <em>O(n)</em> time, <em>O(1)</em> space</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>8 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/happy-number">Happy Number</a></td><td><span class="diff easy">Easy</span></td><td class="num">55</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/remove-nth-node-from-end-of-list">Remove Nth Node From End of List</a></td><td><span class="diff medium">Medium</span></td><td class="num">50</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/palindrome-linked-list">Palindrome Linked List</a></td><td><span class="diff easy">Easy</span></td><td class="num">49</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/middle-of-the-linked-list">Middle of the Linked List</a></td><td><span class="diff easy">Easy</span></td><td class="num">49</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/linked-list-cycle">Linked List Cycle</a></td><td><span class="diff easy">Easy</span></td><td class="num">47</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-the-duplicate-number">Find the Duplicate Number</a></td><td><span class="diff medium">Medium</span></td><td class="num">46</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/reorder-list">Reorder List</a></td><td><span class="diff medium">Medium</span></td><td class="num">40</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/linked-list-cycle-ii">Linked List Cycle II</a></td><td><span class="diff medium">Medium</span></td><td class="num">36</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-linked-list">Linked List</a>: <a href="/dsa/ll-reverse/">In-place reversal</a>, <a href="/dsa/ll-dummy-head/">Dummy head and splice</a>, <a href="/dsa/ll-carry-arith/">Digit-by-digit with carry</a>, <a href="/dsa/ll-random-pointer-copy/">Clone with a map or interleaving</a>.</p>
   </article>
 
@@ -430,6 +465,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

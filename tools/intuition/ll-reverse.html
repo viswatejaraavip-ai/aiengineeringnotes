@@ -1,0 +1,35 @@
+<h3>Start with what you would do by hand</h3>
+<p>A linked list is a chain of boxes, each with a value and an arrow to the next box: 1 &rarr; 2 &rarr; 3 &rarr; 4 &rarr; 5. Reverse it, so the arrows point the other way: 5 &rarr; 4 &rarr; 3 &rarr; 2 &rarr; 1.</p>
+<p>By hand you might copy the values onto paper, read them backwards, and build a new chain: 5 boxes of new paper for a 5-box chain, a million for a million. Or you might try flipping the arrows in place, and immediately hit the problem: as soon as you turn box 1's arrow around (to point at nothing, since it will be the tail), you have lost the arrow that led to box 2, and the rest of the chain is unreachable.</p>
+<p>So the whole difficulty is one of bookkeeping: before you flip an arrow, remember where it pointed. That is one extra note, not a million.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The structure is three pointers into the chain.</p>
+<p><strong>Piece 1: cur.</strong> The box whose arrow we are about to flip. Starts at the head, box 1.</p>
+<p><strong>Piece 2: prev.</strong> The box cur's arrow should point to after the flip. Starts as "nothing" (null), because the old head becomes the tail.</p>
+<p><strong>Piece 3: next.</strong> The one-step memory: before flipping, save cur's old target so we can continue from it.</p>
+<p>Each round does four things: save next = cur.next; flip cur.next = prev; step prev = cur; step cur = next.</p>
+<div class="table-wrap"><table>
+<tr><th>Round</th><th>prev</th><th>cur</th><th>saved next</th><th>Chain after the flip</th></tr>
+<tr><td>1</td><td>null</td><td>1</td><td>2</td><td>1 &rarr; null, and 2 &rarr; 3 &rarr; 4 &rarr; 5</td></tr>
+<tr><td>2</td><td>1</td><td>2</td><td>3</td><td>2 &rarr; 1 &rarr; null, and 3 &rarr; 4 &rarr; 5</td></tr>
+<tr><td>3</td><td>2</td><td>3</td><td>4</td><td>3 &rarr; 2 &rarr; 1, and 4 &rarr; 5</td></tr>
+<tr><td>4</td><td>3</td><td>4</td><td>5</td><td>4 &rarr; 3 &rarr; 2 &rarr; 1, and 5</td></tr>
+<tr><td>5</td><td>4</td><td>5</td><td>null</td><td>5 &rarr; 4 &rarr; 3 &rarr; 2 &rarr; 1</td></tr>
+</table></div>
+<p>After round 5, cur is null and prev is box 5, the new head. At every moment the chain is in two pieces: a reversed piece headed by prev and an untouched piece headed by cur.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: prev is the head of a correctly reversed chain containing exactly the boxes already processed, and cur is the head of the untouched remainder in original order. No box is lost.</p>
+<p>At the start the reversed chain is empty (prev = null) and the untouched chain is the whole list, so it holds. One round takes the head of the untouched chain (cur), saves the rest (next), and points cur at the reversed chain (prev). The reversed chain now has one more box at its front, in the right place, and the untouched chain is next onward, still intact because we saved it before flipping. Both halves of the invariant survive. The loop ends when the untouched chain is empty, so the reversed chain contains everything, and prev is its head.</p>
+<p class="formula">reversed(<var>x</var><sub>1</sub> &rarr; &hellip; &rarr; <var>x</var><sub><var>k</var></sub>) followed by untouched(<var>x</var><sub><var>k</var>+1</sub> &rarr; &hellip; &rarr; <var>x</var><sub><var>n</var></sub>) at every round <var>k</var></p>
+<p>The order of the four assignments matters: save next before the flip, flip before moving prev, move prev before moving cur. Get one out of order and you either lose the rest of the chain or create a loop.</p>
+
+<h3>Why it is fast</h3>
+<p>Each round processes one box with four pointer assignments, and there are <var>n</var> boxes.</p>
+<p class="formula">time = 4<var>n</var> assignments = O(<var>n</var>), extra memory = 3 pointers = O(1)</p>
+<p>Copying to a new chain is also O(<var>n</var>) time but O(<var>n</var>) memory, and interviewers usually ask for in place.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The cues are "reverse" a linked list or a part of it ("between positions <var>m</var> and <var>n</var>", "in groups of <var>k</var>"), "swap adjacent nodes", or a problem that needs the list read backwards without extra memory, such as checking a palindrome or adding two numbers stored most-significant-first. Say: "I walk with prev, cur and next, flipping one arrow per step; prev heads the reversed prefix and cur the untouched suffix."</p>
+<p>Reverse Linked List is the example above. Reverse Nodes in k-Group runs the same loop <var>k</var> boxes at a time and then reconnects the group's old head to the next group. Palindrome Linked List reverses the second half in place and walks both halves together.</p>

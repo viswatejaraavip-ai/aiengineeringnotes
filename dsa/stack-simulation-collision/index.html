@@ -394,24 +394,56 @@
       <p>Everything on the stack can no longer collide with anything else on it.</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Asteroids move along a line: 5, 10, −5, −11, 3. A positive number moves right, a negative one moves left, and the size is the absolute value. When two meet, the smaller explodes; equal sizes both explode. Which asteroids survive?</p>
+<p>By hand you simulate: 5 and 10 both move right, so they never meet. −5 moves left into 10 and explodes. −11 moves left into 10, which explodes, then into 5, which explodes. 3 moves right behind −11 and never meets it. Survivors: −11, 3.</p>
+<p>Simulating time step by step would be hopeless: positions are continuous and collisions can cascade. What you actually did was notice that only one kind of meeting is possible: a right-mover that is already <em>to the left</em> of a newly arriving left-mover. Everything else never meets.</p>
 
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: process asteroids left to right and keep a <strong>stack of survivors so far</strong>. Anything moving left on the stack has nothing to its left that can ever reach it, so it is safe. Anything moving right on the stack might still be hit by a left-mover that arrives later.</p>
+<p>Piece two: when a new asteroid arrives, if it moves right, or if the top of the stack moves left, there is no collision: push it. If it moves left and the top moves right, they collide. Resolve the collision: the smaller one disappears. If the newcomer wins, pop the top and <em>check again</em> against the new top, because the newcomer keeps travelling left. If the top wins, the newcomer is gone. If they are equal, both are gone.</p>
+<div class="table-wrap"><table>
+<tr><th>Arrives</th><th>Top of stack</th><th>Collision?</th><th>Result</th><th>Stack</th></tr>
+<tr><td>5</td><td>(empty)</td><td>no</td><td>push</td><td>5</td></tr>
+<tr><td>10</td><td>5 (right)</td><td>no, both right</td><td>push</td><td>5, 10</td></tr>
+<tr><td>−5</td><td>10 (right)</td><td>yes</td><td>10 wins, −5 gone</td><td>5, 10</td></tr>
+<tr><td>−11</td><td>10 (right)</td><td>yes</td><td>−11 wins, pop 10, check again</td><td>5</td></tr>
+<tr><td>−11</td><td>5 (right)</td><td>yes</td><td>−11 wins, pop 5, check again</td><td>(empty)</td></tr>
+<tr><td>−11</td><td>(empty)</td><td>no</td><td>push</td><td>−11</td></tr>
+<tr><td>3</td><td>−11 (left)</td><td>no, top moves left</td><td>push</td><td>−11, 3</td></tr>
+</table></div>
+<p>The same "newcomer fights the top until settled" loop appears in car fleets (a faster car behind a slower one joins its fleet), in robots walking a corridor, and in a typed string with deletes.</p>
 
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+<h3>Why it is correct</h3>
+<p>The invariant: <em>the stack holds exactly the survivors among the asteroids processed so far, in order, and no two of them can ever collide</em>. The second half is the important one. Two stack members cannot collide if the left one moves left, or the right one moves right, or both move away from each other; the only colliding arrangement is a right-mover to the left of a left-mover, and the loop never leaves that arrangement on the stack, because a left-moving newcomer fights every right-mover on top until one of them is gone or the top moves left. Processing in position order is what makes the stack top the correct opponent: the newcomer meets the nearest surviving right-mover first, and that is the most recently pushed one.</p>
+<p>Could an asteroid that was popped have survived in reality? It was destroyed by a bigger left-mover that was definitely going to reach it, since nothing between them survived. So every pop is a real destruction and every push a real survival.</p>
+
+<h3>Why it is fast</h3>
+<p>Each asteroid is pushed at most once and popped at most once. A single newcomer may cause many pops, but the pops are paid for by the earlier pushes:</p>
+<p class="formula">total stack operations ≤ 2<var>n</var>, so O(<var>n</var>) time</p>
+<p>with O(<var>n</var>) space. A time-step simulation would have no such bound.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "collide", "destroyed", "moving toward each other", "fleet", "the later one cancels the earlier one". The tell is that interactions only happen between a newcomer and the most recent surviving element, which is exactly what a stack top is. Say: "I will process in order with a stack of survivors; a newcomer fights the top until it is destroyed or no longer collides."</p>
+<p><strong>Asteroid Collision</strong> is the example. <strong>Car Fleet</strong> sorts cars by position, computes each car's time to the target, and uses the stack to merge a car into the fleet ahead when it would arrive sooner. <strong>Clear Digits</strong> pushes letters and pops the top letter whenever a digit arrives.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Push moving things; when a newcomer collides with the top, resolve and maybe keep popping.</p>
     <p><strong>Reach for it when:</strong> Asteroid collision, car fleets, robot crashes, meeting of opposite movers.</p>
     <p><strong>Cost:</strong> O(n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Asteroid Collision on [5,10,-5,-11,3]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Only a right-mover on the stack can hit a new <em>left-mover</em></li><li>Next asteroid <em>5</em> (right)</li><li>No collision: push <em>5</em></li><li>Next asteroid <em>10</em> (right)</li><li>No collision: push <em>10</em></li><li>Next asteroid <em>-5</em> (left)</li><li>-5 hits 10: 10 is bigger, <em>-5 explodes</em></li><li>Next asteroid <em>-11</em> (left)</li><li>-11 hits 10: 11 &gt; 10, <em>10 explodes</em>, keep checking</li><li>-11 hits 5: 11 &gt; 5, <em>5 explodes</em>, keep checking</li><li>No collision: push <em>-11</em></li><li>Next asteroid <em>3</em> (right)</li><li>No collision: push <em>3</em></li><li>Survivors: <em>[−11, 3]</em></li><li>Each asteroid is pushed once and popped at most once: <em>O(n)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>5 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/asteroid-collision">Asteroid Collision</a></td><td><span class="diff medium">Medium</span></td><td class="num">37</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/car-fleet">Car Fleet</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/build-an-array-with-stack-operations">Build an Array With Stack Operations</a></td><td><span class="diff medium">Medium</span></td><td class="num">26</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/clear-digits">Clear Digits</a></td><td><span class="diff easy">Easy</span></td><td class="num">22</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/robot-collisions">Robot Collisions</a></td><td><span class="diff hard">Hard</span></td><td class="num">6</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-stack">Stack</a>: <a href="/dsa/stack-matching/">Matching with a stack</a>, <a href="/dsa/stack-nested-decode/">Nested structure via stack</a>, <a href="/dsa/stack-expression-eval/">Expression evaluation</a>, <a href="/dsa/stack-min-tracking/">Auxiliary-min stack</a>.</p>
   </article>
 
@@ -430,6 +462,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

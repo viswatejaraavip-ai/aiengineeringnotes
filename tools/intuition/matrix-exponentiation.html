@@ -1,0 +1,30 @@
+<h3>Start with what you would do by hand</h3>
+<p>The Fibonacci numbers start 0, 1 and each one after that is the sum of the two before: 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55. The tenth is 55. By hand you add your way up, which is 10 additions and takes a few seconds. Now find the billionth Fibonacci number modulo 10<sup>9</sup> + 7. A billion additions is too many. The step "add the last two" is the same every time, so a billion identical steps feels like something that should collapse into a few big steps, the way a billion multiplications by 2 collapse into thirty squarings.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: write the state as a pair. At any point you only need the last two numbers, (<var>F</var><sub><var>n</var>+1</sub>, <var>F</var><sub><var>n</var></sub>). The step turns it into (<var>F</var><sub><var>n</var>+1</sub> + <var>F</var><sub><var>n</var></sub>, <var>F</var><sub><var>n</var>+1</sub>).</p>
+<p>Piece two: notice the step is linear, so it can be written as a matrix multiplying the pair. Each new entry is a fixed combination of the old entries:</p>
+<p class="formula">[ <var>F</var><sub><var>n</var>+2</sub> ; <var>F</var><sub><var>n</var>+1</sub> ] = [ 1 1 ; 1 0 ] · [ <var>F</var><sub><var>n</var>+1</sub> ; <var>F</var><sub><var>n</var></sub> ]</p>
+<p>Call the 2 × 2 matrix <var>M</var>. Applying the step <var>n</var> times is multiplying by <var>M</var> <var>n</var> times, which is multiplying by <var>M</var><sup><var>n</var></sup> once. And <var>M</var><sup><var>n</var></sup> itself has the Fibonacci numbers inside it: <var>M</var><sup><var>n</var></sup> = [ <var>F</var><sub><var>n</var>+1</sub> <var>F</var><sub><var>n</var></sub> ; <var>F</var><sub><var>n</var></sub> <var>F</var><sub><var>n</var>−1</sub> ].</p>
+<p>Piece three: compute <var>M</var><sup>10</sup> by squaring, exactly as for numbers. Write 10 in binary, 1010, keep a running result (start at the identity matrix) and a running base (start at <var>M</var>), square the base each round, and multiply it into the result when the current bit is 1:</p>
+<div class="table-wrap"><table>
+<tr><th>round</th><th>bit</th><th>result</th><th>base after squaring</th></tr>
+<tr><td>1</td><td>0</td><td>identity</td><td>[2 1; 1 1] = <var>M</var><sup>2</sup></td></tr>
+<tr><td>2</td><td>1</td><td>[2 1; 1 1]</td><td>[5 3; 3 2] = <var>M</var><sup>4</sup></td></tr>
+<tr><td>3</td><td>0</td><td>[2 1; 1 1]</td><td>[34 21; 21 13] = <var>M</var><sup>8</sup></td></tr>
+<tr><td>4</td><td>1</td><td>[2 1; 1 1] · [34 21; 21 13] = [89 55; 55 34]</td><td>done</td></tr>
+</table></div>
+<p>The top-right entry of <var>M</var><sup>10</sup> is 55, which is <var>F</var><sub>10</sub>. Four matrix multiplications instead of ten additions, and for <var>n</var> = 10<sup>9</sup> about sixty matrix multiplications instead of a billion additions.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant is the one from fast exponentiation, now for matrices: result · base<sup>exp</sup> = <var>M</var><sup><var>n</var></sup> at the start of every round. It holds at the start (identity · <var>M</var><sup><var>n</var></sup>) and each round preserves it, because squaring the base and halving the exponent leaves base<sup>exp</sup> unchanged, and an odd exponent first moves one factor into the result. Matrix multiplication is associative, which is all the argument needs; it is not commutative, so always multiply in the same order.</p>
+<p>That <var>M</var><sup><var>n</var></sup> holds (<var>F</var><sub><var>n</var>+1</sub>, <var>F</var><sub><var>n</var></sub>, <var>F</var><sub><var>n</var></sub>, <var>F</var><sub><var>n</var>−1</sub>) follows by induction: it is true for <var>n</var> = 1, and multiplying by <var>M</var> once more adds the two top entries and shifts, which is one Fibonacci step in each column.</p>
+
+<h3>Why it is fast</h3>
+<p>Squaring halves the exponent, so there are ⌊log<sub>2</sub> <var>n</var>⌋ + 1 rounds. Multiplying two <var>k</var> × <var>k</var> matrices costs <var>k</var><sup>3</sup> multiplications, and each round does at most two:</p>
+<p class="formula">time = O(<var>k</var><sup>3</sup> log <var>n</var>), here <var>k</var> = 2</p>
+<p>Taking every entry modulo 10<sup>9</sup> + 7 after each multiplication keeps the numbers small. Any recurrence where the next term is a fixed linear combination of the previous <var>k</var> terms fits, with a <var>k</var> × <var>k</var> matrix: a shifted identity below the top row, and the coefficients in the top row.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: a recurrence like "ways to reach step <var>n</var> from steps <var>n</var> − 1 and <var>n</var> − 2", "count strings of length <var>n</var> where each letter can be followed by certain letters", together with an <var>n</var> far too large to loop over, often 10<sup>9</sup> or more. Say: "the recurrence is linear with constant coefficients, so <var>n</var> steps are one matrix power, computed by squaring in logarithmic time".</p>
+<p>Fibonacci Number and Climbing Stairs are the 2 × 2 case above. Knight Dialer is a 10 × 10 matrix where entry (<var>i</var>, <var>j</var>) is 1 when a knight can move from key <var>i</var> to key <var>j</var>; the count of dialable numbers of length <var>n</var> is the sum of all entries of that matrix to the power <var>n</var> − 1.</p>

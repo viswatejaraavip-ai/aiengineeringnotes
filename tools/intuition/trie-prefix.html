@@ -1,0 +1,21 @@
+<h3>Start with what you would do by hand</h3>
+<p>You keep a list of words: <code>apple</code>, <code>app</code>, <code>ape</code>. People ask two kinds of question: "is <code>app</code> a word?" and "does any word start with <code>ap</code>?" By hand, with a short list, you read down the list and compare. With a dictionary of 100,000 words, answering "any word starting with <code>ap</code>" means comparing the prefix against every entry, and each comparison can take several letters: around 100,000 × (prefix length) steps per question. Sorting the list helps the first question but the prefix question still needs a search plus a scan.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Instead of storing words whole, store them letter by letter along shared paths. Start with a single empty node, the root. A node has up to 26 children, one per letter, and a flag that says "a word ends here".</p>
+<ol>
+<li>Insert <code>apple</code>: the root has no child <code>a</code>, so create one. That node has no child <code>p</code>, create it. Continue for <code>p</code>, <code>l</code>, <code>e</code>, creating five nodes in a line. Mark the last node (<code>e</code>) as a word end.<br>Levels: root → a → p → p → l → e✓</li>
+<li>Insert <code>app</code>: walk <code>a</code>, <code>p</code>, <code>p</code>; all three nodes already exist, nothing is created. Mark the second <code>p</code> as a word end.<br>Levels: root → a → p → p✓ → l → e✓</li>
+<li>Insert <code>ape</code>: <code>a</code> and <code>p</code> exist; <code>e</code> does not exist under that <code>p</code>, so a new branch starts.<br>Levels: root → a → p → { p✓ → l → e✓ , e✓ }</li>
+</ol>
+<p>Now the questions become walks. <code>search("app")</code>: walk <code>a</code>, <code>p</code>, <code>p</code>, arrive at a node with the flag set: true. <code>startsWith("ap")</code>: walk <code>a</code>, <code>p</code>, the path exists, no flag needed: true. <code>search("apl")</code>: after <code>a</code>, <code>p</code> there is no child <code>l</code>: false. This tree of letters is a <strong>trie</strong> (from "retrieval").</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: a word is in the set exactly when the path spelling it, letter by letter from the root, exists and ends at a flagged node. Insert creates exactly that path and sets exactly that flag, and never removes anything, so inserting one word cannot make another disappear. Two words that share a prefix share the nodes of that prefix, which is why <code>app</code> and <code>apple</code> coexist: the flag, not the end of a path, says where a word stops. A prefix query asks only whether the path exists, which is true exactly when some inserted word begins with it.</p>
+<p class="formula">search(<var>w</var>) = path(<var>w</var>) exists and flag(end of path) ; startsWith(<var>p</var>) = path(<var>p</var>) exists</p>
+
+<h3>Why it is fast</h3>
+<p>Every operation walks one node per letter, and moving to a child is an array lookup or a hash lookup, constant time. So insert, search and prefix check each cost O(<var>L</var>) for a word of length <var>L</var>, no matter how many words are stored: 100,000 words or 10 million, <code>startsWith("ap")</code> is two steps. Memory is at most one node per letter of every inserted word, often far less because of shared prefixes.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: many strings, repeated questions about prefixes, autocomplete, "starts with", wildcard letters, or walking a grid while matching many words at once. Say: I will store the words in a trie so each query walks one letter at a time. <em>Implement Trie (Prefix Tree)</em> is exactly the structure above. <em>Design Add and Search Words Data Structure</em> adds a wildcard: at a <code>.</code> try every child. <em>Search Suggestions System</em> walks the typed prefix and collects the first three words below that node.</p>

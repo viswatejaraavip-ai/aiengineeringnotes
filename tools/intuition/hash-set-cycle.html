@@ -1,0 +1,28 @@
+<h3>Start with what you would do by hand</h3>
+<p>A "happy number" game: take a number, square each digit and add the squares, and repeat. 19 → 1² + 9² = 82 → 8² + 2² = 68 → 6² + 8² = 100 → 1² + 0² + 0² = 1. Once you reach 1 you stay at 1, so 19 is happy. Try 4: 4 → 16 → 37 → 58 → 89 → 145 → 42 → 20 → 4. It came back to 4, so it will loop forever and never reach 1. 4 is not happy.</p>
+<p>The danger is obvious when you do it by hand: how do you know when to stop? If you just keep computing, an unhappy number keeps you busy forever. You need a way to notice "I have been here before".</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The step is <em>deterministic</em>: from a given number you always go to the same next number. That means the moment any number appears a second time, everything after it will repeat exactly as before, forever. So "have I seen this before?" is the only question we need, and a <strong>hash set</strong> answers it in about one step.</p>
+<p>The procedure: keep a set called <var>seen</var>. At each number, if it is 1, stop with "happy". If it is already in <var>seen</var>, stop with "not happy". Otherwise add it to <var>seen</var> and compute the next number. For 19:</p>
+<div class="table-wrap"><table>
+<tr><th>Current</th><th>In seen?</th><th>seen afterwards</th><th>Next</th></tr>
+<tr><td>19</td><td>no</td><td>{19}</td><td>1 + 81 = 82</td></tr>
+<tr><td>82</td><td>no</td><td>{19, 82}</td><td>64 + 4 = 68</td></tr>
+<tr><td>68</td><td>no</td><td>{19, 82, 68}</td><td>36 + 64 = 100</td></tr>
+<tr><td>100</td><td>no</td><td>{19, 82, 68, 100}</td><td>1 + 0 + 0 = 1</td></tr>
+<tr><td>1</td><td>reached 1</td><td>stop: happy</td><td></td></tr>
+</table></div>
+<p>For 4 the set grows to {4, 16, 37, 58, 89, 145, 42, 20} and then 4 arrives again, is found in the set, and we stop with "not happy". The same skeleton detects a loop in any process that moves from state to state by a fixed rule: a linked list where each node points to a next node, a robot following fixed instructions, a function applied again and again.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: <em>the set holds exactly the states visited so far</em>. We add each state before leaving it, and never remove, so this holds at every step.</p>
+<p>Two things need to be true. First, if we stop with "cycle", there really is one: the state we just saw is in the set, so it was visited before, and a deterministic rule will now repeat the same path. Second, we always stop. For happy numbers, a number with <var>d</var> digits maps to at most 81<var>d</var>, so any number above 243 shrinks and every number below 1000 stays below 1000; the path lives in a finite box of states, and by the pigeonhole principle a path through a finite set of <var>m</var> states must repeat within <var>m</var> + 1 steps. The same finiteness argument covers a linked list with <var>n</var> nodes: after <var>n</var> + 1 moves some node is seen twice, or the walk fell off the end.</p>
+
+<h3>Why it is fast</h3>
+<p>Each state is processed once: one lookup, one insert, one step of the rule. If the path has <var>L</var> states before it repeats or terminates, that is O(<var>L</var>) time and O(<var>L</var>) memory. For a linked list <var>L</var> ≤ <var>n</var>. The by-hand method had no bound at all, because it never knew when to stop.</p>
+<p>When memory matters, there is a famous O(1)-space cousin: the fast and slow pointer (tortoise and hare), which detects the same cycle without storing anything. The set version is the one to reach for when you also need to know <em>which</em> states were visited, or when the states are numbers rather than pointers.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "repeat this operation until …", "does the process terminate", "detect a loop", or any walk along "next" pointers where you are not told there is an end. The first thing to say: "The step is deterministic, so a repeated state means an infinite loop; I will keep a set of visited states and stop on the first repeat."</p>
+<p><strong>Happy Number</strong> is the example above. <strong>Linked List Cycle</strong> is the same with node references as the states. <strong>Find the Duplicate Number</strong> can be read as "follow index → value as a pointer" and the duplicate is where two paths enter the same loop.</p>

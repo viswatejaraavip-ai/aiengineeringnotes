@@ -394,24 +394,45 @@
       <p>Each chunk is independent; the buffer holds one unit at a time.</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Turn <code>the sky is blue</code> into <code>blue is sky the</code>: the words in reverse order, each word still spelled forwards. By hand you would read the words, write them on slips of paper, and lay the slips out backwards. That uses a second sheet the size of the first. Now suppose the sentence is stored in a fixed row of boxes, one letter per box, and you must do the job inside those boxes with no spare sheet, only a few pencil marks. Shuffling whole words around inside a row, each move shifting everything else along, is slow and easy to get wrong: moving one word of length <var>w</var> past the rest costs about <var>n</var> box copies, and there are many words.</p>
 
+<h3>Build the structure, one piece at a time</h3>
+<p>There is only one tool: <strong>reverse a stretch of boxes in place</strong>. Put one finger at each end of the stretch, swap the two letters, move both fingers inward, and repeat until they meet. For a stretch of <var>w</var> boxes that is <var>w</var>/2 swaps and no extra space.</p>
+<p>Now use the tool twice.</p>
+<ol>
+<li>Reverse the whole row: <code>the sky is blue</code> → <code>eulb si yks eht</code>. The words are now in the right order, but each one is spelled backwards.</li>
+<li>Walk the row, find each word (a stretch between spaces), and reverse that stretch on its own:<br><code>eulb</code> → <code>blue</code>, giving <code>blue si yks eht</code><br><code>si</code> → <code>is</code>, giving <code>blue is yks eht</code><br><code>yks</code> → <code>sky</code>, giving <code>blue is sky eht</code><br><code>eht</code> → <code>the</code>, giving <code>blue is sky the</code>.</li>
+</ol>
+<p>The result is <code>blue is sky the</code>: the original order the, sky, is, blue, read backwards. (The video's closing caption says "blue is the sky" as loose English; the exact reversed-order output is <code>blue is sky the</code>.) Many string problems are built from this one tool applied to chosen stretches: reverse the first <var>k</var> letters of every 2<var>k</var> block, rotate an array by <var>d</var> with three reversals, and so on.</p>
 
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+<h3>Why it is correct</h3>
+<p>Reversing the whole row puts the words in reverse order, because the last box becomes the first: whatever was at the end of the row is now at the start, word by word, and each word's letters are reversed along with everything else. Reversing a single word's stretch flips its letters back without touching the boxes around it. Two reversals of the same stretch restore it exactly, so each word's spelling returns to the original while its new position is kept. Spaces are single boxes and stay where the first reversal put them, which is exactly between the reversed words.</p>
+<p class="formula">reverse(<var>w</var><sub>1</sub> <var>w</var><sub>2</sub> … <var>w</var><sub><var>k</var></sub>) = rev(<var>w</var><sub><var>k</var></sub>) … rev(<var>w</var><sub>1</sub>), and rev(rev(<var>w</var>)) = <var>w</var></p>
+
+<h3>Why it is fast</h3>
+<p>The whole-row reversal does <var>n</var>/2 swaps. The per-word reversals together touch every letter once more, another <var>n</var>/2 swaps at most. Total about <var>n</var> swaps: O(<var>n</var>) time with O(1) extra memory, two indices. Moving words one at a time inside the row costs O(<var>n</var>) per word and O(<var>n</var><sup>2</sup>) overall. Building the answer on a second sheet is also O(<var>n</var>) but needs O(<var>n</var>) extra space, which is what in-place problems forbid.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "in place", "O(1) extra space", "reverse words", "rotate", "every <var>k</var> characters", or a string transformation that is really a rearrangement of fixed chunks. Say: I will do it with in-place reversals of chosen stretches, usually the whole thing first and then the pieces. <em>Reverse Words in a String</em> is the example. <em>Reverse String II</em> reverses the first <var>k</var> letters of every block of 2<var>k</var>. <em>Zigzag Conversion</em> and <em>Text Justification</em> are the cousin form: build the output chunk by chunk into a buffer, one row or one line at a time.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Reverse in chunks, or build the answer backwards with a buffer.</p>
     <p><strong>Reach for it when:</strong> Reverse words, reverse words in place, zigzag, string compression, text justification.</p>
     <p><strong>Cost:</strong> O(n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Reverse Words in &#x27;the sky is blue&#x27;</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Two reversals: whole string first, then each <em>word</em> on its own</li><li>Reverse the whole string: words are in the right order but <em>spelled backwards</em></li><li>Reverse &#x27;eulb&#x27; → &#x27;<em>blue</em>&#x27;</li><li>Reverse &#x27;si&#x27; → &#x27;<em>is</em>&#x27;</li><li>Reverse &#x27;yks&#x27; → &#x27;<em>sky</em>&#x27;</li><li>Reverse &#x27;eht&#x27; → &#x27;<em>the</em>&#x27;</li><li>Result: &#x27;blue is the sky&#x27;, built <em>in place</em></li><li>Two linear passes, no extra buffer: <em>O(n)</em> time, <em>O(1)</em> space</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>7 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/zigzag-conversion">Zigzag Conversion</a></td><td><span class="diff medium">Medium</span></td><td class="num">54</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/reverse-words-in-a-string">Reverse Words in a String</a></td><td><span class="diff medium">Medium</span></td><td class="num">46</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/text-justification">Text Justification</a></td><td><span class="diff hard">Hard</span></td><td class="num">44</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/string-compression">String Compression</a></td><td><span class="diff medium">Medium</span></td><td class="num">44</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/reverse-string-ii">Reverse String II</a></td><td><span class="diff easy">Easy</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/license-key-formatting">License Key Formatting</a></td><td><span class="diff easy">Easy</span></td><td class="num">21</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/reverse-words-in-a-string-iii">Reverse Words in a String III</a></td><td><span class="diff easy">Easy</span></td><td class="num">17</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-string-algorithms">String Algorithms</a>: <a href="/dsa/string-kmp/">KMP failure function</a>, <a href="/dsa/string-rolling-hash/">Rolling hash (Rabin–Karp)</a>, <a href="/dsa/string-parse-state/">Parse with a state machine</a>, <a href="/dsa/string-two-string-alternate/">Merge / compare two strings in lockstep</a>, <a href="/dsa/string-matching-automaton/">Multi-pattern scan with a set of lengths</a>.</p>
   </article>
 
@@ -430,6 +451,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

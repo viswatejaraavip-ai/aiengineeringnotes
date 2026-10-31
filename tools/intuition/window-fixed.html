@@ -1,0 +1,27 @@
+<h3>Start with what you would do by hand</h3>
+<p>Given 1, 12, −5, −6, 50, 3, find the four consecutive numbers with the largest average. By hand: add 1 + 12 − 5 − 6 = 2, then 12 − 5 − 6 + 50 = 51, then −5 − 6 + 50 + 3 = 42. The best is 51, so the average is 12.75.</p>
+<p>Each of those sums took four additions. With <var>n</var> numbers and windows of size <var>k</var> there are <var>n</var> − <var>k</var> + 1 windows and each costs <var>k</var> additions: O(<var>n</var> · <var>k</var>). For a million numbers and windows of 10,000 that is ten billion additions. Look at what was wasted: the second sum re-added 12, −5 and −6, which were already in the first sum.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The window is just two things: a <strong>range</strong> of exactly <var>k</var> positions, and a <strong>running aggregate</strong> of what is inside it. The aggregate here is a sum, but it can be a count table, a set, or anything you can update by adding one element and removing one.</p>
+<p>Piece one: build the first window honestly, adding its <var>k</var> elements. Sum = 2 for positions 0 … 3.</p>
+<p>Piece two: slide. To move the window one step right, add the element that enters on the right and subtract the element that leaves on the left. Two operations, whatever <var>k</var> is.</p>
+<div class="table-wrap"><table>
+<tr><th>Window</th><th>Enters</th><th>Leaves</th><th>Sum</th><th>Best</th></tr>
+<tr><td>[0..3] = 1, 12, −5, −6</td><td>built directly</td><td></td><td>2</td><td>2</td></tr>
+<tr><td>[1..4] = 12, −5, −6, 50</td><td>50</td><td>1</td><td>2 + 50 − 1 = 51</td><td>51</td></tr>
+<tr><td>[2..5] = −5, −6, 50, 3</td><td>3</td><td>12</td><td>51 + 3 − 12 = 42</td><td>51</td></tr>
+</table></div>
+<p>For "does this window contain a permutation of a pattern", the aggregate is a 26-entry letter count: entering a letter adds one to its count, leaving subtracts one, and the window matches when the counts equal the pattern's counts. For "any duplicate within distance <var>k</var>", the aggregate is a set of the last <var>k</var> elements.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: <em>after the window has moved to end at position <var>r</var>, the aggregate describes exactly positions <var>r</var> − <var>k</var> + 1 … <var>r</var></em>. It holds for the first window by construction. A slide adds position <var>r</var> + 1 and removes position <var>r</var> − <var>k</var> + 1, so the described set becomes <var>r</var> − <var>k</var> + 2 … <var>r</var> + 1, which is exactly the next window. For sums this is the identity</p>
+<p class="formula">sum[<var>r</var>−<var>k</var>+2 … <var>r</var>+1] = sum[<var>r</var>−<var>k</var>+1 … <var>r</var>] + nums[<var>r</var>+1] − nums[<var>r</var>−<var>k</var>+1]</p>
+<p>and for a count table it is the same statement per value. Since every window of size <var>k</var> is visited and each one's aggregate is exact, the maximum (or the first match) found is the true answer.</p>
+
+<h3>Why it is fast</h3>
+<p>Building the first window costs <var>k</var>; each of the <var>n</var> − <var>k</var> slides costs 2. Total about <var>k</var> + 2(<var>n</var> − <var>k</var>) &lt; 2<var>n</var>, which is O(<var>n</var>), independent of <var>k</var>. The million-number example drops from ten billion additions to about two million. The whole saving is that an element is added once and subtracted once instead of being re-added in every window it belongs to.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "of length <var>k</var>", "every window of size <var>k</var>", "consecutive <var>k</var> elements", "within distance <var>k</var>", "substring of the same length as the pattern". When the size is fixed, the window never needs a shrink loop; it is exactly add-one, drop-one.</p>
+<p>Say: "I will keep a running aggregate of exactly <var>k</var> elements and slide it by adding the new right element and removing the old left one." <strong>Maximum Average Subarray I</strong> is the example. <strong>Permutation in String</strong> and <strong>Find All Anagrams in a String</strong> use a letter-count aggregate with the window size equal to the pattern's length. <strong>Contains Duplicate II</strong> uses a set of the last <var>k</var> elements and reports a hit when the entering element is already present.</p>

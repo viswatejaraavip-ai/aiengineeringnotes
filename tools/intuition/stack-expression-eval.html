@@ -1,0 +1,36 @@
+<h3>Start with what you would do by hand</h3>
+<p>Work out 3 + 2 × 2 − 1. The school rule is that multiplication comes first: 2 × 2 = 4, then 3 + 4 − 1 = 6. Reading left to right you cannot add 3 + 2 the moment you see the plus, because the next operator might be a × that binds the 2 more tightly.</p>
+<p>By hand you scan for the highest-precedence operator, apply it, rewrite, and scan again. Each scan is the whole expression, so that is O(<var>n</var><sup>2</sup>) for <var>n</var> tokens. The question is how to decide, at each operator, what can be computed now and what must wait, in a single left-to-right pass.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: an <strong>operand stack</strong> holding numbers that are waiting for a low-precedence operator (+ or −) to combine them. The final answer will be the sum of everything on the stack.</p>
+<p>Piece two: remember the <strong>last operator seen</strong>. When a complete number arrives, act on the last operator:</p>
+<ul>
+<li>+ : push the number.</li>
+<li>− : push the negated number. Subtraction becomes "add a negative", so the end is a plain sum.</li>
+<li>× or ÷ : these bind tighter than anything waiting on the stack, so apply them <em>now</em> to the top: pop it, combine with the new number, push the result.</li>
+</ul>
+<p>Start with the last operator set to +. For 3 + 2 × 2 − 1:</p>
+<div class="table-wrap"><table>
+<tr><th>Token</th><th>Last operator</th><th>Action</th><th>Stack</th></tr>
+<tr><td>3</td><td>+</td><td>push 3</td><td>3</td></tr>
+<tr><td>+</td><td></td><td>remember +</td><td>3</td></tr>
+<tr><td>2</td><td>+</td><td>push 2</td><td>3, 2</td></tr>
+<tr><td>×</td><td></td><td>remember ×</td><td>3, 2</td></tr>
+<tr><td>2</td><td>×</td><td>pop 2, push 2 × 2</td><td>3, 4</td></tr>
+<tr><td>−</td><td></td><td>remember −</td><td>3, 4</td></tr>
+<tr><td>1</td><td>−</td><td>push −1</td><td>3, 4, −1</td></tr>
+<tr><td>end</td><td></td><td>sum the stack</td><td>6</td></tr>
+</table></div>
+<p>Multi-digit numbers are accumulated digit by digit until a non-digit arrives. Parentheses add the nested-context idea from the previous pattern: push the stack and the last operator at "(", evaluate the inside, and treat its result as a number at ")". Reverse Polish notation (2 1 + 3 ×) removes precedence entirely: numbers push, an operator pops two and pushes the result.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: <em>the stack holds a list of terms whose sum equals the value of the expression read so far, where every × and ÷ has already been applied</em>. A + pushes a new term; a − pushes a negative term, which is the same as subtracting; a × or ÷ modifies the most recent term, which is correct because × and ÷ apply to the number immediately before them and that number is exactly the top term, having not yet been added to anything. Precedence is honoured because the only thing a term can still be combined with is a × or ÷ that immediately follows it; by the time a + or − arrives, the term is final. The sum at the end is therefore the expression's value:</p>
+<p class="formula">3 + 2 × 2 − 1 = (+3) + (+2 × 2) + (−1)</p>
+
+<h3>Why it is fast</h3>
+<p>Each token causes O(1) stack work: at most one pop and one push. So the pass is O(<var>n</var>) time and the stack holds at most one term per + or −, O(<var>n</var>) space, against O(<var>n</var><sup>2</sup>) for repeated scanning. Integer division needs care with negatives: truncate toward zero, which in most languages means using the language's integer division on the absolute values and restoring the sign.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "evaluate the expression", "calculator", "+, −, ×, ÷ with or without parentheses", "reverse Polish notation", "insert operators between digits to reach a target" (where the same last-term trick lets you undo a term when a × follows it). Say: "I will keep a stack of terms, push on + and −, apply × and ÷ immediately to the top, and sum the stack at the end."</p>
+<p><strong>Basic Calculator II</strong> is the example. <strong>Evaluate Reverse Polish Notation</strong> is the no-precedence version. <strong>Expression Add Operators</strong> is a backtracking search that uses the same "previous term" bookkeeping so that a × can be applied to the last term without recomputing.</p>

@@ -1,0 +1,31 @@
+<h3>Start with what you would do by hand</h3>
+<p>Read the number out of the text <code>   -42abc</code>: skip the spaces, notice the minus sign, read the digits 4 and 2, stop at the letter. By hand you do this without thinking. The trouble starts when you write it as code with a pile of if-statements: what if there are two signs, <code>+-4</code>? A sign after a digit, <code>4-2</code>? Spaces after the sign? Digits so many that the number overflows a 32-bit integer? Each special case patches the last one, and a forgotten case gives a wrong answer silently. Testing every combination of quirks by hand is slow and never feels finished.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The structure is a <strong>state machine</strong>: a short list of states you can be in, and for each state a rule for what each kind of character does. The whole parse is one left-to-right pass, and the only memory is the current state plus the value built so far.</p>
+<ol>
+<li>State <strong>SPACE</strong>: a space keeps you here; a sign moves you to SIGN and records it; a digit moves you to DIGITS; anything else ends.</li>
+<li>State <strong>SIGN</strong>: a digit moves you to DIGITS; anything else, including another sign or a space, ends with value 0.</li>
+<li>State <strong>DIGITS</strong>: a digit is appended, value = value·10 + digit; anything else ends.</li>
+<li>State <strong>END</strong>: nothing more is read.</li>
+</ol>
+<p>Run <code>   -42abc</code> through it:</p>
+<div class="table-wrap"><table>
+<tr><th>char</th><th>state before</th><th>state after</th><th>value</th></tr>
+<tr><td>space ×3</td><td>SPACE</td><td>SPACE</td><td>0</td></tr>
+<tr><td><code>-</code></td><td>SPACE</td><td>SIGN (negative)</td><td>0</td></tr>
+<tr><td><code>4</code></td><td>SIGN</td><td>DIGITS</td><td>4</td></tr>
+<tr><td><code>2</code></td><td>DIGITS</td><td>DIGITS</td><td>42</td></tr>
+<tr><td><code>a</code></td><td>DIGITS</td><td>END</td><td>42</td></tr>
+</table></div>
+<p>Apply the sign: −42. The last piece is the overflow guard inside DIGITS: before value·10 + digit, check whether value is already above (limit − digit)/10; if so, clamp to the limit and end. For 32-bit integers the limits are 2<sup>31</sup> − 1 = 2,147,483,647 and −2<sup>31</sup>.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: the current state and value together describe exactly the valid prefix read so far. In SPACE nothing has been read; in SIGN a sign has been consumed and no digit yet; in DIGITS the value equals the digits read so far, as a number. Each rule consumes one character and moves to the state that describes the new prefix, and every character falls under exactly one rule, so there is no input the machine does not know what to do with. "Two signs" cannot happen because SIGN has no rule that accepts a sign; it ends instead. That is the whole point: the quirks are not patches, they are the absence of an arrow.</p>
+<p class="formula">value<sub>new</sub> = value·10 + <var>d</var>, allowed only if value ≤ (<var>L</var> − <var>d</var>) / 10</p>
+
+<h3>Why it is fast</h3>
+<p>One character is read per step, each step does a constant amount of work (a few comparisons and one multiply-add), and nothing is ever re-read. So parsing <var>n</var> characters is O(<var>n</var>) with O(1) memory. The overflow check is a comparison per digit, so it adds nothing to the order. A regular expression does the same work in principle, but hides the overflow rule and the clamping, which the state machine makes explicit.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "parse", "convert the string to", a format with optional parts in a fixed order (sign, digits, dot, exponent), "stop at the first invalid character", roman numerals, version strings. Say: I will list the states and draw the arrows before writing any code, then every character falls into exactly one case. <em>String to Integer (atoi)</em> is the example. <em>Roman to Integer</em> is a two-state machine: compare each symbol with the next and subtract or add. <em>Fraction to Recurring Decimal</em> is a state machine over remainders: the state is the remainder, and a repeated remainder means the digits repeat from there.</p>

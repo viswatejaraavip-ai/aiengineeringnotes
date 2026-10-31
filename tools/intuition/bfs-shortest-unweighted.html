@@ -1,0 +1,21 @@
+<h3>Start with what you would do by hand</h3>
+<p>Change the word "hit" into "cog" one letter at a time, where every intermediate word must be in a dictionary: {hot, dot, dog, lot, log, cog}. What is the fewest steps? By hand you might try: hit → hot → dot → dog → cog, five words, four changes. Is there anything shorter? You cannot be sure unless you have tried every shorter possibility. Depth-first exploration can wander: hit → hot → lot → log → cog is also a ladder, and a depth-first search that happened to go down the lot branch first would report it, which is the same length here but in general could be longer than the best.</p>
+<p>What you want is to try all one-step words, then all two-step words, and so on, so that the first time you see "cog" you know nothing shorter exists.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: the graph. Words are nodes; two words are joined if they differ in exactly one letter. We never build it explicitly: to find a word's neighbours, change each position to each of 26 letters and keep those that are in the dictionary.</p>
+<p>Piece two: a queue holding (word, steps so far), and a visited set so that a word is explored only once. Mark a word visited the moment it is pushed, not when it is popped, or the same word can enter the queue many times.</p>
+<p>Piece three: the loop. Pop the front. If it is the target, its steps count is the answer. Otherwise push every unvisited neighbour with steps + 1.</p>
+<div class="table-wrap"><table><tr><th>Popped (word, length)</th><th>New neighbours pushed</th><th>At length</th></tr><tr><td>hit, 1</td><td>hot</td><td>2</td></tr><tr><td>hot, 2</td><td>dot, lot</td><td>3</td></tr><tr><td>dot, 3</td><td>dog</td><td>4</td></tr><tr><td>lot, 3</td><td>log</td><td>4</td></tr><tr><td>dog, 4</td><td>cog</td><td>5</td></tr><tr><td>log, 4</td><td>(cog already visited)</td><td></td></tr><tr><td>cog, 5</td><td>target: answer 5 words</td><td></td></tr></table></div>
+<p>Every word at length 3 was handled before any at length 4. That is the layering the by-hand method wanted.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: the queue holds nodes in non-decreasing distance, and the distances present differ by at most one. Initially it holds one node at distance 0. Popping a node at distance <var>d</var> pushes nodes at <var>d</var> + 1 to the back, behind everything at <var>d</var> and <var>d</var> + 1 already there, so the order is preserved.</p>
+<p class="formula">the first time a node is pushed, its recorded distance = the length of a shortest path to it</p>
+<p>Suppose some node <var>v</var> were first reached with a distance larger than its true shortest distance <var>k</var>. Then along a true shortest path there is a node <var>u</var> at distance <var>k</var> − 1 that was popped before anything at distance <var>k</var> or more was popped, and popping <var>u</var> would have pushed <var>v</var> at distance <var>k</var>. Contradiction. So the recorded distance is exact, and in particular the first time the target is seen is optimal.</p>
+
+<h3>Why it is fast</h3>
+<p>Each node is pushed and popped at most once, and each edge is examined at most twice, so O(<var>V</var> + <var>E</var>). For Word Ladder with <var>N</var> words of length <var>L</var>, generating neighbours costs 26 × <var>L</var> per word, so O(<var>N</var> × 26 × <var>L</var>) overall. Depth-first search has the same cost but no guarantee of shortness; trying all ladders by hand is exponential.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>"Minimum number of steps", "shortest path" or "fewest moves" where every step costs the same: a grid with unit moves, a word ladder, a lock dial, a snakes-and-ladders board, a knight on a chessboard. Say: "All edges have equal weight, so BFS from the source finds shortest distances; the first time I reach the target I stop." Word Ladder is this exactly. Shortest Path in Binary Matrix runs it on cells with 8 neighbours. Bus Routes builds the graph with routes as nodes, joined when they share a stop, and BFS counts buses instead of stops.</p>

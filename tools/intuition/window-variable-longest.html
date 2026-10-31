@@ -1,0 +1,32 @@
+<h3>Start with what you would do by hand</h3>
+<p>In the string abcabcbb, find the longest stretch with no repeated letter. By hand you would start at each position and extend to the right until a letter repeats: from 0 you get abc (then a repeats), from 1 you get bca, from 2 cab, and so on. The answer is 3.</p>
+<p>That is a fresh scan from every start: <var>n</var> starts, each extending up to <var>n</var>, O(<var>n</var><sup>2</sup>), and each extension needs a "have I seen this letter?" check. The waste is that the scan from position 1 re-reads bc, which the scan from position 0 already knew were distinct.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a window [<var>l</var>, <var>r</var>] with a set (or count table) of the letters inside it, so "is this letter already in the window?" is one step.</p>
+<p>Piece two, the rule for the right end: always try to grow. Move <var>r</var> one step right and add the new letter to the set.</p>
+<p>Piece three, the rule for the left end: if the window just became invalid (the new letter was already inside), shrink from the left, removing letters from the set, until the window is valid again. Then record the window's length if it is the longest so far.</p>
+<div class="table-wrap"><table>
+<tr><th><var>r</var></th><th>Letter</th><th>Already in window?</th><th>Shrink</th><th>Window</th><th>Best</th></tr>
+<tr><td>0</td><td>a</td><td>no</td><td></td><td>[0..0] a</td><td>1</td></tr>
+<tr><td>1</td><td>b</td><td>no</td><td></td><td>[0..1] ab</td><td>2</td></tr>
+<tr><td>2</td><td>c</td><td>no</td><td></td><td>[0..2] abc</td><td>3</td></tr>
+<tr><td>3</td><td>a</td><td>yes</td><td>drop a: <var>l</var> → 1</td><td>[1..3] bca</td><td>3</td></tr>
+<tr><td>4</td><td>b</td><td>yes</td><td>drop b: <var>l</var> → 2</td><td>[2..4] cab</td><td>3</td></tr>
+<tr><td>5</td><td>c</td><td>yes</td><td>drop c: <var>l</var> → 3</td><td>[3..5] abc</td><td>3</td></tr>
+<tr><td>6</td><td>b</td><td>yes</td><td>drop a, b: <var>l</var> → 5</td><td>[5..6] cb</td><td>3</td></tr>
+<tr><td>7</td><td>b</td><td>yes</td><td>drop c, b: <var>l</var> → 7</td><td>[7..7] b</td><td>3</td></tr>
+</table></div>
+<p>The word "valid" is the only thing that changes between problems: "no repeated letter", "at most <var>k</var> distinct values", "at most <var>k</var> zeros flipped", "the most frequent letter can be made to fill the window with at most <var>k</var> replacements". The aggregate is whatever lets you test validity in O(1) after each add or remove.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant, true after every shrink loop: <em>[<var>l</var>, <var>r</var>] is valid, and no window ending at <var>r</var> that starts before <var>l</var> is valid</em>. The first half is just what the shrink loop guarantees. For the second half, suppose some window [<var>l</var>′, <var>r</var>] with <var>l</var>′ &lt; <var>l</var> were valid. The shrink loop only advances <var>l</var> while the window is invalid, so at the moment <var>l</var> moved past <var>l</var>′ the window [<var>l</var>′, <var>r</var>″] was invalid for some <var>r</var>″ ≤ <var>r</var>. Validity here is <em>hereditary</em>: a window with a repeat still has that repeat when you extend it. So [<var>l</var>′, <var>r</var>] is invalid too. Hence for each <var>r</var> the window [<var>l</var>, <var>r</var>] is the longest valid window ending at <var>r</var>, and the maximum over all <var>r</var> is the longest valid window overall. The argument needs that property: if a window is invalid, every larger window containing it is invalid. Every "at most <var>k</var>" constraint has it.</p>
+
+<h3>Why it is fast</h3>
+<p>Count pointer moves. <var>r</var> moves right exactly <var>n</var> times. <var>l</var> only ever moves right, and it never passes <var>r</var>, so it moves at most <var>n</var> times in total across all shrink loops, even though one loop may move it several steps:</p>
+<p class="formula">total moves ≤ <var>n</var> (for <var>r</var>) + <var>n</var> (for <var>l</var>) = 2<var>n</var></p>
+<p>Each move does O(1) work on the set. So the time is O(<var>n</var>), with O(alphabet) memory. The quadratic rescans are gone because the left end never goes backwards.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "longest substring/subarray such that …", with a condition of the form "at most", "no", "without". The answer is a length and the condition is hereditary. The first thing to say: "I will grow the right end every step and shrink the left end only while the window is invalid; each pointer moves at most <var>n</var> times."</p>
+<p><strong>Longest Substring Without Repeating Characters</strong> is the example. <strong>Fruit Into Baskets</strong> is "at most 2 distinct values" with a count table. <strong>Longest Repeating Character Replacement</strong> is valid while window length − (count of the most frequent letter) ≤ <var>k</var>; the standard trick keeps the historical maximum count, which never makes the answer wrong because the best window only needs to be found once.</p>

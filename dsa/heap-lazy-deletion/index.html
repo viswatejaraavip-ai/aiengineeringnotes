@@ -394,24 +394,44 @@
       <p>The root is valid once stale roots are popped.</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>A stock price feed sends updates with a timestamp: at time 1 the price is 10, at time 2 it is 5. Then a correction arrives: the time-1 price was really 3. After each message you must report the current maximum price. By hand you keep a small table, timestamp → latest price, and after each message scan it for the largest: {1: 10, 2: 5} → 10; after the correction {1: 3, 2: 5} → 5.</p>
+<p>Scanning the table costs one step per timestamp, so with a million timestamps each "what is the maximum" costs a million steps. A max-heap of prices would give the maximum instantly, but a heap cannot find and remove an arbitrary entry (the old time-1 price of 10) cheaply; it only exposes its top. Corrections seem to break the heap.</p>
 
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: the latest table, timestamp → latest price. This is the truth. It is a hash map, so updates and lookups are O(1).</p>
+<p>Piece two: a max-heap of (price, timestamp) pairs. On every message, push the pair, including corrections. Do not try to remove the outdated pair. The heap now contains some entries that are stale: their price no longer matches the table.</p>
+<p>Piece three: lazy deletion. When asked for the maximum, look at the top. Check it against the table: is latest[timestamp] equal to this price? If yes, it is the answer. If no, the entry is stale; pop it and look again. Stale entries are deleted only when they reach the top, which is the only place a heap can delete cheaply.</p>
+<div class="table-wrap"><table><tr><th>Message</th><th>Table</th><th>Heap (top first)</th><th>Query for max</th></tr><tr><td>t=1 price 10</td><td>{1: 10}</td><td>(10,1)</td><td>(10,1) matches: 10</td></tr><tr><td>t=2 price 5</td><td>{1: 10, 2: 5}</td><td>(10,1), (5,2)</td><td>(10,1) matches: 10</td></tr><tr><td>t=1 price 3 (correction)</td><td>{1: 3, 2: 5}</td><td>(10,1), (5,2), (3,1)</td><td>(10,1) stale, pop; (5,2) matches: 5</td></tr><tr><td>t=2 price 1</td><td>{1: 3, 2: 1}</td><td>(5,2), (3,1), (1,2)</td><td>(5,2) stale, pop; (3,1) matches: 3</td></tr></table></div>
 
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+<h3>Why it is correct</h3>
+<p>Every current (price, timestamp) pair was pushed into the heap when it became current, and it stays there until popped. An entry is popped only after being found stale, so no current entry is ever removed. Therefore the heap always contains every current pair, plus some stale ones.</p>
+<p class="formula">max over current pairs = the first heap entry from the top whose price equals latest[timestamp]</p>
+<p>The top of the heap is the largest price among all entries. If it is current it is the largest current price, since current entries are a subset. If it is stale, removing it cannot affect the answer, and we look again. The loop ends because the heap is finite and contains at least one current entry whenever the table is non-empty.</p>
+
+<h3>Why it is fast</h3>
+<p>Each message does one map write and one heap push, O(log <var>m</var>) where <var>m</var> is the number of messages so far. A query may pop several stale entries, but each entry is pushed once and popped at most once in its whole life, so across all queries the pops total at most the number of pushes. Spread over the messages, that is O(log <var>m</var>) per message on average, which is what "amortised" means. The by-hand scan was O(<var>n</var>) per query. The cost is memory: stale entries sit in the heap until they surface, so the heap can hold all <var>m</var> messages rather than just the live timestamps.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>You need the maximum or minimum of a changing set, and the changes include updates or removals of specific elements, not only insertions: "price corrections", "the number of seats freed", "remove an element from the window". Say: "I will push every update into the heap and verify the top against a map of the truth, popping stale entries lazily." Stock Price Fluctuation is this exactly, with a max-heap and a min-heap side by side. Sliding Window Median uses two heaps with lazy removal of elements that have left the window. Design a Number Container System keeps a min-heap of indices per number and discards an index whose current number no longer matches.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Keep stale entries in the heap; discard them when they surface.</p>
     <p><strong>Reach for it when:</strong> Sliding window median, stock price fluctuation, number of visible, exam rooms.</p>
     <p><strong>Cost:</strong> O(log n) amortised.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Stock Price Fluctuation with corrected timestamps</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Corrections make heap entries stale; <em>leave them</em> and skip when they surface</li><li>Update t=1 to 10: record latest, push (10,1)</li><li>Update t=2 to 5: record latest, push (5,2)</li><li>Top (10,1) matches latest: maximum = <em>10</em></li><li>Update t=1 to 3: record latest, push (3,1) — the old entry stays</li><li>Top (10,1) is <em>stale</em>: latest[1] is 3, pop it</li><li>Top (5,2) matches latest: maximum = <em>5</em></li><li>Update t=2 to 1: record latest, push (1,2) — the old entry stays</li><li>Top (5,2) is <em>stale</em>: latest[2] is 1, pop it</li><li>Top (3,1) matches latest: maximum = <em>3</em></li><li>Each entry is pushed once and popped at most once: <em>O(log n)</em> amortised</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>5 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/design-a-number-container-system">Design a Number Container System</a></td><td><span class="diff medium">Medium</span></td><td class="num">31</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/sliding-window-median">Sliding Window Median</a></td><td><span class="diff hard">Hard</span></td><td class="num">30</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/stock-price-fluctuation">Stock Price Fluctuation </a></td><td><span class="diff medium">Medium</span></td><td class="num">26</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/exam-room">Exam Room</a></td><td><span class="diff medium">Medium</span></td><td class="num">21</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/most-beautiful-item-for-each-query">Most Beautiful Item for Each Query</a></td><td><span class="diff medium">Medium</span></td><td class="num">6</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-heap">Heap</a>: <a href="/dsa/heap-top-k/">Top-k with a size-k heap</a>, <a href="/dsa/heap-two-heaps-median/">Two heaps (running median)</a>, <a href="/dsa/heap-k-way-merge/">K-way merge</a>, <a href="/dsa/heap-scheduling-greedy/">Greedy scheduling with a heap</a>, <a href="/dsa/heap-frequency-rebuild/">Pop-k-then-rebuild (frequency greedy)</a>.</p>
   </article>
 
@@ -430,6 +450,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

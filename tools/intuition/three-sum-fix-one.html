@@ -1,0 +1,29 @@
+<h3>Start with what you would do by hand</h3>
+<p>From −1, 0, 1, 2, −1, −4, find every set of three numbers that adds to 0, without listing the same set twice. The answers are (−1, −1, 2) and (−1, 0, 1). By hand you would try triples: six numbers make 20 triples, and for <var>n</var> numbers about <var>n</var><sup>3</sup> ÷ 6. A thousand numbers is 166 million triples, and you would still have to weed out duplicates like (−1, 0, 1) found twice from the two −1s.</p>
+<p>Two-sum on a sorted list is cheap (two pointers, O(<var>n</var>)). The question is how to turn three-sum into many two-sums without paying too much.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: sort. −4, −1, −1, 0, 1, 2. Sorting is what makes both the two-pointer walk and the duplicate skipping possible.</p>
+<p>Piece two: <strong>pin</strong> the first number. Walk an index <var>i</var> from left to right; for each one, the remaining job is "find two numbers in positions after <var>i</var> that add to −nums[<var>i</var>]". That is exactly the sorted two-sum, so run the converging two pointers <var>l</var> = <var>i</var> + 1 and <var>r</var> = last on the suffix.</p>
+<p>Piece three: skip duplicates at every level. If nums[<var>i</var>] equals nums[<var>i</var> − 1], every triple starting here was already found from the previous <var>i</var>, so skip. Likewise after recording a triple, step <var>l</var> past repeated values and <var>r</var> past repeated values.</p>
+<div class="table-wrap"><table>
+<tr><th>Pinned <var>i</var></th><th>Need</th><th>Two-pointer walk on the suffix</th><th>Found</th></tr>
+<tr><td>−4</td><td>4</td><td>(−1, 2) = 1 too small → <var>l</var>; (−1, 2) → <var>l</var>; (0, 2) → <var>l</var>; (1, 2) = 3 too small → <var>l</var>; pointers meet</td><td></td></tr>
+<tr><td>−1</td><td>1</td><td>(−1, 2) = 1 found; skip to (0, 1) = 1 found; pointers meet</td><td>(−1, −1, 2), (−1, 0, 1)</td></tr>
+<tr><td>−1 again</td><td></td><td>same as previous pin: skip</td><td></td></tr>
+<tr><td>0</td><td>0</td><td>(1, 2) = 3 too big → <var>r</var>; pointers meet</td><td></td></tr>
+</table></div>
+<p>You can stop early once nums[<var>i</var>] &gt; 0: with a sorted list, three positives cannot sum to zero.</p>
+
+<h3>Why it is correct</h3>
+<p>Two invariants. The outer one: <em>when the pin is at <var>i</var>, every triple whose smallest index is less than <var>i</var> has already been reported</em>. The inner one is the two-sum invariant: the pair, if it exists in the suffix, lies within [<var>l</var>, <var>r</var>]. Together they mean every zero-sum triple is found when its smallest index is pinned.</p>
+<p>Why no duplicates? A set of three values, in sorted order, is (<var>a</var>, <var>b</var>, <var>c</var>). It is reported only when the pin sits on the <em>first</em> occurrence of <var>a</var> (later equal pins are skipped) and the pointers sit on the first <var>b</var> and last <var>c</var> they meet; after reporting, both pointers jump past equal values, so the same (<var>b</var>, <var>c</var>) is not seen again for this pin. Each value-set is therefore reported exactly once.</p>
+
+<h3>Why it is fast</h3>
+<p>Sorting costs O(<var>n</var> log <var>n</var>). Each pin runs one two-pointer walk over at most <var>n</var> elements, O(<var>n</var>), and there are <var>n</var> pins:</p>
+<p class="formula"><var>n</var> log <var>n</var> + <var>n</var> · <var>n</var> = O(<var>n</var><sup>2</sup>)</p>
+<p>For a thousand numbers that is about a million steps instead of 166 million triples. The pattern generalises: <var>k</var>-sum is <var>k</var> − 2 nested pins around one two-pointer walk, O(<var>n</var><sup><var>k</var> − 1</sup>).</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "three (or four) numbers that sum to", "closest to a target", "count triples with …", and the word "unique" or "no duplicate triples". Say: "Sort, fix the first element, and solve the rest as a two-pointer two-sum on the suffix, skipping duplicates at each level."</p>
+<p><strong>3Sum</strong> is the example. <strong>3Sum Closest</strong> keeps the best |sum − target| seen during the walk instead of stopping at equality. <strong>Valid Triangle Number</strong> pins the <em>largest</em> side and counts how many pairs in the prefix satisfy <var>a</var> + <var>b</var> &gt; <var>c</var>, where a "too small" sum lets you move <var>l</var> and a valid one lets you count <var>r</var> − <var>l</var> pairs at once.</p>

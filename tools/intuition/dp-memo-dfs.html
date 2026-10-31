@@ -1,0 +1,29 @@
+<h3>Start with what you would do by hand</h3>
+<p>Here is a 3 × 3 grid of numbers. From any cell you may step up, down, left or right, but only onto a strictly bigger number. How long is the longest such path?</p>
+<div class="table-wrap"><table>
+<tr><td>9</td><td>9</td><td>4</td></tr>
+<tr><td>6</td><td>6</td><td>8</td></tr>
+<tr><td>2</td><td>1</td><td>1</td></tr>
+</table></div>
+<p>By hand you would start at some cell, say the 1 in the bottom middle, and walk: 1 → 2 → 6 → 9, length 4. Then start at every other cell and walk every possible way. The trouble is that walks share tails. The walk from 1 goes through 2, and the walk from 2 goes through the same 6 and 9 again. Each start explores a tree of choices, and on a 100 × 100 grid the number of walks is astronomically large, even though the answer for "best path starting at this 6" is the same every time you need it.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Write the question as a function: <var>best</var>(<var>r</var>, <var>c</var>) = length of the longest increasing path that starts at cell (<var>r</var>, <var>c</var>). It has a natural recursive answer: look at the four neighbours, keep the ones with a bigger number, and take 1 plus the best of their answers. A cell with no bigger neighbour has answer 1.</p>
+<p>Now add the one new piece: a <strong>memo</strong>, a second grid the same size, empty at first. Before computing <var>best</var>(<var>r</var>, <var>c</var>), look in the memo; if the cell is filled, return it. After computing, store it. The recursion is unchanged; only the cache is new.</p>
+<ol>
+<li>Ask the 9 at (0,0). No bigger neighbour. memo[0][0] = 1.</li>
+<li>Ask the 6 at (1,0). Bigger neighbours: the 9 above. It is cached, so reuse 1 with no recursion. memo[1][0] = 1 + 1 = 2.</li>
+<li>Ask the 2 at (2,0). Bigger neighbour: the 6 above, cached at 2. memo[2][0] = 3.</li>
+<li>Ask the 1 at (2,1). Bigger neighbours: 2 (cached, 3), 6 at (1,1) (not yet known), 1 at (2,2) is not bigger. Compute (1,1): its bigger neighbours are the 9 at (0,1) and the 8 at (1,2), both quickly resolved to 1. memo[1][1] = 2. So memo[2][1] = 1 + max(3, 2) = 4.</li>
+</ol>
+<p>Filled memo so far, row by row: <code>1 1 ·</code> / <code>2 2 1</code> / <code>3 4 ·</code>. The remaining two cells fill the same way, and the answer is the largest entry, 4, for the path 1 → 2 → 6 → 9.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: once a memo cell is filled, it holds the true longest path from that cell. The recursion computes a cell only from its bigger neighbours, and the path "bigger neighbour" relation has no cycles, since numbers strictly increase along it. So when a cell is being computed, every neighbour it asks about is either already final or will be computed by the same rule without ever coming back to this cell. By induction from the cells with no bigger neighbours (answer 1), every stored value is correct, and reusing it instead of recomputing changes nothing.</p>
+<p class="formula"><var>best</var>(<var>r</var>, <var>c</var>) = 1 + max over bigger neighbours (<var>r</var>′, <var>c</var>′) of <var>best</var>(<var>r</var>′, <var>c</var>′), or 1 if there is none</p>
+
+<h3>Why it is fast</h3>
+<p>Each of the <var>m</var> × <var>n</var> cells is computed exactly once, and computing it looks at 4 neighbours. Every later request is a memo lookup. So the total work is about 4<var>mn</var> steps: O(<var>mn</var>). On a 100 × 100 grid that is 40,000 steps, where the memo-free recursion could take longer than the age of the universe on a grid shaped like a long increasing snake. Memory is one extra grid. In general the cost of memoised recursion is (number of distinct states) × (work per state), and it only helps when the same state is reached many times.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: a recursive definition that is easy to write, a state made of a few small numbers (a cell, an index and a remaining budget, a pair of indices), and the feeling that "the same subproblem keeps coming back". Write the recursion first, then add the cache keyed by the state. <em>Longest Increasing Path in a Matrix</em> is the grid above. <em>Target Sum</em> caches on (index, running total). <em>Soup Servings</em> and <em>New 21 Game</em> cache on remaining amounts, and the memo turns an exponential tree into a table.</p>

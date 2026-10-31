@@ -1,0 +1,24 @@
+<h3>Start with what you would do by hand</h3>
+<p>From the letters of <code>abccccdd</code>, using each letter at most as many times as it appears, build the longest palindrome you can. By hand you would start arranging letters: <code>dccaccd</code> reads the same backwards and uses 7 letters. Is 8 possible? You would try moving letters around, and it is not obvious when to stop. For a string of 2,000 letters, arranging by trial is hopeless: there are more arrangements than atoms in the universe.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The key realisation is that the order of the input letters does not matter at all, only <strong>how many</strong> of each there are. So the first and only structure is a count table, 26 slots for lowercase and 26 for uppercase, filled by one pass over the string: <code>a</code> → 1, <code>b</code> → 1, <code>c</code> → 4, <code>d</code> → 2.</p>
+<p>Now build the answer from the counts, not from the string. A palindrome pairs every letter with its mirror image, except possibly one letter in the exact middle. So each letter contributes its count rounded down to an even number, and if any letter has a count left over, one single letter can sit in the middle.</p>
+<ol>
+<li><code>a</code> × 1: 0 pairs, contributes 0; one <code>a</code> left over.</li>
+<li><code>b</code> × 1: 0 pairs, contributes 0; one <code>b</code> left over.</li>
+<li><code>c</code> × 4: 2 pairs, contributes 4.</li>
+<li><code>d</code> × 2: 1 pair, contributes 2.</li>
+<li>Leftovers exist, so add 1 for the middle. Total 0 + 0 + 4 + 2 + 1 = 7.</li>
+</ol>
+<p>The length is 7, and one such palindrome is <code>dccaccd</code>. The algorithm never wrote the palindrome down; it only counted.</p>
+
+<h3>Why it is correct</h3>
+<p>A palindrome of length <var>m</var> has positions <var>k</var> and <var>m</var> − 1 − <var>k</var> holding the same letter, so every letter except the centre (when <var>m</var> is odd) appears an even number of times. Therefore no palindrome can use more than an even number of copies of each letter, plus at most one extra letter in total. That gives an upper bound: the sum of the counts rounded down to even, plus 1 if any count is odd. The construction above reaches that bound: place each pair symmetrically and one leftover in the middle. Upper bound met, so it is the maximum.</p>
+<p class="formula">length = Σ<sub>letters</sub> 2·⌊count/2⌋ + [some count is odd]</p>
+
+<h3>Why it is fast</h3>
+<p>One pass to count is O(<var>n</var>), and the construction loops over at most 52 slots, which is constant: O(<var>n</var>) time, O(1) memory. For 2,000 letters that is about 2,050 steps. Every trial-and-arrangement method is exponential, because it treats the order as information when the order is irrelevant.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: a small fixed alphabet (letters, digits, task types), and a question that would be unchanged if the input were shuffled. Say: the order does not matter, so I will count first and reason about the counts. <em>Longest Palindrome</em> is the example. <em>Reorganize String</em> checks that the most frequent letter is at most half the length (rounded up) and then interleaves from the counts. <em>Task Scheduler</em> has the closed form (<var>f</var> − 1)(<var>n</var> + 1) + (number of tasks with the top count), where <var>f</var> is the highest count, again purely from the count table.</p>

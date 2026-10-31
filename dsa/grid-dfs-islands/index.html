@@ -394,24 +394,45 @@
       <p>A visited cell belongs to exactly one counted component.</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>A map is a grid of cells: 1 for land, 0 for water. Count the islands, where an island is a group of land cells touching along edges (not corners). For a 4 by 5 grid with a block of land in the top left, another block on the right, and a single land cell in the middle, you count 3 by looking at the blobs.</p>
+<p>By hand, "count the blobs" is instant for the eye, but try to say what the eye does: it picks an unvisited land cell, then spreads over everything connected to it, then looks for another unvisited land cell. The slow way a computer might do it is: for every pair of land cells, decide whether they are connected by searching a path between them, then group. That is quadratic in the number of land cells and most of it is repeated work.</p>
 
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: treat each cell as a node of a graph. Its neighbours are the cells directly above, below, left and right, if they are inside the grid. There is no adjacency list to build; the neighbours are computed from the coordinates.</p>
+<p>Piece two: a visited marker per cell. The simplest version writes it into the grid itself, turning a 1 into 0 (or 2) once counted, so no extra memory is needed.</p>
+<p>Piece three: flood fill. Standing on a land cell, mark it visited, then do the same for each of its four neighbours that is land and not yet visited. Depth-first with recursion, or breadth-first with a queue; either way the fill stops exactly at the water edge, having marked the whole island.</p>
+<p>Piece four: the outer scan. Walk the grid row by row. Each time you meet a land cell that is not yet marked, add one to the island count and flood fill from it.</p>
+<div class="table-wrap"><table><tr><th>Scan reaches</th><th>Marked already?</th><th>Action</th><th>Islands</th></tr><tr><td>(0,0), land</td><td>no</td><td>count, fill marks 4 cells</td><td>1</td></tr><tr><td>(0,1), land</td><td>yes</td><td>skip</td><td>1</td></tr><tr><td>(1,4), land</td><td>no</td><td>count, fill marks 4 cells</td><td>2</td></tr><tr><td>(2,2), land</td><td>no</td><td>count, fill marks 1 cell</td><td>3</td></tr><tr><td>rest</td><td>water or marked</td><td>skip</td><td>3</td></tr></table></div>
 
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+<h3>Why it is correct</h3>
+<p>The invariant: every marked cell belongs to exactly one counted island, and every island that has had any of its cells marked has been marked completely. The fill guarantees the second half: starting from one cell it marks everything reachable by land steps, which is the whole island by definition. The scan guarantees the first half: it starts a new count only at an unmarked land cell, which cannot belong to an island already filled, since that fill would have marked it.</p>
+<p class="formula">islands = number of times the scan meets an unmarked land cell</p>
+<p>Each island is met exactly once by the scan: at its first cell in row-major order, after which it is fully marked.</p>
+
+<h3>Why it is fast</h3>
+<p>Each cell is looked at by the scan once and marked by a fill at most once, and marking checks four neighbours. Total O(<var>m</var> × <var>n</var>) for an <var>m</var> by <var>n</var> grid. Memory is the recursion stack or queue, up to the size of the largest island in the worst case; iterative BFS avoids deep recursion on a grid that is one huge island.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>A grid with two kinds of cells and a question about connected groups: "number of islands", "largest island area", "regions fully enclosed", "cells from which water reaches both oceans", "fill a region with a new colour". Say: "I will treat cells as graph nodes, scan the grid, and flood fill from each unvisited cell of the target kind." Number of Islands is this exactly. Max Area of Island makes the fill return the count of cells it marked. Surrounded Regions flips the viewpoint: fill from every border 0 first, so that whatever 0 remains unmarked is enclosed. Pacific Atlantic Water Flow fills uphill from each ocean's edge and intersects the two marked sets.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Treat cells as nodes; DFS/BFS from each unvisited land cell and mark the whole island.</p>
     <p><strong>Reach for it when:</strong> Number of islands, max area, closed islands, surrounded regions, flood fill.</p>
     <p><strong>Cost:</strong> O(mn) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Number of Islands on a 4×5 grid</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Scan row by row; an unvisited land cell <em>starts</em> a new island</li><li>Land at (0,0) not yet visited: island <em>#1</em> starts here</li><li>Flood fill marks all 4 connected cells as island #1</li><li>Land at (1,4) not yet visited: island <em>#2</em> starts here</li><li>Flood fill marks all 4 connected cells as island #2</li><li>Land at (2,2) not yet visited: island <em>#3</em> starts here</li><li>Flood fill marks all 1 connected cells as island #3</li><li>Scan done: <em>3</em> islands; every land cell was visited exactly once</li><li>Each cell is marked once: <em>O(m·n)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>11 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/number-of-islands">Number of Islands</a></td><td><span class="diff medium">Medium</span></td><td class="num">64</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/pacific-atlantic-water-flow">Pacific Atlantic Water Flow</a></td><td><span class="diff medium">Medium</span></td><td class="num">42</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/surrounded-regions">Surrounded Regions</a></td><td><span class="diff medium">Medium</span></td><td class="num">40</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/number-of-closed-islands">Number of Closed Islands</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/max-area-of-island">Max Area of Island</a></td><td><span class="diff medium">Medium</span></td><td class="num">31</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/flood-fill">Flood Fill</a></td><td><span class="diff easy">Easy</span></td><td class="num">31</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/making-a-large-island">Making A Large Island</a></td><td><span class="diff hard">Hard</span></td><td class="num">31</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/island-perimeter">Island Perimeter</a></td><td><span class="diff easy">Easy</span></td><td class="num">29</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/number-of-enclaves">Number of Enclaves</a></td><td><span class="diff medium">Medium</span></td><td class="num">26</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/number-of-distinct-islands">Number of Distinct Islands</a></td><td><span class="diff medium">Medium</span></td><td class="num">11</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/count-sub-islands">Count Sub Islands</a></td><td><span class="diff medium">Medium</span></td><td class="num">5</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-graphs">Graphs</a>: <a href="/dsa/bfs-multi-source/">Multi-source BFS</a>, <a href="/dsa/bfs-shortest-unweighted/">BFS shortest path (unweighted)</a>, <a href="/dsa/bfs-state-space/">BFS over an augmented state</a>, <a href="/dsa/bfs-0-1/">0-1 BFS (deque)</a>, <a href="/dsa/dfs-cycle-coloring/">DFS three-colour cycle detection</a>, <a href="/dsa/topo-kahn/">Topological sort (Kahn&#x27;s)</a>, <a href="/dsa/union-find/">Union–Find (disjoint sets)</a>, <a href="/dsa/dijkstra/">Dijkstra (weighted shortest path)</a>, <a href="/dsa/bellman-ford-k-stops/">Bellman–Ford with k rounds</a>, <a href="/dsa/mst-kruskal-prim/">Minimum spanning tree</a>, <a href="/dsa/graph-bipartite/">Bipartite colouring</a>, <a href="/dsa/eulerian-path/">Eulerian path (Hierholzer)</a>, <a href="/dsa/tarjan-bridges/">Bridges / articulation (low-link)</a>, <a href="/dsa/graph-clone-traverse/">Clone / traverse with a visited map</a>, <a href="/dsa/implicit-graph-search/">Implicit graph (states as nodes)</a>.</p>
   </article>
 
@@ -430,6 +451,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

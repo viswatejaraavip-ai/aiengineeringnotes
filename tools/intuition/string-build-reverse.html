@@ -1,0 +1,21 @@
+<h3>Start with what you would do by hand</h3>
+<p>Turn <code>the sky is blue</code> into <code>blue is sky the</code>: the words in reverse order, each word still spelled forwards. By hand you would read the words, write them on slips of paper, and lay the slips out backwards. That uses a second sheet the size of the first. Now suppose the sentence is stored in a fixed row of boxes, one letter per box, and you must do the job inside those boxes with no spare sheet, only a few pencil marks. Shuffling whole words around inside a row, each move shifting everything else along, is slow and easy to get wrong: moving one word of length <var>w</var> past the rest costs about <var>n</var> box copies, and there are many words.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>There is only one tool: <strong>reverse a stretch of boxes in place</strong>. Put one finger at each end of the stretch, swap the two letters, move both fingers inward, and repeat until they meet. For a stretch of <var>w</var> boxes that is <var>w</var>/2 swaps and no extra space.</p>
+<p>Now use the tool twice.</p>
+<ol>
+<li>Reverse the whole row: <code>the sky is blue</code> → <code>eulb si yks eht</code>. The words are now in the right order, but each one is spelled backwards.</li>
+<li>Walk the row, find each word (a stretch between spaces), and reverse that stretch on its own:<br><code>eulb</code> → <code>blue</code>, giving <code>blue si yks eht</code><br><code>si</code> → <code>is</code>, giving <code>blue is yks eht</code><br><code>yks</code> → <code>sky</code>, giving <code>blue is sky eht</code><br><code>eht</code> → <code>the</code>, giving <code>blue is sky the</code>.</li>
+</ol>
+<p>The result is <code>blue is sky the</code>: the original order the, sky, is, blue, read backwards. (The video's closing caption says "blue is the sky" as loose English; the exact reversed-order output is <code>blue is sky the</code>.) Many string problems are built from this one tool applied to chosen stretches: reverse the first <var>k</var> letters of every 2<var>k</var> block, rotate an array by <var>d</var> with three reversals, and so on.</p>
+
+<h3>Why it is correct</h3>
+<p>Reversing the whole row puts the words in reverse order, because the last box becomes the first: whatever was at the end of the row is now at the start, word by word, and each word's letters are reversed along with everything else. Reversing a single word's stretch flips its letters back without touching the boxes around it. Two reversals of the same stretch restore it exactly, so each word's spelling returns to the original while its new position is kept. Spaces are single boxes and stay where the first reversal put them, which is exactly between the reversed words.</p>
+<p class="formula">reverse(<var>w</var><sub>1</sub> <var>w</var><sub>2</sub> … <var>w</var><sub><var>k</var></sub>) = rev(<var>w</var><sub><var>k</var></sub>) … rev(<var>w</var><sub>1</sub>), and rev(rev(<var>w</var>)) = <var>w</var></p>
+
+<h3>Why it is fast</h3>
+<p>The whole-row reversal does <var>n</var>/2 swaps. The per-word reversals together touch every letter once more, another <var>n</var>/2 swaps at most. Total about <var>n</var> swaps: O(<var>n</var>) time with O(1) extra memory, two indices. Moving words one at a time inside the row costs O(<var>n</var>) per word and O(<var>n</var><sup>2</sup>) overall. Building the answer on a second sheet is also O(<var>n</var>) but needs O(<var>n</var>) extra space, which is what in-place problems forbid.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "in place", "O(1) extra space", "reverse words", "rotate", "every <var>k</var> characters", or a string transformation that is really a rearrangement of fixed chunks. Say: I will do it with in-place reversals of chosen stretches, usually the whole thing first and then the pieces. <em>Reverse Words in a String</em> is the example. <em>Reverse String II</em> reverses the first <var>k</var> letters of every block of 2<var>k</var>. <em>Zigzag Conversion</em> and <em>Text Justification</em> are the cousin form: build the output chunk by chunk into a buffer, one row or one line at a time.</p>

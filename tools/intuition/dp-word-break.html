@@ -1,0 +1,26 @@
+<h3>Start with what you would do by hand</h3>
+<p>You are given the letters <code>leetcode</code> and a small dictionary, <code>leet</code> and <code>code</code>, and asked whether the string can be cut into dictionary words with nothing left over. By hand you would try a first cut: is <code>l</code> a word? No. <code>le</code>? No. <code>lee</code>? No. <code>leet</code>? Yes, so now solve the rest, <code>code</code>, the same way.</p>
+<p>That looks harmless, but the "solve the rest" part can repeat itself. Imagine the dictionary <code>a</code>, <code>aa</code>, <code>aaa</code> and the string <code>aaaaaaaab</code>. The first cut can be after 1, 2 or 3 letters; each of those leaves a string that can again be cut three ways. The number of attempts grows like 3 × 3 × 3 × … and for 30 letters it is in the billions, and every attempt eventually hits the <code>b</code> and fails. Worse, most attempts re-solve the same leftover: "can <code>aaaab</code> be cut?" is asked thousands of times.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The repeated question has only <var>n</var> + 1 different forms: can the first <var>i</var> letters be cut cleanly, for <var>i</var> from 0 to <var>n</var>. So keep one answer per prefix in an array <var>dp</var> of <var>n</var> + 1 cells. Start with everything unknown except <var>dp</var>[0], which is true: the empty prefix needs no words.</p>
+<p>Fill the cells left to right. To decide <var>dp</var>[<var>i</var>], look at every earlier position <var>j</var> that is already true and ask whether the letters between <var>j</var> and <var>i</var> form a dictionary word. One yes is enough.</p>
+<div class="table-wrap"><table>
+<tr><th><var>i</var></th><th>prefix</th><th>a true <var>j</var> with <code>s[j:i]</code> a word?</th><th><var>dp</var>[<var>i</var>]</th></tr>
+<tr><td>0</td><td>(empty)</td><td>by definition</td><td>true</td></tr>
+<tr><td>2</td><td><code>le</code></td><td><var>j</var> = 0: <code>le</code> is not a word</td><td>false</td></tr>
+<tr><td>4</td><td><code>leet</code></td><td><var>j</var> = 0: <code>leet</code> is a word</td><td>true</td></tr>
+<tr><td>5</td><td><code>leetc</code></td><td><var>j</var> = 4: <code>c</code> is not a word</td><td>false</td></tr>
+<tr><td>8</td><td><code>leetcode</code></td><td><var>j</var> = 4: <code>code</code> is a word</td><td>true</td></tr>
+</table></div>
+<p>The last cell, <var>dp</var>[8], is true, so the whole string can be cut: <code>leet</code> + <code>code</code>. Notice the structure is just an array of yes/no answers, filled once, and each new answer is built only from earlier answers.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: <var>dp</var>[<var>i</var>] is true exactly when the first <var>i</var> letters can be split into dictionary words. Suppose it holds for every index below <var>i</var>. Any valid split of the first <var>i</var> letters has a last word; say it starts at <var>j</var>. Then the letters before <var>j</var> are also validly split, so <var>dp</var>[<var>j</var>] is true, and <code>s[j:i]</code> is a word. Our loop checks exactly that pair, so it finds the split. In the other direction, if the loop sets <var>dp</var>[<var>i</var>] true, it has a true <var>dp</var>[<var>j</var>] plus one more word, which is a valid split. So the invariant survives each step, and <var>dp</var>[<var>n</var>] answers the question.</p>
+<p class="formula"><var>dp</var>[<var>i</var>] = OR over <var>j</var> &lt; <var>i</var> of ( <var>dp</var>[<var>j</var>] and <code>s[j:i]</code> ∈ dictionary )</p>
+
+<h3>Why it is fast</h3>
+<p>There are <var>n</var> cells. Cell <var>i</var> looks back at up to <var>i</var> earlier cells, so the total number of (<var>j</var>, <var>i</var>) pairs is 1 + 2 + … + <var>n</var> = <var>n</var>(<var>n</var>+1)/2, which is O(<var>n</var><sup>2</sup>). Each pair costs one dictionary lookup, constant time with a hash set (or O(word length) with a trie). For 30 letters that is about 465 lookups instead of billions of attempts. The only memory is the <var>n</var> + 1 booleans. A small extra: if the longest dictionary word has <var>L</var> letters, <var>j</var> only needs to go back <var>L</var> positions, giving O(<var>n</var> · <var>L</var>).</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "can the string be split into", "segment", "decode", "how many ways to break". Any time a prefix's answer depends only on shorter prefixes plus a last piece, this array is the tool. Say: I will keep one answer per prefix and build each from earlier prefixes. <em>Word Break</em> is this exactly. <em>Word Break II</em> stores, for each prefix, the list of splits instead of a boolean. <em>Decode Ways</em> is the same loop where the "words" are one- or two-digit codes and the cells hold counts instead of true or false.</p>

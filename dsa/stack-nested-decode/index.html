@@ -394,24 +394,54 @@
       <p>The stack is the chain of enclosing contexts, outermost at the bottom.</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Decode 3[a2[c]]: the rule is that <var>k</var>[string] means repeat the string <var>k</var> times, and brackets can nest. By hand you work from the inside out: 2[c] is cc, so the string becomes 3[acc], which is accaccacc.</p>
+<p>Working inside out by hand means finding the innermost bracket, expanding it, rewriting the string, and starting again. Each rewrite copies the whole string, and there are as many rewrites as brackets, so that is O(brackets × length). More importantly, it needs you to see the whole string first. Reading left to right, you hit 3[ before knowing what is inside, so you need somewhere to put the "3 times" instruction while you go and work out the inside.</p>
 
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a <strong>current context</strong>, which is the string being built right now plus the repeat count that will apply to it. At the very start the current string is empty and there is no count yet.</p>
+<p>Piece two: on an opening bracket, <em>push</em> the current context onto a stack and start a fresh, empty inner string. The stack is the pile of unfinished outer strings, each waiting for its inner part.</p>
+<p>Piece three: on a closing bracket, the inner string is complete. <em>Pop</em> the outer context, repeat the inner string by the popped count, and append the result to the outer string. That outer string becomes current again.</p>
+<div class="table-wrap"><table>
+<tr><th>Read</th><th>Action</th><th>Stack of (outer string, count)</th><th>Current string</th></tr>
+<tr><td>3</td><td>count = 3</td><td>(empty)</td><td>""</td></tr>
+<tr><td>[</td><td>push ("", 3), start fresh</td><td>("", 3)</td><td>""</td></tr>
+<tr><td>a</td><td>append</td><td>("", 3)</td><td>"a"</td></tr>
+<tr><td>2</td><td>count = 2</td><td>("", 3)</td><td>"a"</td></tr>
+<tr><td>[</td><td>push ("a", 2), start fresh</td><td>("", 3), ("a", 2)</td><td>""</td></tr>
+<tr><td>c</td><td>append</td><td>("", 3), ("a", 2)</td><td>"c"</td></tr>
+<tr><td>]</td><td>pop ("a", 2): "a" + "c"×2</td><td>("", 3)</td><td>"acc"</td></tr>
+<tr><td>]</td><td>pop ("", 3): "" + "acc"×3</td><td>(empty)</td><td>"accaccacc"</td></tr>
+</table></div>
+<p>Digits may be several characters long (12[ab]), so a count is accumulated as count = count × 10 + digit until the bracket arrives. The same stack-of-contexts shape evaluates nested lists, nested function calls (push the caller's state, pop when the callee returns), and arithmetic with parentheses (push the running total and sign, start a fresh total inside the bracket).</p>
 
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+<h3>Why it is correct</h3>
+<p>The invariant: <em>the stack, bottom to top, is the chain of enclosing brackets that are currently open, each holding the text already built outside it and the count that will multiply its inside; the current string is the text built so far inside the innermost open bracket</em>. Opening a bracket adds one level and starts its inside empty, so the invariant holds. Closing one finishes exactly the innermost level, which is the top of the stack because brackets nest, and folds it into the level below. Letters only ever extend the innermost text. When the input ends with an empty stack, the current string is the fully decoded result. Nesting is what makes "the top of the stack is the right context" true: the bracket that closes is always the most recently opened one, the same fact as in bracket matching.</p>
+
+<h3>Why it is fast</h3>
+<p>Each input character does O(1) work plus the copying when a bracket closes. Every character of the final output is written once when its level is folded into the level outside it, but a character inside nested brackets is copied once per level, so the cost is O(output size × nesting depth) in the worst case and O(output) when nesting is shallow, which is what the problem statement bounds. The by-hand rewrite copied the whole string per bracket, which is worse. The stack never holds more than one context per open bracket, O(depth) memory.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "nested", "encoded with brackets", "evaluate an expression with parentheses", "nested list", "function calls and returns in a log". The tell is a structure that opens, has content, and closes, where the content must be finished before the opener's instruction can apply.</p>
+<p>Say: "On an open bracket I push the current context and start fresh; on a close I pop and fold the inner result into the outer context." <strong>Decode String</strong> is the example. <strong>Basic Calculator</strong> pushes the running total and the sign at "(", and on ")" multiplies the inner total by that sign and adds it to the popped total. <strong>Exclusive Time of Functions</strong> pushes a function on "start" and pops it on "end", charging the elapsed time to the top.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>On &#x27;[&#x27; push the current context; on &#x27;]&#x27; pop and fold the inner result into it.</p>
     <p><strong>Reach for it when:</strong> Decode strings, nested lists, mini interpreters, exclusive time of functions.</p>
     <p><strong>Cost:</strong> O(output) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Decode String on &#x27;3[a2[c]]&#x27;</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>On &#x27;[&#x27; <em>push</em> the current context; on &#x27;]&#x27; <em>pop</em> and fold the inner result into it</li><li>digit 3: repeat count = <em>3</em></li><li>&#x27;[&#x27;: push (&#x27;&#x27;, 3); start a fresh inner string</li><li>letter &#x27;a&#x27;: append to the current string → &#x27;a&#x27;</li><li>digit 2: repeat count = <em>2</em></li><li>&#x27;[&#x27;: push (&#x27;a&#x27;, 2); start a fresh inner string</li><li>letter &#x27;c&#x27;: append to the current string → &#x27;c&#x27;</li><li>&#x27;]&#x27;: pop (&#x27;a&#x27;, 2): &#x27;a&#x27; + 2×&#x27;c&#x27; = <em>&#x27;acc&#x27;</em></li><li>&#x27;]&#x27;: pop (&#x27;&#x27;, 3): &#x27;&#x27; + 3×&#x27;acc&#x27; = <em>&#x27;accaccacc&#x27;</em></li><li>Stack empty: decoded <em>&#x27;accaccacc&#x27;</em></li><li>Each bracket pushes and pops once; cost is the <em>output length</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>7 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/decode-string">Decode String</a></td><td><span class="diff medium">Medium</span></td><td class="num">57</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/basic-calculator">Basic Calculator</a></td><td><span class="diff hard">Hard</span></td><td class="num">49</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/exclusive-time-of-functions">Exclusive Time of Functions</a></td><td><span class="diff medium">Medium</span></td><td class="num">36</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/flatten-nested-list-iterator">Flatten Nested List Iterator</a></td><td><span class="diff medium">Medium</span></td><td class="num">29</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/number-of-atoms">Number of Atoms</a></td><td><span class="diff hard">Hard</span></td><td class="num">23</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/brace-expansion-ii">Brace Expansion II</a></td><td><span class="diff hard">Hard</span></td><td class="num">22</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/parse-lisp-expression">Parse Lisp Expression</a></td><td><span class="diff hard">Hard</span></td><td class="num">13</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-stack">Stack</a>: <a href="/dsa/stack-matching/">Matching with a stack</a>, <a href="/dsa/stack-expression-eval/">Expression evaluation</a>, <a href="/dsa/stack-min-tracking/">Auxiliary-min stack</a>, <a href="/dsa/stack-simulation-collision/">Collision simulation</a>.</p>
   </article>
 
@@ -430,6 +460,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

@@ -394,24 +394,42 @@
       <p>dp[c] is true iff some subset of the items so far sums to c.</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Four stones weigh 1, 5, 11 and 5. Can you split them into two piles of equal weight? The total is 22, so each pile must weigh 11. By hand you look for stones adding to 11: 11 alone works, and so does 1 + 5 + 5. Yes.</p>
+<p>In general the question is "is there a subset with sum exactly <var>T</var>?" Each stone is in or out, so there are 2<sup><var>n</var></sup> subsets: 16 here, but over a billion for 30 stones and far beyond that for 200. We need to stop thinking about subsets and start thinking about sums.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a row of yes/no boxes, dp[0] to dp[<var>T</var>], where dp[<var>s</var>] means "some stones considered so far add up to exactly <var>s</var>". Before any stone, only dp[0] is yes, because the empty pile weighs 0.</p>
+<p>Piece two: the update for one stone of weight <var>w</var>. Every sum <var>s</var> that was reachable before gives a new reachable sum <var>s</var> + <var>w</var>:</p>
+<p class="formula">dp[<var>s</var>] becomes yes if dp[<var>s</var> − <var>w</var>] was yes</p>
+<p>Piece three, the one rule that makes it 0/1: sweep <var>s</var> from <var>T</var> <strong>down</strong> to <var>w</var>. Going downward, dp[<var>s</var> − <var>w</var>] is still the value from before this stone, so the stone is counted at most once. Sweeping upward would let the stone be reused: after making dp[5] yes with a 5-stone you would then read it to make dp[10] yes with the same stone.</p>
+<div class="table-wrap"><table><tr><th>after stone</th><th>sums marked yes</th></tr><tr><td>none</td><td>0</td></tr><tr><td>1</td><td>0, 1</td></tr><tr><td>5</td><td>0, 1, 5, 6</td></tr><tr><td>11</td><td>0, 1, 5, 6, 11</td></tr><tr><td>5</td><td>0, 1, 5, 6, 10, 11</td></tr></table></div>
+<p>After the second 5, dp[10] becomes yes from dp[5], which the first 5 created, so 5 + 5 = 10 is counted correctly, while dp[10] was not falsely set during the first 5's own sweep. dp[11] is yes, so the split exists.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: after processing the first <var>k</var> stones, dp[<var>s</var>] is yes exactly when some subset of those <var>k</var> stones sums to <var>s</var>. Adding stone <var>w</var>, a subset of the first <var>k</var> + 1 stones either omits it (sums unchanged) or includes it (every old sum shifts by <var>w</var>). The downward sweep reads only old values, so it computes exactly the union of those two cases and nothing more.</p>
+<h3>Why it is fast</h3>
+<p>Each stone sweeps a row of <var>T</var> + 1 boxes:</p>
+<p class="formula">work = <var>n</var> · <var>T</var>, memory = <var>T</var> + 1 booleans</p>
+<p>For 200 stones and a target of 10,000 that is 2 million steps, against 2<sup>200</sup> subsets. The catch is that the cost grows with the target value, not just the count, so it suits targets in the thousands, not the billions.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "subset with sum", "partition into two equal halves", "each item used at most once", "assign + or − to reach a target", "minimise the difference between two piles". The first thing to say: "a boolean row over sums, one downward sweep per item." Partition Equal Subset Sum is the example above with <var>T</var> = total / 2. Target Sum asks for the number of ways to reach <var>T</var>; replace the booleans with counts and the same downward sweep adds dp[<var>s</var> − <var>w</var>] into dp[<var>s</var>].</p>
 
-
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>For each item, sweep capacities downward so each item is used once.</p>
     <p><strong>Reach for it when:</strong> Partition equal subset sum, target sum, last stone weight II, ones and zeroes.</p>
     <p><strong>Cost:</strong> O(n · W) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Partition Equal Subset Sum on [1,5,11,5]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>dp[0] is true; for each item, dp[c] |= dp[c − item] for c from <em>high to low</em></li><li>Item 1: newly reachable sums <em>1</em></li><li>Item 5: newly reachable sums <em>6, 5</em></li><li>Downward sweep matters: dp[10] used dp[5] from <em>before</em> item 5, so 5 is not counted twice</li><li>Item 11: newly reachable sums <em>11</em></li><li>Item 5: newly reachable sums <em>10</em></li><li>dp[11] is true: {1, 5, 5} sums to 11, the array <em>can</em> be split</li><li>One row of size target per item: <em>O(n · target)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>7 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/partition-equal-subset-sum">Partition Equal Subset Sum</a></td><td><span class="diff medium">Medium</span></td><td class="num">46</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/target-sum">Target Sum</a></td><td><span class="diff medium">Medium</span></td><td class="num">41</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/partition-array-into-two-arrays-to-minimize-sum-difference">Partition Array Into Two Arrays to Minimize Sum Difference</a></td><td><span class="diff hard">Hard</span></td><td class="num">36</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/ones-and-zeroes">Ones and Zeroes</a></td><td><span class="diff medium">Medium</span></td><td class="num">27</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/last-stone-weight-ii">Last Stone Weight II</a></td><td><span class="diff medium">Medium</span></td><td class="num">22</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/profitable-schemes">Profitable Schemes</a></td><td><span class="diff hard">Hard</span></td><td class="num">20</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/tallest-billboard">Tallest Billboard</a></td><td><span class="diff hard">Hard</span></td><td class="num">11</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-dynamic-programming">Dynamic Programming</a>: <a href="/dsa/dp-1d-linear/">1-D linear DP</a>, <a href="/dsa/dp-kadane/">Kadane (best ending here)</a>, <a href="/dsa/dp-lis/">Longest increasing subsequence</a>, <a href="/dsa/dp-grid-paths/">Grid path DP</a>, <a href="/dsa/dp-unbounded-coin/">Unbounded knapsack (coin change)</a>, <a href="/dsa/dp-lcs-edit/">Two-sequence DP (LCS / edit distance)</a>, <a href="/dsa/dp-pattern-matching/">Wildcard / regex matching DP</a>, <a href="/dsa/dp-palindrome-expand/">Palindromes: expand or table</a>, <a href="/dsa/dp-word-break/">Prefix segmentation DP</a>, <a href="/dsa/dp-interval/">Interval DP (last operation)</a>, <a href="/dsa/dp-state-machine-stock/">State-machine DP (stocks)</a>, <a href="/dsa/dp-bitmask/">Bitmask DP over subsets</a>, <a href="/dsa/dp-memo-dfs/">Memoised DFS (top-down)</a>, <a href="/dsa/dp-digit/">Digit DP</a>, <a href="/dsa/dp-game-minimax/">Game DP (minimax on a range)</a>, <a href="/dsa/dp-count-ways-mod/">Counting ways with modulo</a>, <a href="/dsa/dp-longest-string-chain/">DP over sorted keys (chains)</a>.</p>
   </article>
 
@@ -430,6 +448,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

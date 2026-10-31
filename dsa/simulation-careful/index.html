@@ -394,24 +394,51 @@
       <p>The modelled state is enough to decide the next step.</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Conway's Game of Life is a grid of cells, each alive or dead. One generation later, each cell is decided by its eight neighbours in the old grid: a live cell with two or three live neighbours stays alive, otherwise it dies; a dead cell with exactly three live neighbours is born. Take a 4 × 3 board and work out the next generation by hand. You count neighbours for the first cell, write down its fate, move to the second cell, and somewhere around the third cell the mistake creeps in: you look at a neighbour you already updated, and count its new state instead of its old one. The rules are simple; the discipline is the hard part.</p>
+<p>Simulation problems are all like this. There is no clever algorithm to discover. The marks go to modelling the rules exactly, keeping the smallest state that decides the next step, and updating in an order that never reads a value that has already changed.</p>
 
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: the state. For Life the state is the grid itself; nothing else is needed, because the rules look only at the current grid.</p>
+<p>Piece two: the update rule as a function of the old state only. Count live neighbours of cell (<var>r</var>, <var>c</var>) by looking at the up-to-eight cells around it, skipping any outside the board. Then apply the three rules. On the example, cell (1,1) is alive with three live neighbours, so it stays alive; (0,0) is dead with three live neighbours, so it is born; (1,3) is alive with no live neighbours, so it dies.</p>
+<p>Piece three: an order that keeps old and new apart. The safe version writes every result into a second grid and swaps at the end. The in-place version, which interviewers ask for, encodes both states in one cell: 0 dead-to-dead, 1 alive-to-alive, 2 alive-to-dead, 3 dead-to-alive. While scanning, a cell's old state is "value is 1 or 2" and neighbours are counted that way; after the scan, one pass maps 2 to 0 and 3 to 1:</p>
+<div class="table-wrap"><table>
+<tr><th>code during the scan</th><th>was</th><th>becomes</th></tr>
+<tr><td>0</td><td>dead</td><td>dead</td></tr>
+<tr><td>1</td><td>alive</td><td>alive</td></tr>
+<tr><td>2</td><td>alive</td><td>dead</td></tr>
+<tr><td>3</td><td>dead</td><td>alive</td></tr>
+</table></div>
+<p>The same three pieces fit every simulation: a robot on a grid needs its position and facing direction; a queue at a door needs who is waiting, which way they want to go, and who went last; text justification needs the words of the current line and the spaces still to distribute.</p>
 
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+<h3>Why it is correct</h3>
+<p>The invariant is that the modelled state, together with the rules, is enough to decide the next step. For Life, the next grid is by definition a function of the current grid alone, so the state is complete. The in-place encoding is correct because the "was" information is never destroyed during the scan: a cell with code 2 is still read as alive by its neighbours, and a cell with code 3 is still read as dead. Only after every cell has been decided does the second pass collapse the codes, and by then no cell needs the old values any more.</p>
+<p>The general rule is: never read a value that has already been updated in the same step, unless the rules say the update happens in sequence. Some simulations are genuinely sequential, such as people passing through a door one per second; then the order is part of the rules and must be followed exactly, not avoided.</p>
+
+<h3>Why it is fast</h3>
+<p>Each generation visits every cell once and looks at at most eight neighbours, so it costs O(<var>m</var> · <var>n</var>) with a constant of about 8. There is no faster way in general: every cell's fate can change, so every cell must be computed. The in-place encoding keeps the memory at the grid itself, O(1) extra, against a second grid of O(<var>m</var> · <var>n</var>). Most simulation problems are O(steps × state size) and the whole skill is in not wasting the constant and not getting the order wrong.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "apply these rules", "one generation", "simulate", "each second", "in place", a long statement with many special cases and no obvious trick. Say: "this is a simulation; I will define the state precisely, write the update as a function of the old state, and pick an order that never reads an already-updated value".</p>
+<p>Game of Life is the walk-through above with the two-bit encoding. Time Taken to Cross the Door is sequential: at each second, the rule about who goes first depends on who used the door in the previous second, so the state must include the last direction and the last used time. Text Justification is a careful simulation of a typesetter: fill a line greedily, then distribute the leftover spaces from the left, with the last line left-aligned.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Model the rules exactly; keep the state minimal and update it in order.</p>
     <p><strong>Reach for it when:</strong> Game of life, spiral, robot bounded, text justification, time to cross the door.</p>
     <p><strong>Cost:</strong> O(steps · state) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Game of Life one generation on a 4×3 board</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Every cell looks at its <em>8 neighbours</em> in the old board, never the new one</li><li>(1,1) is alive with 3 live neighbours: <em>stays alive</em></li><li>(0,0) is dead with 3 live neighbours: <em>is born</em></li><li>(1,3) is alive with 0 live neighbours: <em>dies</em></li><li>(0,1) is alive with 2 live neighbours: <em>stays alive</em></li><li>(2,1) is alive with 2 live neighbours: <em>stays alive</em></li><li>(1,0) is alive with 3 live neighbours: <em>stays alive</em></li><li>The remaining cells follow the same rule</li><li>Only now does the new board <em>replace</em> the old one</li><li>In-place trick: encode old+new in one cell (e.g. 2 = was alive, now dead)</li><li><em>O(m·n)</em> per generation; model the rules exactly, update in order</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>10 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/text-justification">Text Justification</a></td><td><span class="diff hard">Hard</span></td><td class="num">44</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/time-taken-to-cross-the-door">Time Taken to Cross the Door</a></td><td><span class="diff hard">Hard</span></td><td class="num">27</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/water-bottles">Water Bottles</a></td><td><span class="diff easy">Easy</span></td><td class="num">27</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/game-of-life">Game of Life</a></td><td><span class="diff medium">Medium</span></td><td class="num">23</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/design-snake-game">Design Snake Game</a></td><td><span class="diff medium">Medium</span></td><td class="num">20</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/baseball-game">Baseball Game</a></td><td><span class="diff easy">Easy</span></td><td class="num">20</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/reveal-cards-in-increasing-order">Reveal Cards In Increasing Order</a></td><td><span class="diff medium">Medium</span></td><td class="num">20</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/design-tic-tac-toe">Design Tic-Tac-Toe</a></td><td><span class="diff medium">Medium</span></td><td class="num">18</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/walking-robot-simulation">Walking Robot Simulation</a></td><td><span class="diff medium">Medium</span></td><td class="num">6</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/robot-bounded-in-circle">Robot Bounded In Circle</a></td><td><span class="diff medium">Medium</span></td><td class="num">5</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-simulation">Simulation</a>: none in this topic.</p>
   </article>
 
@@ -429,6 +456,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

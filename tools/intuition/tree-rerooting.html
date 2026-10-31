@@ -1,0 +1,22 @@
+<h3>Start with what you would do by hand</h3>
+<p>Six towns are joined by roads that form a tree: town 0 is joined to 1 and 2; town 2 is joined to 3, 4 and 5. For each town, we want the total distance to all the other towns. For town 0: distances 1, 1, 2, 2, 2, total 8. For town 2: 1, 1, 1, 1, 2, total 6. By hand you would stand in each town and walk out to every other town, adding up. Six towns, six walks of five steps each. For <var>n</var> towns that is <var>n</var> walks of <var>n</var> steps, <var>n</var><sup>2</sup>; for 100,000 towns, ten billion steps.</p>
+<p>But notice something between neighbours. Moving the starting town from 0 to its neighbour 2, every town in 2's group (2, 3, 4, 5) gets one step closer and every town outside it (0, 1) gets one step farther. So the new total is 8 − 4 + 2 = 6. One subtraction and one addition instead of a whole walk.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Hang the tree from town 0 as the root. Now every town has a subtree: itself and everything below it.</p>
+<p>Piece one: size[<var>v</var>], the number of towns in <var>v</var>'s subtree. Computed bottom-up: a leaf has size 1; a parent adds its children's sizes plus 1. Here size[3] = size[4] = size[5] = size[1] = 1, size[2] = 4, size[0] = 6.</p>
+<p>Piece two: down[<var>v</var>], the sum of distances from <var>v</var> to the towns in its own subtree. Also bottom-up: down[<var>v</var>] = sum over children <var>c</var> of (down[<var>c</var>] + size[<var>c</var>]), because every town under <var>c</var> is one step farther from <var>v</var> than from <var>c</var>. So down[2] = 0+1 + 0+1 + 0+1 = 3 and down[0] = (0 + 1) + (3 + 4) = 8. The root's down is its full answer, since its subtree is everything.</p>
+<p>Piece three: reroot. Walk top-down. For a child <var>c</var> of <var>p</var>, the answer is the parent's answer shifted: the size[<var>c</var>] towns below <var>c</var> get closer by one, the other <var>n</var> − size[<var>c</var>] get farther by one.</p>
+<div class="table-wrap"><table><tr><th>Town</th><th>size</th><th>down</th><th>answer</th></tr><tr><td>0 (root)</td><td>6</td><td>8</td><td>8</td></tr><tr><td>1</td><td>1</td><td>0</td><td>8 − 1 + 5 = 12</td></tr><tr><td>2</td><td>4</td><td>3</td><td>8 − 4 + 2 = 6</td></tr><tr><td>3</td><td>1</td><td>0</td><td>6 − 1 + 5 = 10</td></tr><tr><td>4</td><td>1</td><td>0</td><td>6 − 1 + 5 = 10</td></tr><tr><td>5</td><td>1</td><td>0</td><td>6 − 1 + 5 = 10</td></tr></table></div>
+<p>The video uses a slightly different tree and so shows [8, 13, 6, 11, 11, 11]; the table here is for the six-town tree described above, which is easier to draw.</p>
+
+<h3>Why it is correct</h3>
+<p>Fix an edge between parent <var>p</var> and child <var>c</var>. Every town is either inside <var>c</var>'s subtree or outside it. Standing at <var>c</var> instead of <var>p</var>, each inside town is exactly one step nearer and each outside town exactly one step farther, because the only road between the two groups is the edge <var>p</var>–<var>c</var>.</p>
+<p class="formula">ans[<var>c</var>] = ans[<var>p</var>] − size[<var>c</var>] + (<var>n</var> − size[<var>c</var>])</p>
+<p>The root's answer is correct from the bottom-up pass, and each child's answer follows from its parent's by the formula, so a top-down pass fills everything correctly.</p>
+
+<h3>Why it is fast</h3>
+<p>Pass one visits every town once to compute size and down. Pass two visits every town once to apply the formula. Two passes of <var>n</var> constant-time steps: O(<var>n</var>), against <var>n</var><sup>2</sup> for walking from every town. For 100,000 towns that is about 200,000 operations instead of ten billion.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>"For every node, compute something about the whole tree as seen from that node": sum of distances, number of nodes within reach, the best root to minimise height. Say: "I will compute the answer for one root bottom-up with subtree sizes, then reroot to each child in O(1)." Sum of Distances in Tree is exactly the formula above. Minimum Height Trees asks which roots minimise height; the same two-pass idea gives the height from every node, though peeling leaves layer by layer is the shorter solution there.</p>

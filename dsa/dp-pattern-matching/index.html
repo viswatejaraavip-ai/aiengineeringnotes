@@ -394,24 +394,45 @@
       <p>dp[i][j] says s[:i] matches p[:j].</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Does the pattern *a*b match the word adceb? Here ? stands for any one letter and * stands for any run of letters, including none. By hand you try: the first * takes nothing, a matches a, the second * takes dce, b matches b. Yes. Now try *a*b against adcebx: the b must be last but the word ends in x, so no.</p>
+<p>The trouble with doing it by hand is the stars. Each * can take 0, 1, 2, ... letters, and with several stars the number of ways to split the word among them explodes. Guessing one split and backing up when it fails can take exponential time on nasty inputs like a*a*a*a*b against aaaaaaaaaaaaac.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a table of yes/no cells, one row per prefix of the word (including empty) and one column per prefix of the pattern. dp[<var>i</var>][<var>j</var>] means "the first <var>i</var> letters of the word match the first <var>j</var> characters of the pattern".</p>
+<p>Piece two: the empty row. The empty word matches a pattern prefix only if that prefix is all stars, since each star can take nothing. So dp[0][0] = yes, and dp[0][<var>j</var>] = yes while pattern[<var>j</var>] is *.</p>
+<p>Piece three: the inside, by the pattern character in column <var>j</var>:</p>
+<ol>
+<li>a letter or ?: it must consume exactly the word's letter <var>i</var>, and the rest must match, so dp[<var>i</var>][<var>j</var>] = dp[<var>i</var> − 1][<var>j</var> − 1] and (letters equal or the character is ?);</li>
+<li>a *: it takes nothing, so look left, dp[<var>i</var>][<var>j</var> − 1]; or it takes one more letter, so look up, dp[<var>i</var> − 1][<var>j</var>]. Either makes the cell yes.</li>
+</ol>
+<p>That second rule is the whole idea: a star taking <var>k</var> letters is "a star taking <var>k</var> − 1 letters, then one more", so you never enumerate <var>k</var>.</p>
+<div class="table-wrap"><table><tr><th></th><th>ε</th><th>*</th><th>a</th><th>*</th><th>b</th></tr><tr><th>ε</th><td>✓</td><td>✓</td><td>·</td><td>·</td><td>·</td></tr><tr><th>a</th><td>·</td><td>✓</td><td>✓</td><td>✓</td><td>·</td></tr><tr><th>d</th><td>·</td><td>✓</td><td>·</td><td>✓</td><td>·</td></tr><tr><th>c</th><td>·</td><td>✓</td><td>·</td><td>✓</td><td>·</td></tr><tr><th>e</th><td>·</td><td>✓</td><td>·</td><td>✓</td><td>·</td></tr><tr><th>b</th><td>·</td><td>✓</td><td>·</td><td>✓</td><td>✓</td></tr></table></div>
+<p>Row a, column a: letters equal and the diagonal (ε, *) is ✓, so ✓. Row d, column second *: left is (d, a) = ·, up is (a, *) = ✓, so ✓. Bottom-right: b equals b and the diagonal (e, *) is ✓: match.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: each filled cell correctly says whether its word prefix matches its pattern prefix. Empty row: proved above. Letter or ? column: the pattern character must consume exactly the word's last letter, so the two shorter prefixes must match, which is the diagonal. Star column: in any matching, the star consumed some number of trailing letters; if zero, the prefix without the star matches (left); if at least one, drop the last word letter and the same star still matches what remains (up). Both directions are exact, so the cell is right.</p>
+<h3>Why it is fast</h3>
+<p class="formula">work = (<var>n</var> + 1)(<var>m</var> + 1) cells × constant</p>
+<p>A 2,000-letter word against a 2,000-character pattern is 4 million cells, while the back-up search can take time exponential in the number of stars.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "wildcard", "? and *", "regular expression", "does the pattern cover the whole string", two strings where one contains special characters. The first thing to say: "a table over prefixes; a star looks left for zero letters or up for one more." Wildcard Matching is the example above. Regular Expression Matching is the harder sibling: there the star applies to the character before it, so the "one more" branch also checks that the word's letter matches that preceding character.</p>
 
-
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>A star either matches nothing (drop it) or eats one more character.</p>
     <p><strong>Reach for it when:</strong> Regular expression matching, wildcard matching.</p>
     <p><strong>Cost:</strong> O(nm) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Wildcard match &#x27;adceb&#x27; vs &#x27;*a*b&#x27;</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>&#x27;?&#x27; matches one char; &#x27;<em>&#x27; matches </em>nothing<em> (look left) or </em>one more<em> char (look up)</em></li><li>Row ε: only a prefix of stars matches the empty string</li><li>Row &#x27;a&#x27;: star columns copy ← or ↑; letter columns need a match ↖</li><li>Row &#x27;d&#x27;: star columns copy ← or ↑; letter columns need a match ↖</li><li>Row &#x27;c&#x27;: star columns copy ← or ↑; letter columns need a match ↖</li><li>Row &#x27;e&#x27;: star columns copy ← or ↑; letter columns need a match ↖</li><li>Row &#x27;b&#x27;: star columns copy ← or ↑; letter columns need a match ↖</li><li>dp[5][4] is <em>✓</em>: &#x27;<em>&#x27; ate &#x27;adc&#x27;, &#x27;e&#x27; went to the 2nd &#x27;</em>&#x27;, &#x27;b&#x27; matched</li><li>|s| × |p| table, O(1) per cell: <em>O(n·m)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>2 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/regular-expression-matching">Regular Expression Matching</a></td><td><span class="diff hard">Hard</span></td><td class="num">51</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/wildcard-matching">Wildcard Matching</a></td><td><span class="diff hard">Hard</span></td><td class="num">42</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-dynamic-programming">Dynamic Programming</a>: <a href="/dsa/dp-1d-linear/">1-D linear DP</a>, <a href="/dsa/dp-kadane/">Kadane (best ending here)</a>, <a href="/dsa/dp-lis/">Longest increasing subsequence</a>, <a href="/dsa/dp-grid-paths/">Grid path DP</a>, <a href="/dsa/dp-knapsack-01/">0/1 knapsack (subset sum)</a>, <a href="/dsa/dp-unbounded-coin/">Unbounded knapsack (coin change)</a>, <a href="/dsa/dp-lcs-edit/">Two-sequence DP (LCS / edit distance)</a>, <a href="/dsa/dp-palindrome-expand/">Palindromes: expand or table</a>, <a href="/dsa/dp-word-break/">Prefix segmentation DP</a>, <a href="/dsa/dp-interval/">Interval DP (last operation)</a>, <a href="/dsa/dp-state-machine-stock/">State-machine DP (stocks)</a>, <a href="/dsa/dp-bitmask/">Bitmask DP over subsets</a>, <a href="/dsa/dp-memo-dfs/">Memoised DFS (top-down)</a>, <a href="/dsa/dp-digit/">Digit DP</a>, <a href="/dsa/dp-game-minimax/">Game DP (minimax on a range)</a>, <a href="/dsa/dp-count-ways-mod/">Counting ways with modulo</a>, <a href="/dsa/dp-longest-string-chain/">DP over sorted keys (chains)</a>.</p>
   </article>
 
@@ -430,6 +451,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

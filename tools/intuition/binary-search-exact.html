@@ -1,0 +1,29 @@
+<h3>Start with what you would do by hand</h3>
+<p>A sorted list: &minus;1, 0, 3, 5, 9, 12. Is 9 in it, and at which position? Reading left to right you check &minus;1, 0, 3, 5, then 9: five looks. If the list had a million numbers and 9 sat near the end, that would be a million looks.</p>
+<p>But you would never search a dictionary that way. You open it near the middle, see which half the word belongs in, and ignore the other half completely. The list being sorted is what makes this legal: if the middle number is 5 and you want 9, everything left of 5 is at most 5, so 9 cannot be there.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>There is no new container here. The structure is the pair of boundaries, lo and hi, which mark the part of the list where the target might still be.</p>
+<p><strong>Piece 1: the range.</strong> Start with lo = 0 and hi = 5, the whole list (positions 0 to 5).</p>
+<p><strong>Piece 2: the middle.</strong> Compute mid = (lo + hi) &divide; 2, rounding down, and look at that one number.</p>
+<p><strong>Piece 3: throw away half.</strong> If the middle number equals the target, done. If it is smaller than the target, the target can only be to the right: set lo = mid + 1. If it is bigger, set hi = mid &minus; 1. Repeat until lo passes hi, which means the target is not there.</p>
+<div class="table-wrap"><table>
+<tr><th>lo</th><th>hi</th><th>mid</th><th>nums[mid]</th><th>Decision</th></tr>
+<tr><td>0</td><td>5</td><td>2</td><td>3</td><td>3 &lt; 9, lo = 3</td></tr>
+<tr><td>3</td><td>5</td><td>4</td><td>9</td><td>found at 4</td></tr>
+</table></div>
+<p>Two looks instead of five. (The video runs the same search over an 8-slot layout so it takes three halvings; the mechanism is identical.) Searching for 4, which is absent, goes: mid 2 (3 &lt; 4, lo = 3), mid 4 (9 &gt; 4, hi = 3), mid 3 (5 &gt; 4, hi = 2), and now lo = 3 &gt; hi = 2, so 4 is not in the list. Notice lo ended at 3, exactly where 4 would be inserted to keep the list sorted.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: if the target is in the list, its position is between lo and hi inclusive.</p>
+<p>At the start the range is the whole list, so it holds. When nums[mid] &lt; target, every position &le; mid holds a value &le; nums[mid] &lt; target, because the list is sorted, so none of them is the target; moving lo to mid + 1 drops only positions that cannot hold it. The mirror argument covers nums[mid] &gt; target. So the invariant survives every step, and when lo &gt; hi the range is empty, which means the target is absent.</p>
+<p>Two details catch people. Use lo &le; hi as the loop condition, so a range of one element is still checked. And write mid = lo + (hi &minus; lo) &divide; 2 in languages with fixed-size integers, so lo + hi cannot overflow.</p>
+
+<h3>Why it is fast</h3>
+<p>Every step cuts the range to at most half its size. Starting from <var>n</var> positions, after <var>k</var> steps at most <var>n</var> / 2<sup><var>k</var></sup> remain. The search ends once that is below 1.</p>
+<p class="formula"><var>n</var> / 2<sup><var>k</var></sup> &lt; 1 &nbsp;when&nbsp; <var>k</var> &gt; log<sub>2</sub> <var>n</var>, so about log<sub>2</sub> <var>n</var> looks</p>
+<p>For a million numbers, log<sub>2</sub>(1 000 000) is about 20. Twenty looks instead of a million. Doubling the list adds one look.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The word "sorted" is the big cue, plus "find", "first position", "insert position", or a 2-D matrix whose rows and columns are sorted (treat it as one long sorted list of <var>m</var> &times; <var>n</var> cells). Say: "The input is sorted, so I can halve the search range each step; that is O(log <var>n</var>)."</p>
+<p>Binary Search is the example above. Search Insert Position returns lo when the loop ends, which is where the target belongs. Search a 2D Matrix maps index <var>i</var> to row <var>i</var> &divide; cols and column <var>i</var> mod cols and runs the same search. Sqrt(x) searches the integers 0 to <var>x</var> for the largest value whose square is at most <var>x</var>.</p>

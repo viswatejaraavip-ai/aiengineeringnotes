@@ -1,0 +1,33 @@
+<h3>Start with what you would do by hand</h3>
+<p>Take three items: a, b, c. How many different groups can you make from them, counting the empty group and the full group? You would probably start listing: nothing, a, b, c, a and b, a and c, b and c, all three. That is 8 groups. Now try it with 5 items. Most people lose track somewhere around the twentieth group, write one twice, and miss another. The job needs a system that never skips and never repeats.</p>
+<p>The counting itself is easy. Each item has two choices, in or out, and the choices are independent, so with <var>n</var> items there are 2 × 2 × … × 2 groups:</p>
+<p class="formula">number of subsets = 2<sup><var>n</var></sup></p>
+<p>For 3 items that is 8, for 10 items 1,024, for 20 items about a million. The question is how to produce them in order without a pencil-and-paper mess.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The structure is nothing more than an ordinary integer, read as a row of switches. A number in binary is a list of bits, each 0 or 1. Give each item one bit position: bit 0 is a, bit 1 is b, bit 2 is c. Read a bit of 1 as "this item is in the group" and 0 as "it is out". The integer is called a mask.</p>
+<p>Now simply count from 0 upwards and read off the switches:</p>
+<div class="table-wrap"><table>
+<tr><th>mask</th><th>binary (c b a)</th><th>subset</th></tr>
+<tr><td>0</td><td>000</td><td>{ }</td></tr>
+<tr><td>1</td><td>001</td><td>{a}</td></tr>
+<tr><td>2</td><td>010</td><td>{b}</td></tr>
+<tr><td>3</td><td>011</td><td>{a, b}</td></tr>
+<tr><td>4</td><td>100</td><td>{c}</td></tr>
+<tr><td>5</td><td>101</td><td>{a, c}</td></tr>
+<tr><td>6</td><td>110</td><td>{b, c}</td></tr>
+<tr><td>7</td><td>111</td><td>{a, b, c}</td></tr>
+</table></div>
+<p>To turn a mask into its subset, test each bit: item <var>i</var> is included when <code>(mask &gt;&gt; i) &amp; 1</code> equals 1. That is the whole machine: a counter from 0 to 2<sup><var>n</var></sup> − 1 and one bit test per item.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant is that each mask names exactly one subset, and each subset has exactly one mask. Both directions follow from the way binary numbers work. A number between 0 and 2<sup><var>n</var></sup> − 1 has exactly one binary spelling with <var>n</var> bits, so one mask cannot describe two subsets. In the other direction, write a 1 for every chosen item and a 0 for every other item; that spelling is a number in the range, so every subset is reached. Because counting visits each integer once, every subset appears exactly once and none is forgotten.</p>
+<p>The ordering is a bonus. Counting up means the subsets come out in a fixed, predictable order, which makes the mask a reliable label: if you need to remember "I have already handled the group {a, c}", you store the number 5.</p>
+
+<h3>Why it is fast</h3>
+<p>There are 2<sup><var>n</var></sup> masks and reading one takes <var>n</var> bit tests, so listing every subset costs about <var>n</var> · 2<sup><var>n</var></sup> steps. That sounds large, and it is, but it is the size of the answer itself; nothing can list a million subsets in fewer than a million steps. What the mask buys is zero overhead: no recursion, no stack of partial choices, no duplicate checks. The hand method needed a growing list to compare against, which is far worse.</p>
+<p>Masks also make a perfect key for a table. A problem that needs "the best result using exactly this set of items" can keep an array indexed by mask, with 2<sup><var>n</var></sup> entries, and look up or update any set in constant time. That is the door to bitmask dynamic programming, where a solution for a mask is built from the solutions for masks with one bit fewer.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The tell is a small <var>n</var>, usually 20 or less, together with words like "all subsets", "any combination", "choose a group of" or "assign each item to one of two sides". When you hear that, say: "with <var>n</var> that small I can afford every subset; I will represent each one as an <var>n</var>-bit mask and loop from 0 to 2<sup><var>n</var></sup> − 1".</p>
+<p>In Subsets the mask loop is the entire answer. In Maximum Product of Word Lengths each word is turned into a 26-bit mask of the letters it uses, and two words share no letter exactly when the AND of their masks is 0, so the mask is used as a fingerprint rather than as a counter. In Partition to K Equal Sum Subsets the mask records which numbers have already been placed, and the search state is the mask plus the running sum.</p>

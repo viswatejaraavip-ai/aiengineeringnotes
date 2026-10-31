@@ -1,0 +1,23 @@
+<h3>Start with what you would do by hand</h3>
+<p>Here is a small family tree of numbers. 3 is at the top. Below 3 sit 9 and 20. Below 20 sit 15 and 7. The question: how many levels deep is the tree? You can see the answer, 3, by looking. But a computer cannot "look"; it can only stand on one node and see that node's two children. So we need a way to get the answer by standing on nodes one at a time.</p>
+<p>The by-hand method most people try is to trace every path from the top to every bottom node, writing down each path's length, then take the biggest. For our tree that is three paths: 3→9 (2 nodes), 3→20→15 (3 nodes), 3→20→7 (3 nodes). Fine for 5 nodes. But a tree with a million nodes can have half a million bottom nodes, and each path can be hundreds long. Writing every path means revisiting the top nodes hundreds of thousands of times.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>First, what is a tree? One node at the top (the root). Every node may have a left child and a right child, or none. A node with no children is a leaf. That is the whole structure. There is no clever extra memory; the trick is in how we ask the question.</p>
+<p>Piece one: instead of asking "how deep is the whole tree", ask each node a smaller question: "how deep is the part below <em>you</em>?" A leaf answers 1 at once (just itself).</p>
+<p>Piece two: a node that has children cannot answer alone, so it asks its left child, then its right child, waits for both numbers, and combines them: its depth is 1 + the larger of the two answers.</p>
+<p>Watch it on the example. The root 3 asks 9. 9 is a leaf: answer 1. The root asks 20. 20 asks 15: a leaf, 1. 20 asks 7: a leaf, 1. 20 combines: 1 + max(1, 1) = 2. The root combines: 1 + max(1, 2) = 3. Done, and no path was written twice.</p>
+<div class="table-wrap"><table><tr><th>Node</th><th>Left answer</th><th>Right answer</th><th>Its own answer</th></tr><tr><td>9</td><td>0 (none)</td><td>0 (none)</td><td>1</td></tr><tr><td>15</td><td>0</td><td>0</td><td>1</td></tr><tr><td>7</td><td>0</td><td>0</td><td>1</td></tr><tr><td>20</td><td>1</td><td>1</td><td>1 + max(1, 1) = 2</td></tr><tr><td>3</td><td>1</td><td>2</td><td>1 + max(1, 2) = 3</td></tr></table></div>
+<p>The order matters: children first, parent last. That is called post-order, and the function calling itself on each child is called recursion. The computer keeps a stack of unfinished questions: while 20 waits for 15, both 3 and 20 are "on hold".</p>
+
+<h3>Why it is correct</h3>
+<p>The rule we rely on: the answer for a node depends only on the answers of its two children, never on anything above it or beside it. For depth that is obviously true: the deepest path below 3 must go through 9 or through 20, so it is one step longer than the deeper of those two.</p>
+<p class="formula">depth(<var>v</var>) = 1 + max(depth(left(<var>v</var>)), depth(right(<var>v</var>))), with depth(nothing) = 0</p>
+<p>Leaves are the base case and are correct by definition. If every child's answer is correct, the formula makes the parent's answer correct. Working upward from the leaves, every node ends up correct, including the root. The same shape works for "are these two trees the same" (same value here, and same on the left, and same on the right), for mirror symmetry, for inverting a tree (invert both children, then swap them) and for counting nodes (1 + left count + right count).</p>
+
+<h3>Why it is fast</h3>
+<p>Each node is asked exactly once and answers exactly once, doing a constant amount of work (a comparison and an addition). So the total work is proportional to the number of nodes <var>n</var>: O(<var>n</var>). The by-hand path listing was far more, because top nodes were rewritten in every path.</p>
+<p>The hidden cost is the stack of questions on hold. It is as long as the longest chain from the root down, the height <var>h</var>. For a balanced tree that is about log<sub>2</sub> <var>n</var> (20 for a million nodes); for a tree that is really a long chain it is <var>n</var>, which is why very deep trees can overflow the recursion stack.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The cue is a question about a whole tree whose answer can be assembled from the two halves: height, balance, equality, symmetry, count, sum. Say out loud: "I will define what each node returns, handle the leaf case, and combine the children's returns at the parent." In Maximum Depth of Binary Tree the return is the depth. In Same Tree you walk two trees side by side and return whether this pair matches and both child pairs match. In Balanced Binary Tree return the height but also mark the answer false the moment two child heights differ by more than 1.</p>

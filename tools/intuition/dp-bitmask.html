@@ -1,0 +1,30 @@
+<h3>Start with what you would do by hand</h3>
+<p>Three workers, three jobs, and a cost table. Each worker takes exactly one job. Which assignment is cheapest?</p>
+<div class="table-wrap"><table>
+<tr><th></th><th>worker 0</th><th>worker 1</th><th>worker 2</th></tr>
+<tr><td>job 0</td><td>9</td><td>2</td><td>7</td></tr>
+<tr><td>job 1</td><td>6</td><td>4</td><td>3</td></tr>
+<tr><td>job 2</td><td>5</td><td>8</td><td>1</td></tr>
+</table></div>
+<p>By hand you would list the orders: job 0 to worker 0, job 1 to worker 1, job 2 to worker 2; then job 0 to worker 0, job 1 to worker 2, job 2 to worker 1; and so on. For 3 workers there are 3 × 2 × 1 = 6 orders. For 10 workers there are 3,628,800, and for 20 there are about 2.4 × 10<sup>18</sup>. Orders explode because they remember <em>who got which job in which sequence</em>, which is more than needed.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>What actually matters after placing some jobs is only <strong>which workers are already busy</strong>, not the order in which they became busy. Record that as a row of bits, one per worker: 1 for busy, 0 for free. With three workers the row is three bits, written as a binary number called a mask. <code>000</code> means nobody is busy, <code>101</code> means workers 0 and 2 are busy. There are 2<sup>3</sup> = 8 masks.</p>
+<p>The number of 1 bits in the mask (its popcount) tells you how many jobs are already placed, so the next job to place is job number popcount(mask). Keep one number per mask: <var>dp</var>[mask] = cheapest cost of placing the first popcount(mask) jobs on exactly the workers in mask. Fill masks in increasing order; each mask is reached by adding one worker to a smaller mask.</p>
+<ol>
+<li><var>dp</var>[<code>000</code>] = 0: nothing placed, nothing paid.</li>
+<li>One bit set, job 0 placed: <var>dp</var>[<code>001</code>] = 9 (worker 0), <var>dp</var>[<code>010</code>] = 2 (worker 1), <var>dp</var>[<code>100</code>] = 7 (worker 2).</li>
+<li>Two bits set, job 1 placed on the newest worker: <var>dp</var>[<code>011</code>] = min(<var>dp</var>[<code>010</code>] + 6, <var>dp</var>[<code>001</code>] + 4) = 8; <var>dp</var>[<code>110</code>] = min(<var>dp</var>[<code>100</code>] + 4, <var>dp</var>[<code>010</code>] + 3) = 5; <var>dp</var>[<code>101</code>] = min(<var>dp</var>[<code>100</code>] + 6, <var>dp</var>[<code>001</code>] + 3) = 12.</li>
+<li>All three bits, job 2: <var>dp</var>[<code>111</code>] = min(<var>dp</var>[<code>110</code>] + 5, <var>dp</var>[<code>101</code>] + 8, <var>dp</var>[<code>011</code>] + 1) = min(10, 20, 9) = 9.</li>
+</ol>
+<p>Cheapest total: 9, with job 0 on worker 1, job 1 on worker 2, job 2 on worker 0.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: <var>dp</var>[mask] is the true cheapest way to place the first popcount(mask) jobs on exactly the workers in mask. Any such placement gave the latest job to some worker <var>w</var> in mask; removing <var>w</var> leaves a valid placement of the earlier jobs on mask without <var>w</var>, whose cost is at least <var>dp</var>[mask − <var>w</var>] by the invariant. So the best for mask is the minimum over <var>w</var> in mask of <var>dp</var>[mask without <var>w</var>] + cost of the latest job on <var>w</var>, which is exactly what the loop computes. Order among the earlier jobs never matters, because the cost is a sum.</p>
+<p class="formula"><var>dp</var>[mask] = min over bits <var>w</var> in mask of ( <var>dp</var>[mask ⊕ 2<sup><var>w</var></sup>] + cost[popcount(mask) − 1][<var>w</var>] )</p>
+
+<h3>Why it is fast</h3>
+<p>There are 2<sup><var>n</var></sup> masks and each looks at up to <var>n</var> bits, so the work is O(2<sup><var>n</var></sup> · <var>n</var>). For 20 workers that is about 21 million steps, against 2.4 × 10<sup>18</sup> orders. The gain comes from collapsing every order with the same set of busy workers into one table cell. Memory is 2<sup><var>n</var></sup> numbers, which is why this pattern appears only when <var>n</var> is about 20 or less.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: a small <var>n</var> (at most about 20), "every item exactly once", "visit all", "assign", or subsets. Say: the state is the set of items used, which fits in an integer of <var>n</var> bits. <em>Shortest Path Visiting All Nodes</em> stores (mask of visited nodes, current node). <em>Partition to K Equal Sum Subsets</em> asks, for each mask of used numbers, whether the current bucket can be filled. <em>Parallel Courses II</em> uses the mask of finished courses and adds up to <var>k</var> courses per step.</p>

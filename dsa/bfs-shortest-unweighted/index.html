@@ -394,24 +394,45 @@
       <p>Nodes are dequeued in non-decreasing distance order.</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Change the word "hit" into "cog" one letter at a time, where every intermediate word must be in a dictionary: {hot, dot, dog, lot, log, cog}. What is the fewest steps? By hand you might try: hit → hot → dot → dog → cog, five words, four changes. Is there anything shorter? You cannot be sure unless you have tried every shorter possibility. Depth-first exploration can wander: hit → hot → lot → log → cog is also a ladder, and a depth-first search that happened to go down the lot branch first would report it, which is the same length here but in general could be longer than the best.</p>
+<p>What you want is to try all one-step words, then all two-step words, and so on, so that the first time you see "cog" you know nothing shorter exists.</p>
 
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: the graph. Words are nodes; two words are joined if they differ in exactly one letter. We never build it explicitly: to find a word's neighbours, change each position to each of 26 letters and keep those that are in the dictionary.</p>
+<p>Piece two: a queue holding (word, steps so far), and a visited set so that a word is explored only once. Mark a word visited the moment it is pushed, not when it is popped, or the same word can enter the queue many times.</p>
+<p>Piece three: the loop. Pop the front. If it is the target, its steps count is the answer. Otherwise push every unvisited neighbour with steps + 1.</p>
+<div class="table-wrap"><table><tr><th>Popped (word, length)</th><th>New neighbours pushed</th><th>At length</th></tr><tr><td>hit, 1</td><td>hot</td><td>2</td></tr><tr><td>hot, 2</td><td>dot, lot</td><td>3</td></tr><tr><td>dot, 3</td><td>dog</td><td>4</td></tr><tr><td>lot, 3</td><td>log</td><td>4</td></tr><tr><td>dog, 4</td><td>cog</td><td>5</td></tr><tr><td>log, 4</td><td>(cog already visited)</td><td></td></tr><tr><td>cog, 5</td><td>target: answer 5 words</td><td></td></tr></table></div>
+<p>Every word at length 3 was handled before any at length 4. That is the layering the by-hand method wanted.</p>
 
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+<h3>Why it is correct</h3>
+<p>The invariant: the queue holds nodes in non-decreasing distance, and the distances present differ by at most one. Initially it holds one node at distance 0. Popping a node at distance <var>d</var> pushes nodes at <var>d</var> + 1 to the back, behind everything at <var>d</var> and <var>d</var> + 1 already there, so the order is preserved.</p>
+<p class="formula">the first time a node is pushed, its recorded distance = the length of a shortest path to it</p>
+<p>Suppose some node <var>v</var> were first reached with a distance larger than its true shortest distance <var>k</var>. Then along a true shortest path there is a node <var>u</var> at distance <var>k</var> − 1 that was popped before anything at distance <var>k</var> or more was popped, and popping <var>u</var> would have pushed <var>v</var> at distance <var>k</var>. Contradiction. So the recorded distance is exact, and in particular the first time the target is seen is optimal.</p>
+
+<h3>Why it is fast</h3>
+<p>Each node is pushed and popped at most once, and each edge is examined at most twice, so O(<var>V</var> + <var>E</var>). For Word Ladder with <var>N</var> words of length <var>L</var>, generating neighbours costs 26 × <var>L</var> per word, so O(<var>N</var> × 26 × <var>L</var>) overall. Depth-first search has the same cost but no guarantee of shortness; trying all ladders by hand is exponential.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>"Minimum number of steps", "shortest path" or "fewest moves" where every step costs the same: a grid with unit moves, a word ladder, a lock dial, a snakes-and-ladders board, a knight on a chessboard. Say: "All edges have equal weight, so BFS from the source finds shortest distances; the first time I reach the target I stop." Word Ladder is this exactly. Shortest Path in Binary Matrix runs it on cells with 8 neighbours. Bus Routes builds the graph with routes as nodes, joined when they share a stop, and BFS counts buses instead of stops.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Layer by layer from the source; distance = number of layers.</p>
     <p><strong>Reach for it when:</strong> Shortest path in binary matrix, word ladder, open the lock, snakes and ladders, bus routes.</p>
     <p><strong>Cost:</strong> O(V + E) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Word Ladder hit → cog</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Unweighted edges: the first time BFS <em>reaches</em> a node, that is its shortest distance</li><li>Start at hit with length 1; the first time cog is reached is the shortest</li><li>Pop hit (1): discover hot at <em>2</em></li><li>Pop hot (2): discover dot, lot at <em>3</em></li><li>Pop dot (3): discover dog at <em>4</em></li><li>Pop lot (3): discover log at <em>4</em></li><li>Pop dog (4): discover cog at <em>5</em></li><li>cog reached at length <em>5</em>: hit→hot→dot→dog→cog</li><li>DFS could find a longer ladder first; BFS explores by <em>layers</em>, so the first hit is optimal</li><li>Every word dequeued once, in distance order: <em>O(V + E)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>9 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/word-ladder">Word Ladder</a></td><td><span class="diff hard">Hard</span></td><td class="num">42</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/shortest-path-in-binary-matrix">Shortest Path in Binary Matrix</a></td><td><span class="diff medium">Medium</span></td><td class="num">36</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/bus-routes">Bus Routes</a></td><td><span class="diff hard">Hard</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/snakes-and-ladders">Snakes and Ladders</a></td><td><span class="diff medium">Medium</span></td><td class="num">28</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/minimum-knight-moves">Minimum Knight Moves</a></td><td><span class="diff medium">Medium</span></td><td class="num">23</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/jump-game-iv">Jump Game IV</a></td><td><span class="diff hard">Hard</span></td><td class="num">22</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/minimum-genetic-mutation">Minimum Genetic Mutation</a></td><td><span class="diff medium">Medium</span></td><td class="num">18</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/open-the-lock">Open the Lock</a></td><td><span class="diff medium">Medium</span></td><td class="num">11</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/nearest-exit-from-entrance-in-maze">Nearest Exit from Entrance in Maze</a></td><td><span class="diff medium">Medium</span></td><td class="num">8</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-graphs">Graphs</a>: <a href="/dsa/grid-dfs-islands/">Grid flood fill (components)</a>, <a href="/dsa/bfs-multi-source/">Multi-source BFS</a>, <a href="/dsa/bfs-state-space/">BFS over an augmented state</a>, <a href="/dsa/bfs-0-1/">0-1 BFS (deque)</a>, <a href="/dsa/dfs-cycle-coloring/">DFS three-colour cycle detection</a>, <a href="/dsa/topo-kahn/">Topological sort (Kahn&#x27;s)</a>, <a href="/dsa/union-find/">Union–Find (disjoint sets)</a>, <a href="/dsa/dijkstra/">Dijkstra (weighted shortest path)</a>, <a href="/dsa/bellman-ford-k-stops/">Bellman–Ford with k rounds</a>, <a href="/dsa/mst-kruskal-prim/">Minimum spanning tree</a>, <a href="/dsa/graph-bipartite/">Bipartite colouring</a>, <a href="/dsa/eulerian-path/">Eulerian path (Hierholzer)</a>, <a href="/dsa/tarjan-bridges/">Bridges / articulation (low-link)</a>, <a href="/dsa/graph-clone-traverse/">Clone / traverse with a visited map</a>, <a href="/dsa/implicit-graph-search/">Implicit graph (states as nodes)</a>.</p>
   </article>
 
@@ -430,6 +451,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

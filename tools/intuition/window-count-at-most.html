@@ -1,0 +1,29 @@
+<h3>Start with what you would do by hand</h3>
+<p>Count the stretches of 1, 2, 1, 2, 3 that contain <em>exactly</em> two different values. By hand you list every stretch and check: (1,2), (2,1), (1,2), (2,3), (1,2,1), (2,1,2), (1,2,1,2) qualify, so the answer is 7. That is O(<var>n</var><sup>2</sup>) stretches each checked in O(<var>n</var>).</p>
+<p>A sliding window seems natural, but "exactly two" is awkward: it does not survive growing (a third value may appear) or shrinking (a value may disappear). The windows that are easy to count are the ones whose condition is "at most".</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: learn to count windows with <strong>at most</strong> <var>k</var> distinct values. Keep a window [<var>l</var>, <var>r</var>] with a count table. Grow <var>r</var>; while the window has more than <var>k</var> distinct values, shrink <var>l</var>. Now every start between <var>l</var> and <var>r</var> gives a valid window ending at <var>r</var>, so add <var>r</var> − <var>l</var> + 1 to the count.</p>
+<div class="table-wrap"><table>
+<tr><th><var>r</var></th><th>Element</th><th>Window after shrink (<var>k</var> = 2)</th><th>Windows ending here</th><th>atMost(2) total</th></tr>
+<tr><td>0</td><td>1</td><td>[0..0]</td><td>1</td><td>1</td></tr>
+<tr><td>1</td><td>2</td><td>[0..1]</td><td>2</td><td>3</td></tr>
+<tr><td>2</td><td>1</td><td>[0..2]</td><td>3</td><td>6</td></tr>
+<tr><td>3</td><td>2</td><td>[0..3]</td><td>4</td><td>10</td></tr>
+<tr><td>4</td><td>3</td><td>[3..4] (three values until <var>l</var> = 3)</td><td>2</td><td>12</td></tr>
+</table></div>
+<p>Piece two: the subtraction. A window with exactly <var>k</var> distinct values is one that has at most <var>k</var> but not at most <var>k</var> − 1:</p>
+<p class="formula">exactly(<var>k</var>) = atMost(<var>k</var>) − atMost(<var>k</var> − 1)</p>
+<p>Run the same routine with <var>k</var> = 1: windows with a single value are the five singletons, so atMost(1) = 5. Then exactly(2) = 12 − 5 = 7, matching the by-hand count.</p>
+<p>The same two pieces count "subarrays with exactly <var>k</var> odd numbers" (atMost counts windows with at most <var>k</var> odds), "binary subarrays with sum <var>s</var>" (atMost(<var>s</var>) − atMost(<var>s</var> − 1)), and "substrings containing all three letters" (total substrings minus those containing at most two).</p>
+
+<h3>Why it is correct</h3>
+<p>For atMost: after the shrink loop, [<var>l</var>, <var>r</var>] has at most <var>k</var> distinct values and [<var>l</var> − 1, <var>r</var>] has more than <var>k</var> (that is why <var>l</var> stopped there, or <var>l</var> = 0). Any start <var>s</var> ≥ <var>l</var> gives a sub-window of a valid window, which has at most as many distinct values, so it is valid; any start <var>s</var> &lt; <var>l</var> gives a super-window of an invalid one, so it is invalid. Hence exactly <var>r</var> − <var>l</var> + 1 valid windows end at <var>r</var>, and summing over <var>r</var> counts each valid window once, by its right end.</p>
+<p>For the subtraction: every window with at most <var>k</var> values has either exactly <var>k</var> or at most <var>k</var> − 1, never both. So the set counted by atMost(<var>k</var>) splits cleanly into the two, and subtracting the second leaves the first.</p>
+
+<h3>Why it is fast</h3>
+<p>One atMost pass is a standard window: <var>r</var> moves <var>n</var> times, <var>l</var> moves at most <var>n</var> times, O(<var>n</var>). Two passes are still O(<var>n</var>), with O(<var>k</var>) memory for the count table. Checking every stretch was O(<var>n</var><sup>2</sup>) or worse. The cost of "exactly" is one extra pass, which is why the trick is worth memorising: it converts a non-monotone condition into two monotone ones.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "count the subarrays with exactly …", "number of substrings that contain …", where the natural window condition is "at most". If the asked condition is itself "at most" or "at least", one pass is enough; "exactly" needs the subtraction. The first thing to say: "Exactly <var>k</var> equals at most <var>k</var> minus at most <var>k</var> − 1, and at-most windows I can count by adding <var>r</var> − <var>l</var> + 1 at each right end."</p>
+<p><strong>Subarrays with K Different Integers</strong> is the example. <strong>Count Number of Nice Subarrays</strong> counts odd numbers instead of distinct values. <strong>Binary Subarrays With Sum</strong> uses a running sum as the window measure, with the same subtraction.</p>

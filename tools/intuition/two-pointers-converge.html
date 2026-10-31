@@ -1,0 +1,32 @@
+<h3>Start with what you would do by hand</h3>
+<p>The list 1, 2, 4, 7, 11, 15, 18 is already sorted, and you want two numbers that add to 18. By hand you could try every pair, about <var>n</var><sup>2</sup> ÷ 2 of them, which is 21 for 7 numbers and about 500 billion for a million. That ignores the one thing you were given for free: the order.</p>
+<p>Think about what order tells you. If you try 1 + 18 = 19 and it is too big, you know something stronger than "that pair failed": any pair that uses 18 with a number bigger than 1 is <em>also</em> too big, because 1 is the smallest. So 18 can be thrown away entirely. That single observation is the whole pattern.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The structure is just two indices, <var>l</var> at the left end and <var>r</var> at the right end. The stretch between them is the set of numbers still "alive" as possible pair members. Each step looks at one sum and kills one end:</p>
+<ul>
+<li>If nums[<var>l</var>] + nums[<var>r</var>] is too big, nothing paired with nums[<var>r</var>] can work, so move <var>r</var> one step left.</li>
+<li>If it is too small, nothing paired with nums[<var>l</var>] can work, so move <var>l</var> one step right.</li>
+<li>If it is exactly right, done.</li>
+</ul>
+<div class="table-wrap"><table>
+<tr><th><var>l</var></th><th><var>r</var></th><th>Sum</th><th>Compared with 18</th><th>Move</th></tr>
+<tr><td>1</td><td>18</td><td>19</td><td>too big</td><td><var>r</var> left</td></tr>
+<tr><td>1</td><td>15</td><td>16</td><td>too small</td><td><var>l</var> right</td></tr>
+<tr><td>2</td><td>15</td><td>17</td><td>too small</td><td><var>l</var> right</td></tr>
+<tr><td>4</td><td>15</td><td>19</td><td>too big</td><td><var>r</var> left</td></tr>
+<tr><td>4</td><td>11</td><td>15</td><td>too small</td><td><var>l</var> right</td></tr>
+<tr><td>7</td><td>11</td><td>18</td><td>found</td><td></td></tr>
+</table></div>
+<p>Six sums instead of twenty-one. The same two indices, walking inward, solve "is this string a palindrome" (compare the letters at <var>l</var> and <var>r</var>, move both inward), "reverse in place" (swap, move both), and "container with most water" (the shorter wall limits the area, so move the shorter side).</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: <em>if a valid pair exists, both of its members lie in the range [<var>l</var>, <var>r</var>]</em>. At the start the range is everything, so it holds. Suppose it holds and the sum is too big, so we drop nums[<var>r</var>]. Could the answer have used nums[<var>r</var>]? Its partner would have to be in [<var>l</var>, <var>r</var> − 1], all of which are at least nums[<var>l</var>] because the list is sorted, so that pair's sum is at least nums[<var>l</var>] + nums[<var>r</var>] &gt; 18. Impossible. The mirror argument covers "too small". So dropping an end never drops a member of the answer, and the invariant survives every step. When the range shrinks to a single element with no pair found, no pair exists.</p>
+<p class="formula">sorted ⇒ nums[<var>l</var>] ≤ nums[<var>i</var>] for all <var>i</var> in [<var>l</var>, <var>r</var>] ⇒ nums[<var>i</var>] + nums[<var>r</var>] ≥ nums[<var>l</var>] + nums[<var>r</var>]</p>
+
+<h3>Why it is fast</h3>
+<p>Every step moves <var>l</var> right or <var>r</var> left by one, and they start <var>n</var> − 1 apart and stop when they meet. So there are at most <var>n</var> − 1 steps, each a single addition and comparison: O(<var>n</var>) time, O(1) extra memory. The quadratic pair search did about <var>n</var><sup>2</sup> ÷ 2 steps; sortedness let us discard a whole row of candidates per comparison instead of one.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: the input is sorted (or can be sorted cheaply), you need a pair or a pair of positions, and the test is monotone: moving one end only ever makes the sum bigger or smaller. Also any "from both ends" shape: palindromes, reversing, pairing the smallest with the largest.</p>
+<p>Say: "The array is sorted, so I will put a pointer at each end and move the one that must move, discarding a candidate per step." <strong>Two Sum II - Input Array Is Sorted</strong> is the example. <strong>Container With Most Water</strong> uses the same loop with "move the shorter wall", because the shorter wall caps the area of every container it could form with a nearer partner. <strong>Valid Palindrome</strong> compares the two ends and moves both inward, skipping non-letters.</p>

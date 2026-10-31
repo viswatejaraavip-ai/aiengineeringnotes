@@ -1,0 +1,22 @@
+<h3>Start with what you would do by hand</h3>
+<p>Find the piece <code>cab</code> inside <code>abcab</code>. By hand you compare <code>cab</code> against every three-letter window: <code>abc</code>, <code>bca</code>, <code>cab</code>. Each comparison reads up to three letters, so for a text of <var>n</var> letters and a window of <var>k</var>, that is about <var>n</var> × <var>k</var> letter reads. A related question, "does any window of length 10 appear twice in a DNA string of a million letters", would compare every window against every other, which is a million squared.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Turn each window into a single number, so comparing windows is comparing numbers. Give the letters values <code>a</code> = 1, <code>b</code> = 2, <code>c</code> = 3 and read a window as a base-10 numeral: <code>abc</code> → 1·100 + 2·10 + 3 = 123, <code>bca</code> → 231, <code>cab</code> → 312. This number is a <strong>hash</strong> of the window.</p>
+<p>Computing each hash from scratch still reads <var>k</var> letters. The trick that makes it <strong>rolling</strong>: when the window slides one step right, the leftmost letter leaves and a new letter enters, and the hash can be updated in constant time.</p>
+<ol>
+<li>Window 0, <code>abc</code>: 123, computed in full once.</li>
+<li>Slide to <code>bca</code>: remove the leading <code>a</code> (subtract 1·100 → 23), shift the rest one place (×10 → 230), add the new <code>a</code> (+1 → 231).</li>
+<li>Slide to <code>cab</code>: (231 − 2·100)·10 + 2 = 312. Equal to the target 312, so <code>cab</code> is a candidate at position 2.</li>
+</ol>
+<p>In real code the base is a prime like 31 and every value is taken modulo a large prime, such as 10<sup>9</sup> + 7, so the numbers stay small. That introduces the last piece: two different windows can, rarely, land on the same remainder, a <strong>collision</strong>. So when hashes match, compare the actual letters once to confirm.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: the current number is exactly the base-<var>B</var> value of the current window. Sliding keeps it true because of plain place-value arithmetic: if the window value is <var>h</var> = <var>c</var><sub>1</sub><var>B</var><sup><var>k</var>−1</sup> + <var>c</var><sub>2</sub><var>B</var><sup><var>k</var>−2</sup> + … + <var>c</var><sub><var>k</var></sub>, then (<var>h</var> − <var>c</var><sub>1</sub><var>B</var><sup><var>k</var>−1</sup>)·<var>B</var> + <var>c</var><sub><var>k</var>+1</sub> is the value of the next window. Taking everything modulo <var>m</var> keeps the same identity, since addition and multiplication respect remainders. Equal windows always give equal hashes, so no occurrence is missed; a verifying comparison on hash matches removes the false positives from collisions.</p>
+<p class="formula"><var>h</var><sub>next</sub> = ( (<var>h</var> − <var>c</var><sub>1</sub>·<var>B</var><sup><var>k</var>−1</sup>) · <var>B</var> + <var>c</var><sub><var>k</var>+1</sub> ) mod <var>m</var></p>
+
+<h3>Why it is fast</h3>
+<p>The first window costs <var>k</var> steps; every slide costs a subtraction, a multiplication and an addition, so all <var>n</var> windows cost O(<var>n</var> + <var>k</var>). A letter-by-letter verification only happens on a hash match, and with a large modulus matches are almost always real, so the expected total is O(<var>n</var>). For the DNA question, put each window's hash in a set as you slide: a million insertions, against a million-squared comparisons.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: fixed-length windows, "repeated substring", "longest duplicate", comparing many substrings for equality, or a string-matching question where KMP feels heavy. Say: I will hash each window and roll the hash as the window slides, then verify matches. <em>Repeated DNA Sequences</em> is the set-of-window-hashes version. <em>Longest Duplicate Substring</em> binary-searches the window length and uses rolling hashes to test each length. <em>Find the Index of the First Occurrence in a String</em> is Rabin–Karp, the search above.</p>

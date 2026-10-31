@@ -394,24 +394,58 @@
       <p>carry ∈ {0,1} holds everything not yet written.</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Add 342 and 465 the way you learned in school: write them one above the other, start from the units column. 2 + 5 = 7, write 7. 4 + 6 = 10, write 0, carry 1. 3 + 4 + 1 = 8, write 8. Answer 807.</p>
+<p>Now the numbers are given as linked lists, each box one digit, least significant digit first: 2 &rarr; 4 &rarr; 3 and 5 &rarr; 6 &rarr; 4. That is exactly the order school addition walks the digits, so the lists are already set up for the column method.</p>
+<p>The by-hand method is already the right algorithm. What is left is to do it without converting to real numbers, because the lists might be a thousand digits long and no integer type holds that. The only state you carried from column to column was a single carry digit, 0 or 1. That is all the memory the algorithm needs.</p>
 
+<h3>Build the structure, one piece at a time</h3>
+<p><strong>Piece 1: two walkers.</strong> One pointer on each list, starting at the first box (the units digit).</p>
+<p><strong>Piece 2: a carry.</strong> One number, starting at 0.</p>
+<p><strong>Piece 3: the column step.</strong> Take the digit under each walker (0 if that list has run out), add them and the carry. The new digit is the sum mod 10; the new carry is the sum &divide; 10 (0 or 1). Append the new digit to the result list and advance both walkers.</p>
+<p><strong>Piece 4: the stop rule.</strong> Keep going while either list has boxes left or the carry is 1. The last condition is what turns 999 + 1 into 1000: after the three columns, the carry is 1 and a fourth box must be written.</p>
+<div class="table-wrap"><table>
+<tr><th>Column</th><th>a</th><th>b</th><th>carry in</th><th>sum</th><th>digit out</th><th>carry out</th></tr>
+<tr><td>1</td><td>2</td><td>5</td><td>0</td><td>7</td><td>7</td><td>0</td></tr>
+<tr><td>2</td><td>4</td><td>6</td><td>0</td><td>10</td><td>0</td><td>1</td></tr>
+<tr><td>3</td><td>3</td><td>4</td><td>1</td><td>8</td><td>8</td><td>0</td></tr>
+<tr><td>end</td><td>none</td><td>none</td><td>0</td><td colspan="3">stop</td></tr>
+</table></div>
+<p>Result list: 7 &rarr; 0 &rarr; 8, which reads as 807. Building the result uses a dummy head and a tail pointer, so the first digit needs no special case.</p>
 
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+<h3>Why it is correct</h3>
+<p>The invariant: after <var>k</var> columns, the result list holds the lowest <var>k</var> digits of the true sum, and carry equals the amount still owed to column <var>k</var> + 1.</p>
+<p>This is the column method's own correctness argument, made precise. The true sum's lowest <var>k</var> digits depend only on the lowest <var>k</var> digits of the inputs and the carries between them. Each step computes digit and carry from exactly those, so by induction each written digit is right. The carry can never exceed 1:</p>
+<p class="formula">sum &le; 9 + 9 + 1 = 19, so carry = &lfloor;sum / 10&rfloor; &le; 1</p>
+<p>The stop rule guarantees nothing is left owed: the loop ends only when both lists are exhausted and the carry is 0.</p>
+<p>For multiplication of digit strings the same structure applies with a wider carry: the product of digit <var>i</var> and digit <var>j</var> is added into position <var>i</var> + <var>j</var> of a result array, and one final pass normalises each position to a single digit, carrying the excess upward.</p>
+
+<h3>Why it is fast</h3>
+<p>Each column is a constant amount of work, and the number of columns is the length of the longer list, plus one for a final carry.</p>
+<p class="formula">time = O(max(<var>n</var>, <var>m</var>)), memory for the result = O(max(<var>n</var>, <var>m</var>)), working memory = one carry</p>
+<p>A thousand-digit number is a thousand columns, no big-integer library needed.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The cues are "add two numbers represented as", "plus one", "add binary strings", "multiply strings", digits stored in a list or string, and lengths that rule out converting to an integer. Say: "I walk both inputs from the least significant end with a carry, writing one digit per position, and keep going while a carry remains."</p>
+<p>Add Two Numbers is the example above. Add Binary is the same with base 2, so digit = sum mod 2 and carry = sum &divide; 2. Plus One is the special case where the second number is 1 and the loop usually stops after the first column. When the digits are stored most significant first, reverse the lists first or use two stacks to walk them from the end.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Walk both lists, add digits plus carry, emit one node per position.</p>
     <p><strong>Reach for it when:</strong> Add two numbers, plus one, add binary/strings, multiply strings.</p>
     <p><strong>Cost:</strong> O(max(n,m)) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Add Two Numbers 342 + 465 as 2→4→3 and 5→6→4</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Walk both lists together; each position emits <em>(a + b + carry) mod 10</em></li><li>2 + 5 + carry 0 = <em>7</em></li><li>Write digit 7, carry = <em>0</em></li><li>4 + 6 + carry 0 = <em>10</em></li><li>Write digit 0, carry = <em>1</em></li><li>3 + 4 + carry 1 = <em>8</em></li><li>Write digit 8, carry = <em>0</em></li><li>Lists ended and carry is 0: <em>nothing more to write</em></li><li>Result 7→0→8 reads as <em>807</em> = 342 + 465</li><li>One node per position: <em>O(max(n, m))</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>8 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/add-two-numbers">Add Two Numbers</a></td><td><span class="diff medium">Medium</span></td><td class="num">79</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/plus-one">Plus One</a></td><td><span class="diff easy">Easy</span></td><td class="num">56</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/add-binary">Add Binary</a></td><td><span class="diff easy">Easy</span></td><td class="num">53</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/add-strings">Add Strings</a></td><td><span class="diff easy">Easy</span></td><td class="num">38</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/multiply-strings">Multiply Strings</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/add-two-numbers-ii">Add Two Numbers II</a></td><td><span class="diff medium">Medium</span></td><td class="num">20</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/plus-one-linked-list">Plus One Linked List</a></td><td><span class="diff medium">Medium</span></td><td class="num">18</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/add-to-array-form-of-integer">Add to Array-Form of Integer</a></td><td><span class="diff easy">Easy</span></td><td class="num">13</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-linked-list">Linked List</a>: <a href="/dsa/ll-fast-slow/">Fast and slow pointers</a>, <a href="/dsa/ll-reverse/">In-place reversal</a>, <a href="/dsa/ll-dummy-head/">Dummy head and splice</a>, <a href="/dsa/ll-random-pointer-copy/">Clone with a map or interleaving</a>.</p>
   </article>
 
@@ -430,6 +464,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

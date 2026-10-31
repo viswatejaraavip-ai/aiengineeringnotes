@@ -394,24 +394,60 @@
       <p>The stack holds partial results that are still waiting on a lower-precedence operator.</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Work out 3 + 2 × 2 − 1. The school rule is that multiplication comes first: 2 × 2 = 4, then 3 + 4 − 1 = 6. Reading left to right you cannot add 3 + 2 the moment you see the plus, because the next operator might be a × that binds the 2 more tightly.</p>
+<p>By hand you scan for the highest-precedence operator, apply it, rewrite, and scan again. Each scan is the whole expression, so that is O(<var>n</var><sup>2</sup>) for <var>n</var> tokens. The question is how to decide, at each operator, what can be computed now and what must wait, in a single left-to-right pass.</p>
 
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: an <strong>operand stack</strong> holding numbers that are waiting for a low-precedence operator (+ or −) to combine them. The final answer will be the sum of everything on the stack.</p>
+<p>Piece two: remember the <strong>last operator seen</strong>. When a complete number arrives, act on the last operator:</p>
+<ul>
+<li>+ : push the number.</li>
+<li>− : push the negated number. Subtraction becomes "add a negative", so the end is a plain sum.</li>
+<li>× or ÷ : these bind tighter than anything waiting on the stack, so apply them <em>now</em> to the top: pop it, combine with the new number, push the result.</li>
+</ul>
+<p>Start with the last operator set to +. For 3 + 2 × 2 − 1:</p>
+<div class="table-wrap"><table>
+<tr><th>Token</th><th>Last operator</th><th>Action</th><th>Stack</th></tr>
+<tr><td>3</td><td>+</td><td>push 3</td><td>3</td></tr>
+<tr><td>+</td><td></td><td>remember +</td><td>3</td></tr>
+<tr><td>2</td><td>+</td><td>push 2</td><td>3, 2</td></tr>
+<tr><td>×</td><td></td><td>remember ×</td><td>3, 2</td></tr>
+<tr><td>2</td><td>×</td><td>pop 2, push 2 × 2</td><td>3, 4</td></tr>
+<tr><td>−</td><td></td><td>remember −</td><td>3, 4</td></tr>
+<tr><td>1</td><td>−</td><td>push −1</td><td>3, 4, −1</td></tr>
+<tr><td>end</td><td></td><td>sum the stack</td><td>6</td></tr>
+</table></div>
+<p>Multi-digit numbers are accumulated digit by digit until a non-digit arrives. Parentheses add the nested-context idea from the previous pattern: push the stack and the last operator at "(", evaluate the inside, and treat its result as a number at ")". Reverse Polish notation (2 1 + 3 ×) removes precedence entirely: numbers push, an operator pops two and pushes the result.</p>
 
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+<h3>Why it is correct</h3>
+<p>The invariant: <em>the stack holds a list of terms whose sum equals the value of the expression read so far, where every × and ÷ has already been applied</em>. A + pushes a new term; a − pushes a negative term, which is the same as subtracting; a × or ÷ modifies the most recent term, which is correct because × and ÷ apply to the number immediately before them and that number is exactly the top term, having not yet been added to anything. Precedence is honoured because the only thing a term can still be combined with is a × or ÷ that immediately follows it; by the time a + or − arrives, the term is final. The sum at the end is therefore the expression's value:</p>
+<p class="formula">3 + 2 × 2 − 1 = (+3) + (+2 × 2) + (−1)</p>
+
+<h3>Why it is fast</h3>
+<p>Each token causes O(1) stack work: at most one pop and one push. So the pass is O(<var>n</var>) time and the stack holds at most one term per + or −, O(<var>n</var>) space, against O(<var>n</var><sup>2</sup>) for repeated scanning. Integer division needs care with negatives: truncate toward zero, which in most languages means using the language's integer division on the absolute values and restoring the sign.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "evaluate the expression", "calculator", "+, −, ×, ÷ with or without parentheses", "reverse Polish notation", "insert operators between digits to reach a target" (where the same last-term trick lets you undo a term when a × follows it). Say: "I will keep a stack of terms, push on + and −, apply × and ÷ immediately to the top, and sum the stack at the end."</p>
+<p><strong>Basic Calculator II</strong> is the example. <strong>Evaluate Reverse Polish Notation</strong> is the no-precedence version. <strong>Expression Add Operators</strong> is a backtracking search that uses the same "previous term" bookkeeping so that a × can be applied to the last term without recomputing.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Numbers to an operand stack; operators apply by precedence (or use RPN).</p>
     <p><strong>Reach for it when:</strong> Calculators, RPN, infix with +−×÷ and parentheses.</p>
     <p><strong>Cost:</strong> O(n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Basic Calculator II on &#x27;3+2*2-1&#x27;</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Push numbers; <em>×</em> and <em>÷</em> apply immediately to the top, <em>+</em> and <em>−</em> push a signed value</li><li>read digit 3: num = 3</li><li>pending &#x27;+&#x27;: push <em>3</em>, then remember &#x27;+&#x27;</li><li>read digit 2: num = 2</li><li>pending &#x27;+&#x27;: push <em>2</em>, then remember &#x27;×&#x27;</li><li>read digit 2: num = 2</li><li>pending &#x27;×&#x27;: 2 × 2 = <em>4</em> replaces the top, then remember &#x27;-&#x27;</li><li>read digit 1: num = 1</li><li>pending &#x27;-&#x27;: push <em>-1</em></li><li>Sum the stack: 3 + 4 + -1 = <em>6</em></li><li>One pass, precedence handled by applying × ÷ eagerly: <em>O(n)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>6 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/basic-calculator">Basic Calculator</a></td><td><span class="diff hard">Hard</span></td><td class="num">49</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/evaluate-reverse-polish-notation">Evaluate Reverse Polish Notation</a></td><td><span class="diff medium">Medium</span></td><td class="num">36</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/expression-add-operators">Expression Add Operators</a></td><td><span class="diff hard">Hard</span></td><td class="num">36</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/basic-calculator-ii">Basic Calculator II</a></td><td><span class="diff medium">Medium</span></td><td class="num">29</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/evaluate-the-bracket-pairs-of-a-string">Evaluate the Bracket Pairs of a String</a></td><td><span class="diff medium">Medium</span></td><td class="num">24</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/basic-calculator-iii">Basic Calculator III</a></td><td><span class="diff hard">Hard</span></td><td class="num">21</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-stack">Stack</a>: <a href="/dsa/stack-matching/">Matching with a stack</a>, <a href="/dsa/stack-nested-decode/">Nested structure via stack</a>, <a href="/dsa/stack-min-tracking/">Auxiliary-min stack</a>, <a href="/dsa/stack-simulation-collision/">Collision simulation</a>.</p>
   </article>
 
@@ -430,6 +466,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

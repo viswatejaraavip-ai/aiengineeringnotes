@@ -1,0 +1,34 @@
+<h3>Start with what you would do by hand</h3>
+<p>The numbers are 1, 3, &minus;1, &minus;3, 5, 3, 6, 7, and a window of width 3 slides across them. For every window position we want its maximum. The windows are [1,3,&minus;1], [3,&minus;1,&minus;3], [&minus;1,&minus;3,5], [&minus;3,5,3], [5,3,6], [3,6,7], and their maximums are 3, 3, 5, 5, 6, 7.</p>
+<p>By hand you look at all 3 numbers in each window: 6 windows &times; 3 looks = 18 looks. For <var>n</var> numbers and a window of width <var>k</var> that is about <var>n</var> &times; <var>k</var> looks, which is a billion for a million numbers and a window of a thousand. The waste is that windows overlap almost completely; sliding one step only adds one number and drops one, yet we re-scan everything.</p>
+<p>Ask a sharper question: which numbers in the window could ever be the maximum of a <em>future</em> window? In [1, 3, &minus;1], the 1 cannot: the 3 is to its right, bigger, and will stay in the window at least as long as the 1. So 1 is dead. Only numbers with nothing bigger to their right inside the window matter.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p><strong>Piece 1: a deque.</strong> A deque is a line you can add to and remove from at both ends. We will keep positions (indices) in it.</p>
+<p><strong>Piece 2: adding at the back.</strong> When a new number arrives, remove from the back every position whose value is smaller than the new number, because they are now dead. Then add the new position at the back. After this the values in the deque, read front to back, are decreasing.</p>
+<p><strong>Piece 3: removing at the front.</strong> The front position is the oldest survivor. When the window slides past it (front index &le; current index &minus; <var>k</var>), remove it from the front.</p>
+<p><strong>Piece 4: reading the answer.</strong> Once the window is full, its maximum is the value at the front.</p>
+<div class="table-wrap"><table>
+<tr><th>Add (index: value)</th><th>Back removals</th><th>Front removal</th><th>Deque (values)</th><th>Window max</th></tr>
+<tr><td>0: 1</td><td>none</td><td></td><td>1</td><td></td></tr>
+<tr><td>1: 3</td><td>1</td><td></td><td>3</td><td></td></tr>
+<tr><td>2: &minus;1</td><td>none</td><td></td><td>3, &minus;1</td><td>3</td></tr>
+<tr><td>3: &minus;3</td><td>none</td><td>index 0 already gone</td><td>3, &minus;1, &minus;3</td><td>3</td></tr>
+<tr><td>4: 5</td><td>&minus;3, &minus;1, 3</td><td></td><td>5</td><td>5</td></tr>
+<tr><td>5: 3</td><td>none</td><td></td><td>5, 3</td><td>5</td></tr>
+<tr><td>6: 6</td><td>3, 5</td><td></td><td>6</td><td>6</td></tr>
+<tr><td>7: 7</td><td>6</td><td></td><td>7</td><td>7</td></tr>
+</table></div>
+
+<h3>Why it is correct</h3>
+<p>The invariant: the deque holds indices inside the current window, in increasing order of index, with decreasing values from front to back; and every index of the window that is <em>not</em> in the deque has a larger-or-equal value somewhere to its right inside the window.</p>
+<p>Front removals keep every index inside the window. Back removals only delete an index when the newcomer, which is to its right and inside the window, is bigger, so a deleted index is dominated. Adding at the back after those removals keeps the values decreasing. The window maximum is some index of the window; either it is in the deque, or it is dominated by a bigger value, which contradicts it being the maximum. So the maximum is in the deque, and since values decrease from the front, it is the front.</p>
+
+<h3>Why it is fast</h3>
+<p>Each index is added to the deque exactly once, and removed at most once, either from the back or from the front. The inner while loop only runs when it removes something.</p>
+<p class="formula">additions + removals &le; 2<var>n</var>, so the whole sweep is O(<var>n</var>), independent of <var>k</var></p>
+<p>A million numbers with a window of a thousand costs two million deque moves instead of a billion looks.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The cues are "maximum (or minimum) of every window", "sliding window" together with "max/min", or a dynamic programme where each state depends on the best of the previous <var>k</var> states. Say: "I keep a deque of candidates that are still useful, decreasing from the front, and drop the front when it leaves the window."</p>
+<p>Sliding Window Maximum is the example above. Jump Game VI is dp[<var>i</var>] = nums[<var>i</var>] + max of the previous <var>k</var> dp values, which is exactly a window max over the dp array. Longest Continuous Subarray With Absolute Diff Less Than or Equal to Limit runs two deques at once, one for the window max and one for the window min.</p>

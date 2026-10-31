@@ -394,24 +394,53 @@
       <p>The stack holds exactly the currently unclosed openers, innermost on top.</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Is the bracket string {[()]}( properly balanced? By hand you read left to right and keep track of what is open. Open a curly, open a square, open a round; the round closes, the square closes, the curly closes; then a round opens and nothing ever closes it. Not balanced.</p>
+<p>Notice the rule you used without naming it: a closer must close the <em>most recently opened</em> bracket that is still open. That is the only bracket it can legally match, because brackets nest. If you tried to track "what is open" with a plain count (opens minus closes), you would accept the illegal string ([)] where the counts are fine but the nesting is wrong. So the structure must remember <em>which</em> brackets are open and in what order.</p>
 
+<h3>Build the structure, one piece at a time</h3>
+<p>A <strong>stack</strong> is a pile where you can only put something on top or take the top off. It is exactly "the most recently added thing comes out first", which is exactly what nesting needs.</p>
+<p>The procedure: read the string left to right. An opener goes on the stack. A closer must match the type of the top of the stack; if it does, pop the top; if it does not, or the stack is empty, the string is invalid. At the end the stack must be empty, or some opener was never closed.</p>
+<div class="table-wrap"><table>
+<tr><th>Read</th><th>Action</th><th>Stack (bottom → top)</th></tr>
+<tr><td>{</td><td>push</td><td>{</td></tr>
+<tr><td>[</td><td>push</td><td>{ [</td></tr>
+<tr><td>(</td><td>push</td><td>{ [ (</td></tr>
+<tr><td>)</td><td>top is (, match, pop</td><td>{ [</td></tr>
+<tr><td>]</td><td>top is [, match, pop</td><td>{</td></tr>
+<tr><td>}</td><td>top is {, match, pop</td><td>(empty)</td></tr>
+<tr><td>(</td><td>push</td><td>(</td></tr>
+<tr><td>end</td><td>stack not empty: invalid</td><td>(</td></tr>
+</table></div>
+<p>The same push-on-open, pop-on-close skeleton handles anything with nesting or undo: a file path like /a/./b/../c (push a name, pop on "..", ignore "."), a typed string with backspaces (push a letter, pop on #), and "remove adjacent duplicate letters" (push a letter unless it equals the top, in which case pop).</p>
 
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+<h3>Why it is correct</h3>
+<p>The invariant: <em>after reading a prefix of the string, the stack holds exactly the openers in that prefix that have not yet been closed, in the order they were opened, most recent on top</em>. Pushing an opener keeps it true. For a closer, the bracket it must close is the innermost unclosed one, which is the top; a match pops it, keeping the invariant, and a mismatch means the string cannot be balanced, because no later closer can fix an inner bracket that was closed by the wrong type. A closer with an empty stack has nothing to close. At the end, an empty stack means every opener was closed, and a non-empty one names an opener that was not.</p>
+
+<h3>Why it is fast</h3>
+<p>Each character causes at most one push or one pop, each O(1). So the whole scan is O(<var>n</var>) time, and the stack holds at most <var>n</var> items, O(<var>n</var>) space. A nested-loop approach that searches for each opener's partner would be O(<var>n</var><sup>2</sup>); the stack avoids searching because the partner is always on top at the moment the closer arrives.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "balanced", "valid parentheses", "matching tags", "nested", "simplify path", "backspace", "remove adjacent", "most recent". Whenever the problem has an undo or a "close the latest open thing" flavour, reach for a stack. Say: "Openers push, closers must match and pop the top, and the stack must be empty at the end."</p>
+<p><strong>Valid Parentheses</strong> is the example. <strong>Simplify Path</strong> pushes directory names and pops on "..". <strong>Backspace String Compare</strong> builds each string with a stack and compares the results, or walks both from the end skipping the right number of characters.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Push openers; a closer must match the top, then pop.</p>
     <p><strong>Reach for it when:</strong> Brackets, tag validation, path simplification, backspace strings.</p>
     <p><strong>Cost:</strong> O(n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Valid Parentheses on &#x27;{[()]}(&#x27;</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Push every <em>opener</em>; a closer must match the <em>top</em>, then pop it</li><li>&#x27;{&#x27; opens: push it</li><li>&#x27;[&#x27; opens: push it</li><li>&#x27;(&#x27; opens: push it</li><li>&#x27;)&#x27; closes the top &#x27;(&#x27;: <em>match</em>, pop</li><li>&#x27;]&#x27; closes the top &#x27;[&#x27;: <em>match</em>, pop</li><li>&#x27;}&#x27; closes the top &#x27;{&#x27;: <em>match</em>, pop</li><li>&#x27;(&#x27; opens: push it</li><li>End of input but &#x27;(&#x27; is still open: <em>invalid</em></li><li>Each character is pushed or popped once: <em>O(n)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>10 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/valid-parentheses">Valid Parentheses</a></td><td><span class="diff easy">Easy</span></td><td class="num">67</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/longest-valid-parentheses">Longest Valid Parentheses</a></td><td><span class="diff hard">Hard</span></td><td class="num">42</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/simplify-path">Simplify Path</a></td><td><span class="diff medium">Medium</span></td><td class="num">36</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/remove-outermost-parentheses">Remove Outermost Parentheses</a></td><td><span class="diff easy">Easy</span></td><td class="num">35</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/backspace-string-compare">Backspace String Compare</a></td><td><span class="diff easy">Easy</span></td><td class="num">34</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/valid-parenthesis-string">Valid Parenthesis String</a></td><td><span class="diff medium">Medium</span></td><td class="num">32</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/remove-all-adjacent-duplicates-in-string">Remove All Adjacent Duplicates In String</a></td><td><span class="diff easy">Easy</span></td><td class="num">30</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/minimum-add-to-make-parentheses-valid">Minimum Add to Make Parentheses Valid</a></td><td><span class="diff medium">Medium</span></td><td class="num">28</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/minimum-remove-to-make-valid-parentheses">Minimum Remove to Make Valid Parentheses</a></td><td><span class="diff medium">Medium</span></td><td class="num">21</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/check-if-a-parentheses-string-can-be-valid">Check if a Parentheses String Can Be Valid</a></td><td><span class="diff medium">Medium</span></td><td class="num">13</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-stack">Stack</a>: <a href="/dsa/stack-nested-decode/">Nested structure via stack</a>, <a href="/dsa/stack-expression-eval/">Expression evaluation</a>, <a href="/dsa/stack-min-tracking/">Auxiliary-min stack</a>, <a href="/dsa/stack-simulation-collision/">Collision simulation</a>.</p>
   </article>
 
@@ -430,6 +459,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

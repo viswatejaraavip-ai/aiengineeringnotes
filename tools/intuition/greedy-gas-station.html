@@ -1,0 +1,28 @@
+<h3>Start with what you would do by hand</h3>
+<p>Five petrol stations sit on a circular road. At station <var>i</var> you get <code>gas[i]</code> litres, and driving to the next station burns <code>cost[i]</code> litres. With gas <code>[1, 2, 3, 4, 5]</code> and cost <code>[3, 4, 5, 1, 2]</code>, from which station can you start with an empty tank and drive the whole loop?</p>
+<p>By hand you would try each start. Start at 0: get 1, need 3, stranded. Start at 1: get 2, need 4, stranded. Start at 3: get 4, pay 1, tank 3; get 5, pay 2, tank 6; get 1, pay 3, tank 4; get 2, pay 4, tank 2; get 3, pay 5, tank 0. Made it. For <var>n</var> stations that is <var>n</var> starts times up to <var>n</var> stops each: O(<var>n</var><sup>2</sup>), about 10 billion steps for 100,000 stations.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Think of each station as a single number, its gain: <code>gas[i] − cost[i]</code>. Here the gains are <code>[−2, −2, −2, 3, 3]</code>. Driving from a start is just adding gains in order, and you are stranded the first time the running sum goes below zero. Two counters do all the work:</p>
+<ul>
+<li><strong>total</strong>: the sum of all gains, never reset.</li>
+<li><strong>tank</strong>: the running sum since the current candidate start; when it goes negative, reset it to 0 and move the candidate start to the next station.</li>
+</ul>
+<ol>
+<li><var>i</var> = 0: tank = −2. Negative. Start cannot be 0; candidate = 1, tank = 0.</li>
+<li><var>i</var> = 1: tank = −2. Negative. Candidate = 2, tank = 0.</li>
+<li><var>i</var> = 2: tank = −2. Negative. Candidate = 3, tank = 0.</li>
+<li><var>i</var> = 3: tank = 3.</li>
+<li><var>i</var> = 4: tank = 6.</li>
+</ol>
+<p>total = −2 − 2 − 2 + 3 + 3 = 0, which is not negative, so a full loop is possible, and the answer is the last candidate, station 3. One pass, no restarts of the drive itself.</p>
+
+<h3>Why it is correct</h3>
+<p>Two facts. First, if you start at <var>s</var> and first go negative at station <var>k</var>, then no station between <var>s</var> and <var>k</var> can be a valid start either. Starting later in that stretch only removes some non-negative prefix of gains (the tank was at least 0 at every station before <var>k</var>), so you arrive at <var>k</var> with less fuel than before, and you were already stranded there. That justifies jumping the candidate straight to <var>k</var> + 1. Second, if the total of all gains is at least 0, the final candidate works: every earlier stretch was abandoned because its sum was negative, so the stretch from the final candidate to the end has sum ≥ 0 at every point (it never went negative) and large enough to cover the negative stretches at the beginning when you wrap around, since the grand total is ≥ 0.</p>
+<p class="formula">Σ gains over the loop ≥ 0 ⇔ some start completes the loop</p>
+
+<h3>Why it is fast</h3>
+<p>One scan with two additions and one comparison per station: O(<var>n</var>) time, O(1) memory. For 100,000 stations that is 100,000 steps rather than 10 billion. The saving comes from the first fact: a failed attempt rules out a whole stretch of starts at once instead of one.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: a circular route, a running balance that must never dip below zero, "find a starting point". The same reset-on-negative move is the heart of Kadane's algorithm for the maximum subarray, where a negative running sum is dropped because it can only hurt what follows. Say: I will track a running sum and restart whenever it goes negative, and use the grand total to decide whether any answer exists. <em>Gas Station</em> is the example. <em>Minimum Value to Get Positive Step by Step Sum</em> is the same scan asking how low the running sum ever gets. <em>Maximum Subarray</em> is the Kadane cousin.</p>

@@ -1,0 +1,21 @@
+<h3>Start with what you would do by hand</h3>
+<p>A tree: 3 at the top; 5 and 1 below; 6 and 2 under 5; 0 and 8 under 1; 7 and 4 under 2. Which nodes are exactly 2 steps away from node 5? By eye: 7 and 4 (down through 2), and 1 (up to 3, then down). Notice the third one: it goes <em>up</em>. In a tree drawn on paper you can walk in any direction. In the computer, a node points only to its children; standing on 5, you cannot see 3.</p>
+<p>The by-hand fix is to redraw the tree so that 5 is at the top. Then "2 steps away" is just "two levels down". Redrawing is the right idea, and the pattern below does it without actually redrawing anything.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a parent map. Walk the whole tree once from the root; every time you step from a node to a child, record parent[child] = node. Now each node has three neighbours instead of two: left child, right child, and parent. The tree has become an ordinary graph where every edge can be walked both ways.</p>
+<p>Piece two: a queue for breadth-first search, plus a visited set. Start the queue with the target node at distance 0. Pop a node; for each of its three neighbours that exists and has not been visited, mark it visited and push it with distance + 1. The visited set is essential now: because edges go both ways, without it you would walk from 5 to 3 and straight back to 5 forever.</p>
+<p>Piece three: stop reading at distance <var>k</var>. Every node popped with distance exactly <var>k</var> is an answer; there is no need to push its neighbours.</p>
+<div class="table-wrap"><table><tr><th>Popped</th><th>Distance</th><th>Neighbours (left, right, parent)</th><th>Pushed</th></tr><tr><td>5</td><td>0</td><td>6, 2, 3</td><td>6, 2, 3 at 1</td></tr><tr><td>6</td><td>1</td><td>none, none, 5 (seen)</td><td></td></tr><tr><td>2</td><td>1</td><td>7, 4, 5 (seen)</td><td>7, 4 at 2</td></tr><tr><td>3</td><td>1</td><td>5 (seen), 1, none</td><td>1 at 2</td></tr><tr><td>7, 4, 1</td><td>2</td><td>collected</td><td></td></tr></table></div>
+<p>Answer: [7, 4, 1].</p>
+
+<h3>Why it is correct</h3>
+<p>Adding parent pointers does not change which nodes are connected; it only lets you walk the existing edges upward as well as downward. So distances between nodes in the graph are the same as in the drawn tree. BFS on an unweighted graph pops nodes in order of distance from the start, and the first time a node is seen is along a shortest path, so each node's recorded distance is its true distance.</p>
+<p class="formula">neighbours(<var>v</var>) = { left(<var>v</var>), right(<var>v</var>), parent(<var>v</var>) }, each walked once thanks to the visited set</p>
+<p>A tree has no cycles, so the visited set only ever blocks the one step that would go straight back to where we came from.</p>
+
+<h3>Why it is fast</h3>
+<p>Building the parent map visits each node once. The BFS pushes and pops each node at most once, checking three neighbours each time, so about 3<var>n</var> checks. Total O(<var>n</var>) time and O(<var>n</var>) memory for the map and the queue. Stopping at distance <var>k</var> usually makes it far less than <var>n</var> in practice.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Any time the walk must go up: "all nodes at distance k from a target", "how long until the whole tree burns from a start node", "directions from one node to another", "the closest leaf to a node". Say: "A tree only points down, so I will record parents in one pass and then BFS treating the tree as a graph with three neighbours per node." All Nodes Distance K in Binary Tree is the direct case. Amount of Time for Binary Tree to Be Infected is the same BFS run to the end; the answer is the largest distance reached. Step-By-Step Directions From a Binary Tree Node to Another uses the parent map to climb to the common ancestor with U moves, then descends with L and R moves.</p>

@@ -1,0 +1,24 @@
+<h3>Start with what you would do by hand</h3>
+<p>How many 1s are in the binary form of 13? Write it out: 13 = 8 + 4 + 1 = <code>1101</code>, three 1s. By hand you look at each bit. A computer can do the same, testing all 32 bits of an integer one by one, 32 steps whether the number has one set bit or thirty. For a question like "is this number a power of two", scanning bits is clumsy: you want a test that is one or two operations, not a loop.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>There is no data structure, only the binary digits themselves and three operations: AND (<code>&amp;</code>, 1 only where both bits are 1), subtraction, and shifts. The first trick is about what subtracting 1 does to a binary number.</p>
+<p>Subtracting 1 from <code>1101</code> gives <code>1100</code>. Subtracting 1 from <code>1100</code> gives <code>1011</code>. Look at the pattern: the lowest 1 turns into 0, and every 0 below it turns into 1, because the borrow ripples through the trailing zeros and stops at the first 1. All bits above the lowest 1 are untouched.</p>
+<p>Now AND the number with its decrement. The bits above the lowest 1 are identical in both, so they survive. The lowest 1 meets a 0, so it dies. The trailing zeros meet 1s but are 0 themselves, so they stay 0. Result: the original number with its lowest set bit removed.</p>
+<div class="table-wrap"><table>
+<tr><th>step</th><th><var>n</var></th><th><var>n</var> − 1</th><th><var>n</var> &amp; (<var>n</var> − 1)</th><th>count</th></tr>
+<tr><td>1</td><td>1101 (13)</td><td>1100</td><td>1100 (12)</td><td>1</td></tr>
+<tr><td>2</td><td>1100 (12)</td><td>1011</td><td>1000 (8)</td><td>2</td></tr>
+<tr><td>3</td><td>1000 (8)</td><td>0111</td><td>0000 (0)</td><td>3</td></tr>
+</table></div>
+<p>Three steps, three set bits. Two more tricks fall out of the same picture. A power of two has exactly one set bit, so removing it leaves 0: <var>n</var> &amp; (<var>n</var> − 1) = 0 (with <var>n</var> &gt; 0). And negation in two's complement flips every bit and adds 1, which produces a number that agrees with <var>n</var> only at the lowest set bit and below, so <var>n</var> &amp; (−<var>n</var>) isolates that lowest bit: 12 &amp; −12 = 4. Shifts complete the kit: <var>n</var> &lt;&lt; 1 doubles, <var>n</var> &gt;&gt; 1 halves, and (<var>n</var> &gt;&gt; <var>k</var>) &amp; 1 reads bit <var>k</var>.</p>
+
+<h3>Why it is correct</h3>
+<p>Each trick is an identity about binary digits, not a coincidence. Write <var>n</var> as <var>H</var>·2<sup><var>k</var>+1</sup> + 2<sup><var>k</var></sup>, where 2<sup><var>k</var></sup> is the lowest set bit and <var>H</var> holds the higher bits. Then <var>n</var> − 1 = <var>H</var>·2<sup><var>k</var>+1</sup> + (2<sup><var>k</var></sup> − 1), and 2<sup><var>k</var></sup> − 1 is <var>k</var> ones in binary, occupying exactly the positions below bit <var>k</var>. ANDing with <var>n</var>, whose bits below <var>k</var> are all 0 and whose bit <var>k</var> is 1 against a 0, leaves <var>H</var>·2<sup><var>k</var>+1</sup>. The invariant of the counting loop is that each iteration removes exactly one set bit, so the loop runs once per set bit and the count is exact.</p>
+<p class="formula"><var>n</var> &amp; (<var>n</var> − 1) = <var>n</var> − 2<sup><var>k</var></sup>, where 2<sup><var>k</var></sup> is the lowest set bit of <var>n</var></p>
+
+<h3>Why it is fast</h3>
+<p>Counting set bits runs one iteration per set bit, O(popcount), at most 32 and usually far fewer, instead of a fixed 32-bit scan; the power-of-two test is a single AND and a comparison, O(1). Every operation here is one machine instruction with no division or branching inside, which is why these tricks appear in tight loops and in hardware.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "without using multiplication or division", "count the 1 bits", "power of two", "reverse the bits", "add two integers without +". Say: I will reason about the binary digits directly; the key identity is that <var>n</var> &amp; (<var>n</var> − 1) clears the lowest set bit. <em>Number of 1 Bits</em> is the loop above. <em>Power of Two</em> is the one-line test. <em>Sum of Two Integers</em> uses XOR for the sum without carries and (<var>a</var> &amp; <var>b</var>) &lt;&lt; 1 for the carries, repeating until the carry is 0; <em>Counting Bits</em> fills a table with count[<var>n</var>] = count[<var>n</var> &amp; (<var>n</var> − 1)] + 1.</p>

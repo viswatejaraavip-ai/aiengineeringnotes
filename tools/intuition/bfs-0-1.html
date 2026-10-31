@@ -1,0 +1,21 @@
+<h3>Start with what you would do by hand</h3>
+<p>Imagine a 3×3 grid of rooms. Each room has an arrow painted on the floor pointing to one neighbour. Walking in the direction of the arrow is free. Walking any other direction means you must repaint the arrow first, and every repaint costs 1 rupee. You start at the top-left room and want to reach the bottom-right room spending as little as possible.</p>
+<p>By hand you would try routes: follow arrows as long as they lead somewhere useful, and repaint only when stuck. On a 3×3 grid you can try every route; there are only a handful. On a 100×100 grid there are more routes than you could list in a lifetime, so trying routes is out. We need a method that visits each room once and still finds the cheapest cost.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Begin with an ordinary queue: a line of rooms waiting to be looked at. You add rooms at the back and take them from the front. Plain breadth-first search uses exactly this, and it finds the fewest <em>steps</em>, because rooms are taken out in the order they were put in.</p>
+<p>Now the twist: steps are not all equal. An arrow step costs 0, a repaint step costs 1. If we used a plain queue, a cheap 0-cost room might sit behind an expensive 1-cost room and be processed too late.</p>
+<p>So we upgrade the queue into a <strong>deque</strong>, a double-ended queue: you may add to the <em>front</em> as well as the back. The one new rule of the pattern is:</p>
+<ol>
+<li>a move that costs 0 goes to the <strong>front</strong> of the deque;</li>
+<li>a move that costs 1 goes to the <strong>back</strong>.</li>
+</ol>
+<p>Watch the deque on the video's grid, where the top row's arrows all point right. Start: deque = [(0,0) cost 0]. Take (0,0). Its arrow points to (0,1), cost 0, so (0,1) goes to the front; the move down to (1,0) costs 1 and goes to the back: deque = [(0,1) 0, (1,0) 1]. Take (0,1): its arrow gives (0,2) at cost 0, pushed to the front; (1,1) at cost 1 to the back: deque = [(0,2) 0, (1,0) 1, (1,1) 1]. The 0-cost rooms always jump the line, so every room is reached by its cheapest route first.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: the costs in the deque, read from front to back, never go down, and only two values ever appear at once, some <var>d</var> and some <var>d</var>+1. Why does each push keep this true? When we take a room of cost <var>d</var> from the front, a 0-cost neighbour also has cost <var>d</var>, so putting it at the front keeps the front equal to <var>d</var>. A 1-cost neighbour has cost <var>d</var>+1, the largest value present, so the back is the right place. Nothing is ever pushed with cost below the front or above the back.</p>
+<p>Because the deque is always sorted by cost, the room taken from the front is always the cheapest unsettled room. That is exactly what Dijkstra's algorithm needs, so the first time a room is taken out, its cost is final.</p>
+<h3>Why it is fast</h3>
+<p>Every room is settled once, and when it is settled we look at each of its edges once. For <var>V</var> rooms and <var>E</var> edges that is</p>
+<p class="formula">work = <var>V</var> + <var>E</var></p>
+<p>Dijkstra with a heap would spend log <var>V</var> per push, giving <var>E</var> log <var>V</var>. Here a push is a constant-time deque operation, because the sortedness comes for free from the 0/1 rule. On a 100×100 grid that is about 40,000 operations instead of about 500,000.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Listen for a grid or graph where some moves are free and others cost exactly 1, or where the cost is "number of changes": flipping a direction, removing an obstacle, reversing an edge. The first thing to say: "every edge costs 0 or 1, so I can replace the heap with a deque and get linear time." Minimum Cost to Make at Least One Valid Path in a Grid is the textbook case: following the painted arrow costs 0, overriding it costs 1. Minimum Obstacle Removal to Reach Corner is the same with cells: stepping on an empty cell is 0, stepping on an obstacle is 1.</p>

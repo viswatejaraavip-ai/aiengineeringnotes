@@ -1,0 +1,20 @@
+<h3>Start with what you would do by hand</h3>
+<p>Imagine standing to the right of a tree and asking which node you see on each row. The tree: 1 at the top; 2 and 3 below it; 5 under 2 on the right; 4 under 3 on the right. Row by row, the rightmost nodes are 1, then 3, then 4. By hand you would draw the tree with rows and read off the right edge. The problem for a computer is that nodes are not stored in rows. Each node only knows its children. So we must manufacture the rows ourselves.</p>
+<p>A naive way: for every row number <var>d</var>, search the whole tree for nodes at depth <var>d</var>. For a tree of height <var>h</var> that visits the tree <var>h</var> times, so a chain of 10,000 nodes costs about 10,000 × 10,000 / 2 = 50 million visits.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a queue. Think of a line at a counter: you join at the back, you are served from the front. Two operations, push to the back and pop from the front.</p>
+<p>Piece two: put the root in the queue. Then repeat: pop a node, and push its children to the back. Because children join at the back, every node of row 1 is served before any node of row 2, and so on. The queue naturally serves the tree row by row. This is breadth-first search.</p>
+<p>Piece three, the part that makes rows visible: at the start of each round, look at how many nodes are in the queue. That number is exactly the size of the current row. Pop exactly that many, pushing their children, and you have processed one row and the queue now holds exactly the next row.</p>
+<div class="table-wrap"><table><tr><th>Round</th><th>Queue at start</th><th>Row size</th><th>Popped</th><th>Pushed</th><th>Last popped</th></tr><tr><td>0</td><td>[1]</td><td>1</td><td>1</td><td>2, 3</td><td>1</td></tr><tr><td>1</td><td>[2, 3]</td><td>2</td><td>2, 3</td><td>5, 4</td><td>3</td></tr><tr><td>2</td><td>[5, 4]</td><td>2</td><td>5, 4</td><td>none</td><td>4</td></tr></table></div>
+<p>The right side view is the last node popped in each round: [1, 3, 4]. The level-order list is each round's popped nodes as a row. Zigzag reverses every other row. Level averages add each row and divide by its size.</p>
+
+<h3>Why it is correct</h3>
+<p>The claim to prove: when a round begins, the queue contains exactly one row, all of it and nothing else. At the start it holds only the root, row 0. Suppose at the start of some round it holds exactly row <var>d</var>. During the round we pop those nodes one by one and push only their children, which are exactly the nodes of row <var>d</var> + 1. We stop after popping the recorded count, so nothing from row <var>d</var> + 1 is popped early. At the end the queue holds exactly row <var>d</var> + 1. By this step-by-step argument it holds for every row.</p>
+<p>Because the children of a left node are pushed before the children of a right node, each row also comes out in left-to-right order, so "last popped" really is the rightmost node.</p>
+
+<h3>Why it is fast</h3>
+<p>Each node is pushed once and popped once, and each push and pop takes constant time. Total: 2<var>n</var> queue operations, O(<var>n</var>). Memory is the widest row, at most about <var>n</var>/2 for a full bottom row.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Any wording with "level", "row", "depth by depth", "left to right at each height", "the widest level", "connect each node to its neighbour on the right". Say: "I will do a BFS with a queue and read the queue size at the start of each round so I know where each level ends." Binary Tree Level Order Traversal is the direct form. Binary Tree Right Side View keeps the last node of each round. Maximum Width of Binary Tree pushes (node, position) pairs with positions 2<var>i</var> and 2<var>i</var> + 1 and takes last position minus first per row.</p>

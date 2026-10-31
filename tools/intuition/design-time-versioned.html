@@ -1,0 +1,26 @@
+<h3>Start with what you would do by hand</h3>
+<p>A key called foo was set to bar at time 1, to bar2 at time 4, and to bar3 at time 7. Someone asks: what was foo at time 3? You look at the history and answer bar, because at time 3 the latest change so far was the one at time 1. At time 5 the answer is bar2. At time 7 it is bar3.</p>
+<p>A plain dictionary cannot answer this; it holds one value per key and forgets the past. Keeping a list of (time, value) pairs per key and scanning it from the end works, but with a million writes to one key each read scans up to a million pairs.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one is a dictionary from key to a list. Piece two is what goes in the list: pairs (timestamp, value), appended in the order they arrive. The problem promises that timestamps only increase, so appending keeps each list sorted by time with no extra work:</p>
+<div class="table-wrap"><table>
+<tr><th>after</th><th>list for foo</th></tr>
+<tr><td>set(foo, bar, 1)</td><td>[(1, bar)]</td></tr>
+<tr><td>set(foo, bar2, 4)</td><td>[(1, bar), (4, bar2)]</td></tr>
+<tr><td>set(foo, bar3, 7)</td><td>[(1, bar), (4, bar2), (7, bar3)]</td></tr>
+</table></div>
+<p>Piece three is how to read. A question "value at time <var>t</var>" means "the pair with the largest timestamp that is at most <var>t</var>". Because the list is sorted, binary search finds it: keep a range of candidates, look at the middle pair, and if its timestamp is at most <var>t</var> it is a candidate and everything to its right might be better, so move the left edge past it; otherwise move the right edge before it. For get(foo, 5): the middle pair is (4, bar2), 4 ≤ 5, so remember bar2 and look right; the only pair there is (7, bar3), 7 &gt; 5, discard it; the answer is bar2. For get(foo, 3): middle (4, bar2) has 4 &gt; 3, look left; (1, bar) has 1 ≤ 3, answer bar. A time before the first write has no answer and returns the empty string.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant is that each key's list is sorted by timestamp and contains every write to that key. Sorted order is guaranteed because writes arrive with increasing timestamps and are appended at the end; if a problem did not promise that, you would insert at the sorted position instead, and the rest is unchanged.</p>
+<p>The binary search is a search for a boundary. Define a pair as "good" when its timestamp is at most <var>t</var>. In a sorted list the good pairs form a prefix: all good, then all bad. The wanted pair is the last good one. Each step of the search keeps the last good pair inside the range or already remembered, and halves the range, so when the range is empty the remembered pair is the rightmost good one, which is the latest value at or before <var>t</var>.</p>
+
+<h3>Why it is fast</h3>
+<p>set is one dictionary lookup plus one append: O(1). get is one dictionary lookup plus a binary search over the key's list of <var>n</var> writes. The search halves the range each step, so it takes ⌈log<sub>2</sub> <var>n</var>⌉ + 1 steps, which is 21 steps for a million writes, against a million for the scan:</p>
+<p class="formula">steps = ⌈log<sub>2</sub> <var>n</var>⌉ + 1</p>
+<p>The memory is one pair per write, which is the minimum for a structure that must answer about any past time.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "at timestamp", "return the value as it was at time <var>t</var>", "snapshot", "the latest price before", "version". Any time a structure must remember history and be queried about a past moment, think of a sorted list per key with binary search. Say: "I will store (timestamp, value) per key in arrival order and binary search for the last timestamp at or before <var>t</var>".</p>
+<p>Time Based Key-Value Store is the structure above. Snapshot Array is the same thing with one list per array index and the snapshot number as the timestamp, so a value is stored only when it changes, not on every snapshot. Stock Price Fluctuation keeps the latest price per timestamp in a map and adds two heaps for the current maximum and minimum, since prices there can be corrected after the fact.</p>

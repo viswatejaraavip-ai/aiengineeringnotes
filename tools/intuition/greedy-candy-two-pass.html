@@ -1,0 +1,21 @@
+<h3>Start with what you would do by hand</h3>
+<p>Children stand in a line with ratings <code>[1, 0, 2, 2, 1]</code>. Each child must get at least one sweet, and a child with a higher rating than a neighbour must get more sweets than that neighbour. What is the fewest sweets in total?</p>
+<p>By hand you might give everyone one sweet, then walk along fixing problems: the 1 next to the 0 needs more, the 2 next to the 0 needs more, then the second 2 is next to a 1 that is lower, so the 2 needs more, and raising one child can break a rule with the neighbour on the other side, so you walk again. Each walk may fix something that undoes an earlier fix, and it is not obvious when to stop or whether the total is minimal.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The trick is to split the rule into two one-directional rules and satisfy them in two separate passes over an array of sweets, starting from all 1s.</p>
+<ol>
+<li><strong>Left-to-right pass</strong> handles "higher than the left neighbour": if <code>r[i] &gt; r[i−1]</code>, set <code>c[i] = c[i−1] + 1</code>. After this pass: ratings <code>[1, 0, 2, 2, 1]</code> give sweets <code>[1, 1, 2, 1, 1]</code>. (0 is not above 1; 2 is above 0, so 2; the second 2 is not above 2; 1 is not above 2.)</li>
+<li><strong>Right-to-left pass</strong> handles "higher than the right neighbour": if <code>r[i] &gt; r[i+1]</code>, set <code>c[i] = max(c[i], c[i+1] + 1)</code>. Walking back: the second 2 is above the 1, so it becomes max(1, 2) = 2; the first 2 is not above the second 2; the 0 is not above 2; the first 1 is above the 0, so it becomes max(1, 2) = 2.</li>
+</ol>
+<p>Final sweets <code>[2, 1, 2, 2, 1]</code>, total 8. The structure is one array visited twice, and the maximum in the second pass is what stops the second pass from undoing the first.</p>
+
+<h3>Why it is correct</h3>
+<p>After the left-to-right pass, every "higher than the left neighbour" rule holds, and each value is the smallest that satisfies the rules to its left, because it is exactly one more than its left neighbour whenever it must be more, and 1 otherwise. In the right-to-left pass a value only ever increases, to the smallest amount that satisfies its right neighbour, so no left rule breaks: if <code>c[i]</code> was more than <code>c[i−1]</code> it still is, and <code>c[i−1]</code> itself will be raised only if its own right rule demands it. At the end both one-directional rules hold, so the full rule holds. Minimality: every child's final amount is forced, since it equals the longer of the strictly increasing run of ratings ending at it from the left and the one from the right, and any valid assignment must give at least that many.</p>
+<p class="formula"><code>c[i]</code> = max( 1 + length of the rising run arriving from the left, 1 + length of the rising run arriving from the right )</p>
+
+<h3>Why it is fast</h3>
+<p>Two passes, each a comparison and an assignment per child: O(<var>n</var>) time and one extra array of size <var>n</var>. The fix-until-stable walk could need many passes, up to the length of the longest rising run, which is O(<var>n</var><sup>2</sup>) in the worst case.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: a rule that compares each element with both neighbours, or an answer at each position that depends on everything to its left and everything to its right. Say: I will satisfy the left-side rule in one pass and the right-side rule in a second pass, combining with a maximum. <em>Candy</em> is the example. <em>Trapping Rain Water</em> keeps the maximum height seen from the left and from the right and takes the smaller at each bar. <em>Product of Array Except Self</em> multiplies a left-prefix product by a right-suffix product.</p>

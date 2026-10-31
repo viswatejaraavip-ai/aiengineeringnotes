@@ -1,0 +1,18 @@
+<h3>Start with what you would do by hand</h3>
+<p>Six students must be split into two teams, and certain pairs refuse to be on the same team: (0,1), (0,3), (1,2), (2,3). Can it be done? By hand: put 0 on team red. Then 1 and 3 must be blue. Then 2, who dislikes 1, must be red. Check 2–3: red and blue, fine. It works. Now add one more refusal, (0,2). 0 and 2 are both red. Try again from scratch with 0 blue and the same clash appears. The triangle 0–1–2 can never be split into two teams, because three people in a circle cannot alternate two colours.</p>
+<p>By hand you re-tried from scratch. With thousands of students and refusals, you want one pass that either produces the two teams or points at the clash.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: the graph, as a list of neighbours per student: 0: [1, 3], 1: [0, 2], 2: [1, 3], 3: [0, 2].</p>
+<p>Piece two: a colour array, one slot per student, starting empty.</p>
+<p>Piece three: breadth-first search with one extra rule. Paint the start student with colour A and put them in a queue. Take a student out; for each neighbour: if unpainted, paint it the <strong>opposite</strong> colour and enqueue; if already painted, check it is the opposite colour; if it is the same colour, stop: the graph is not two-colourable.</p>
+<div class="table-wrap"><table><tr><th>step</th><th>took out</th><th>colours (0,1,2,3)</th><th>queue</th></tr><tr><td>start</td><td></td><td>A, –, –, –</td><td>[0]</td></tr><tr><td>1</td><td>0</td><td>A, B, –, B</td><td>[1, 3]</td></tr><tr><td>2</td><td>1</td><td>A, B, A, B</td><td>[3, 2]</td></tr><tr><td>3</td><td>3</td><td>A, B, A, B (2 is A, 3 is B, fine)</td><td>[2]</td></tr></table></div>
+<p>Repeat from any unpainted student, since the graph may be in several pieces. With the extra edge 0–2, step 2 would find 2 already painted A while painting from 1, which is B, so 2 becomes A, and then 0–2 compares A with A: clash.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: every edge whose both ends are painted joins two different colours. Painting a neighbour the opposite colour keeps it true; checking an already-painted neighbour keeps it true or reports a clash. If the search finishes with no clash, the colours are the two teams.</p>
+<p>If there is a clash, why can no other painting succeed? Because in a connected piece the first colour forces every other colour: a neighbour must be opposite, its neighbour opposite again, and so on. There are only two possible paintings, mirror images of each other, and the clash appears in both. A clash means an <strong>odd cycle</strong>: going round a cycle alternates colours, so a cycle returns to its own colour only if its length is odd.</p>
+<h3>Why it is fast</h3>
+<p>Each student is painted and dequeued once, and each refusal is checked twice, once from each end:</p>
+<p class="formula">work = <var>V</var> + 2<var>E</var></p>
+<p>Re-trying from scratch for each start, as the by-hand attempt did, would multiply this by <var>V</var>.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "split into two groups", "no two neighbours in the same group", "is the graph bipartite", "dislikes" or "conflicts" as edges. The first thing to say: "two-colour it with BFS; a same-colour edge means an odd cycle and the answer is no." Is Graph Bipartite? is the routine itself. Possible Bipartition gives the dislikes as pairs; build the neighbour lists and run the same painting.</p>

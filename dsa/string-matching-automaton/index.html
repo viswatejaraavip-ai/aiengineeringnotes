@@ -394,24 +394,50 @@
       <p>Each candidate substring is checked exactly once per length.</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>A string "abcd" comes with a list of replacement rules, each saying: at this index, if the text there is this source, replace it with this target. The rules are (0, "a", "eee") and (2, "cd", "ffff"). By hand you check index 0: the text starts with "a", so that becomes "eee"; index 2: the text there is "cd", so that becomes "ffff"; the answer is "eeebffff". The trap is doing the replacements one at a time on the string itself: after the first replacement the string is "eeebcd" and index 2 now points at "e", so the second rule misfires. The rules refer to positions in the original string, and the original must be the thing you check against.</p>
+<p>The same shape appears whenever a text is scanned against a dictionary of pieces: replacing words by their root, breaking a string into dictionary words, applying substitutions. The by-hand waste is testing every piece at every position, which costs the number of positions times the number of pieces.</p>
 
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: index the rules by position in a hash map, so that at each index we can ask "is there a rule here?" in one lookup: {0: ("a", "eee"), 2: ("cd", "ffff")}.</p>
+<p>Piece two: a single left-to-right pass over the original string with a cursor <var>i</var>, building the output separately. At each <var>i</var>, if a rule exists there and the original text starting at <var>i</var> equals its source, append the target and jump <var>i</var> forward by the source length; otherwise copy one character and move one step:</p>
+<ol>
+<li><var>i</var> = 0: rule ("a", "eee"); text[0:1] = "a" matches; output "eee"; <var>i</var> = 1.</li>
+<li><var>i</var> = 1: no rule; copy "b"; <var>i</var> = 2.</li>
+<li><var>i</var> = 2: rule ("cd", "ffff"); text[2:4] = "cd" matches; output "ffff"; <var>i</var> = 4.</li>
+<li><var>i</var> = 4: end. Result "eeebffff".</li>
+</ol>
+<p>A rule whose source does not match the original text is simply skipped and the character is copied. Piece three, for the dictionary variants where rules are not tied to positions: keep a hash set of dictionary words and the set of distinct word lengths. At each position try each length, slice, and look the slice up in the set. For Replace Words, the first matching prefix length wins and the cursor jumps to the next word.</p>
 
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+<h3>Why it is correct</h3>
+<p>The invariant is that the output built so far is the correct transformation of the original text up to the cursor, and the cursor only ever reads the original. Because every comparison is made against the original string, no replacement can disturb the positions of later rules; the problem guarantees the rules do not overlap, so after a match the next <var>i</var> is past the whole source and no rule is skipped. A failed match leaves the text untouched, which is what the rules specify. Reading the original and writing a separate output is what makes the invariant easy to keep; editing in place is what breaks it.</p>
+<p>For the dictionary form, each slice is checked against the set exactly once per length, so a word at a position is found if and only if it is in the dictionary.</p>
+
+<h3>Why it is fast</h3>
+<p>The cursor moves forward on every step, by at least one character, so the pass visits each position at most once. Each visit costs one hash lookup plus a comparison of at most the source length, so the time is O(<var>n</var> + total length of the sources), and the output is written once. The naive approach of testing every rule at every position is O(<var>n</var> · <var>r</var>) for <var>r</var> rules, and editing the string in place makes each replacement O(<var>n</var>) on its own. For the dictionary form the cost is O(<var>n</var> · <var>L</var>) where <var>L</var> is the number of distinct word lengths, with each slice hashed in time proportional to its length.</p>
+<p class="formula">positions visited ≤ <var>n</var>, lookups per position ≤ number of distinct lengths</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "replace", "substitute", "at index <var>i</var> if the substring is", "dictionary of words", "root word", "simultaneously". The word simultaneously is the hint that positions refer to the original. Say: "I will index the rules by position (or the dictionary by length), scan the original once, and build a fresh output so no replacement shifts another".</p>
+<p>Find And Replace in String is the walk-through above. Replace Words tries every prefix length of each word against a set of roots and keeps the shortest match. Word Break asks whether the whole string can be cut into dictionary words; the same per-position slice test becomes a DP that records which prefixes are breakable.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>For each position try every dictionary length; a hash set makes each check O(L).</p>
     <p><strong>Reach for it when:</strong> Replace words, find and replace in string, apply substitutions, word break check.</p>
     <p><strong>Cost:</strong> O(n · L) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Find And Replace in String on &#x27;abcd&#x27; with (0,&#x27;a&#x27;,&#x27;eee&#x27;),(2,&#x27;cd&#x27;,&#x27;ffff&#x27;)</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Index the rules by position: <em>{0: a→eee, 2: cd→ffff, 5: xy→zz}</em></li><li>i = 0: s[0:1] = &#x27;a&#x27; matches → write <em>&#x27;eee&#x27;</em></li><li>skip ahead by len(&#x27;a&#x27;) = 1</li><li>i = 1: no rule here, copy &#x27;b&#x27;</li><li>i = 2: s[2:4] = &#x27;cd&#x27; matches → write <em>&#x27;ffff&#x27;</em></li><li>skip ahead by len(&#x27;cd&#x27;) = 2</li><li>i = 4: no rule here, copy &#x27;c&#x27;</li><li>i = 5: s[5:7] = &#x27;de&#x27; ≠ &#x27;xy&#x27; → <em>no replacement</em>, copy &#x27;d&#x27;</li><li>i = 6: no rule here, copy &#x27;e&#x27;</li><li>i = 7: no rule here, copy &#x27;f&#x27;</li><li>Result: <em>eeebffffcdef</em></li><li>One pass; each rule is tested once against the original: <em>O(n + Σ|src|)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>5 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/word-break">Word Break</a></td><td><span class="diff medium">Medium</span></td><td class="num">44</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/apply-substitutions">Apply Substitutions</a></td><td><span class="diff medium">Medium</span></td><td class="num">43</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-and-replace-in-string">Find And Replace in String</a></td><td><span class="diff medium">Medium</span></td><td class="num">32</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/extra-characters-in-a-string">Extra Characters in a String</a></td><td><span class="diff medium">Medium</span></td><td class="num">11</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/replace-words">Replace Words</a></td><td><span class="diff medium">Medium</span></td><td class="num">5</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-string-algorithms">String Algorithms</a>: <a href="/dsa/string-kmp/">KMP failure function</a>, <a href="/dsa/string-rolling-hash/">Rolling hash (Rabin–Karp)</a>, <a href="/dsa/string-build-reverse/">Reverse-and-build string transforms</a>, <a href="/dsa/string-parse-state/">Parse with a state machine</a>, <a href="/dsa/string-two-string-alternate/">Merge / compare two strings in lockstep</a>.</p>
   </article>
 
@@ -430,6 +456,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

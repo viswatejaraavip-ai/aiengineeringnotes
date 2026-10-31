@@ -394,24 +394,42 @@
       <p>dp[i] is the answer for the prefix ending at i.</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Five houses in a row hold 2, 7, 9, 3 and 1 rupees. A thief may rob any houses but never two neighbours, because the alarms are linked. What is the most the thief can take? By hand you try combinations: 2 + 9 + 1 = 12, 7 + 3 = 10, 2 + 3 = 5, 7 + 1 = 8, 9 alone... The best is 12.</p>
+<p>Trying combinations means, for each house, "rob or not", and 2<sup>5</sup> = 32 choices here. For 100 houses that is 2<sup>100</sup>, more than the number of grains of sand on Earth many times over. We need a way to reuse work instead of re-deciding every house for every combination.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a question with a small answer. Let dp[<var>i</var>] mean "the most you can take from houses 0 to <var>i</var> only". The final answer is dp[4].</p>
+<p>Piece two: notice that the decision for house <var>i</var> has only two cases. Skip it: then the best is whatever the best was for houses 0 to <var>i</var> − 1, which is dp[<var>i</var> − 1]. Rob it: then house <var>i</var> − 1 is off limits and the best is nums[<var>i</var>] plus the best for houses 0 to <var>i</var> − 2, which is dp[<var>i</var> − 2]. Take the larger:</p>
+<p class="formula">dp[<var>i</var>] = max( dp[<var>i</var> − 1], dp[<var>i</var> − 2] + nums[<var>i</var>] )</p>
+<p>Piece three: fill the table from the left, because each entry needs the two before it.</p>
+<div class="table-wrap"><table><tr><th><var>i</var></th><td>0</td><td>1</td><td>2</td><td>3</td><td>4</td></tr><tr><th>nums</th><td>2</td><td>7</td><td>9</td><td>3</td><td>1</td></tr><tr><th>dp</th><td>2</td><td>max(2, 7) = 7</td><td>max(7, 2 + 9) = 11</td><td>max(11, 7 + 3) = 11</td><td>max(11, 11 + 1) = 12</td></tr></table></div>
+<p>Piece four: the table only ever looks back two places, so you do not need the whole array. Keep two variables, "best so far" and "best before that", and roll them forward.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: after computing dp[<var>i</var>], it is the true best for the prefix ending at <var>i</var>. The base cases are right: dp[0] = nums[0], dp[1] = max of the two. For a larger <var>i</var>, any legal plan for houses 0 .. <var>i</var> either robs house <var>i</var> or not, and those two cases are exactly the two terms in the formula, each resting on a smaller prefix whose value is already correct. So the maximum of the two is the true best.</p>
+<h3>Why it is fast</h3>
+<p>Each entry costs one comparison and one addition, and there are <var>n</var> entries:</p>
+<p class="formula">work = <var>n</var> steps, memory = 2 numbers</p>
+<p>For 100 houses that is 100 steps instead of 2<sup>100</sup> combinations. The saving comes entirely from the fact that the best for a prefix does not depend on <em>how</em> it was achieved, only on its value.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "cannot pick two adjacent", "ways to reach step <var>n</var> with steps of 1 or 2", "minimum cost to climb", anything where the answer for position <var>i</var> depends on positions <var>i</var> − 1 and <var>i</var> − 2 only. The first thing to say: "define dp[<var>i</var>] for the prefix, write the two-case recurrence, and roll two variables." House Robber is the example above. Climbing Stairs is the same shape with addition instead of max: ways[<var>i</var>] = ways[<var>i</var> − 1] + ways[<var>i</var> − 2], the Fibonacci numbers.</p>
 
-
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>dp[i] from dp[i−1] and dp[i−2]; roll two variables.</p>
     <p><strong>Reach for it when:</strong> Climbing stairs, house robber, min cost climbing, decode ways, fibonacci.</p>
     <p><strong>Cost:</strong> O(n) time, O(1) space.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>House Robber on [2,7,9,3,1]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>dp[i] = max(dp[i−1], dp[i−2] + nums[i]): <em>skip</em> house i or <em>rob</em> it</li><li>dp[0] = 2: only one house, rob it</li><li>dp[1] = max(2, 7) = <em>7</em></li><li>dp[2]: skip = 7, rob = 2 + 9 = 11 → <em>11</em></li><li>dp[3]: skip = 11, rob = 7 + 3 = 10 → <em>11</em></li><li>dp[4]: skip = 11, rob = 11 + 1 = 12 → <em>12</em></li><li>Answer is dp[4] = <em>12</em>: rob houses 0, 2 and 4</li><li>Only dp[i−1] and dp[i−2] are needed: <em>O(n)</em> time, <em>O(1)</em> space</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>9 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/climbing-stairs">Climbing Stairs</a></td><td><span class="diff easy">Easy</span></td><td class="num">63</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/house-robber">House Robber</a></td><td><span class="diff medium">Medium</span></td><td class="num">57</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/fibonacci-number">Fibonacci Number</a></td><td><span class="diff easy">Easy</span></td><td class="num">46</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/house-robber-ii">House Robber II</a></td><td><span class="diff medium">Medium</span></td><td class="num">37</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/domino-and-tromino-tiling">Domino and Tromino Tiling</a></td><td><span class="diff medium">Medium</span></td><td class="num">35</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/min-cost-climbing-stairs">Min Cost Climbing Stairs</a></td><td><span class="diff easy">Easy</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/decode-ways">Decode Ways</a></td><td><span class="diff medium">Medium</span></td><td class="num">30</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/n-th-tribonacci-number">N-th Tribonacci Number</a></td><td><span class="diff easy">Easy</span></td><td class="num">26</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/delete-and-earn">Delete and Earn</a></td><td><span class="diff medium">Medium</span></td><td class="num">17</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-dynamic-programming">Dynamic Programming</a>: <a href="/dsa/dp-kadane/">Kadane (best ending here)</a>, <a href="/dsa/dp-lis/">Longest increasing subsequence</a>, <a href="/dsa/dp-grid-paths/">Grid path DP</a>, <a href="/dsa/dp-knapsack-01/">0/1 knapsack (subset sum)</a>, <a href="/dsa/dp-unbounded-coin/">Unbounded knapsack (coin change)</a>, <a href="/dsa/dp-lcs-edit/">Two-sequence DP (LCS / edit distance)</a>, <a href="/dsa/dp-pattern-matching/">Wildcard / regex matching DP</a>, <a href="/dsa/dp-palindrome-expand/">Palindromes: expand or table</a>, <a href="/dsa/dp-word-break/">Prefix segmentation DP</a>, <a href="/dsa/dp-interval/">Interval DP (last operation)</a>, <a href="/dsa/dp-state-machine-stock/">State-machine DP (stocks)</a>, <a href="/dsa/dp-bitmask/">Bitmask DP over subsets</a>, <a href="/dsa/dp-memo-dfs/">Memoised DFS (top-down)</a>, <a href="/dsa/dp-digit/">Digit DP</a>, <a href="/dsa/dp-game-minimax/">Game DP (minimax on a range)</a>, <a href="/dsa/dp-count-ways-mod/">Counting ways with modulo</a>, <a href="/dsa/dp-longest-string-chain/">DP over sorted keys (chains)</a>.</p>
   </article>
 
@@ -430,6 +448,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

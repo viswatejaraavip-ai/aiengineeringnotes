@@ -1,0 +1,31 @@
+<h3>Start with what you would do by hand</h3>
+<p>You have a binary tree and need to send it to a friend as text, so that the friend can rebuild exactly the same tree. The tree has 1 at the root, children 2 and 3, and 3 has children 4 and 5. Writing the values in order, 1 2 3 4 5, is not enough: the friend cannot tell whether 4 hangs under 2 or under 3. The shape is missing. By hand you might draw it, but text has no drawing, so the shape must be encoded in the sequence itself.</p>
+<p>The missing information is where the gaps are. Node 2 has no children; if we write that down, the friend will know that 4 and 5 cannot belong to 2.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: level order with a queue. Start with the root in a queue; repeatedly take the front node, write its value, and push its left child then its right child. This visits the tree one level at a time: 1, then 2 and 3, then 4 and 5.</p>
+<p>Piece two: a marker for a missing child. When a child is missing, push a placeholder anyway, and when the placeholder reaches the front write # and push nothing. Now the sequence records every gap:</p>
+<div class="table-wrap"><table>
+<tr><th>pop</th><th>write</th><th>push</th><th>output so far</th></tr>
+<tr><td>1</td><td>1</td><td>2, 3</td><td>1</td></tr>
+<tr><td>2</td><td>2</td><td>#, #</td><td>1 2</td></tr>
+<tr><td>3</td><td>3</td><td>4, 5</td><td>1 2 3</td></tr>
+<tr><td>#</td><td>#</td><td>nothing</td><td>1 2 3 #</td></tr>
+<tr><td>#</td><td>#</td><td>nothing</td><td>1 2 3 # #</td></tr>
+<tr><td>4</td><td>4</td><td>#, #</td><td>1 2 3 # # 4</td></tr>
+<tr><td>5</td><td>5</td><td>#, #</td><td>1 2 3 # # 4 5</td></tr>
+</table></div>
+<p>The remaining four markers are trailing and can be dropped. The text is "1 2 3 # # 4 5".</p>
+<p>Piece three: rebuilding. Read the first token as the root and put it in a queue. Then repeatedly take the front node and give it the next two tokens as its left and right children, creating a node for a value and nothing for #, and pushing each created node onto the queue. Node 1 takes tokens 2 and 3; node 2 takes # and #; node 3 takes 4 and 5; nodes 4 and 5 find no more tokens, so they are leaves. The tree is back, shape and all.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant during serialisation is that the queue holds, in order, the nodes and gaps of the current level not yet written, and every written node has had its two child slots pushed. So the output lists, level by level, every slot of the tree, with # standing for empty slots. During rebuilding, the invariant is that the <var>i</var>-th non-marker token written was pushed to the queue as the <var>i</var>-th real node, and its two child slots are the tokens that were written when it was popped. Because the serialiser pushes exactly two slots per real node and the rebuilder consumes exactly two tokens per real node in the same order, each node receives exactly the children it had. Dropping trailing markers is safe because a missing token at the end means an empty slot.</p>
+
+<h3>Why it is fast</h3>
+<p>Serialising pops each node once and each empty slot once. A binary tree with <var>n</var> nodes has <var>n</var> + 1 empty child slots, so the queue handles 2<var>n</var> + 1 entries and the text has at most 2<var>n</var> + 1 tokens:</p>
+<p class="formula">tokens = <var>n</var> nodes + (<var>n</var> + 1) markers = 2<var>n</var> + 1</p>
+<p>Rebuilding reads each token once and creates each node once. Both directions are O(<var>n</var>) time and O(<var>w</var>) extra memory for the widest level <var>w</var>, beyond the output itself. A preorder encoding with the same # markers works equally well with a recursive reader; level order is chosen when the input format is level order already, as it is on LeetCode.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "serialize", "deserialize", "encode the tree as a string", "send over the network", "N-ary tree to binary tree". Say: "I will write a level-order traversal with an explicit marker for every missing child, so the shape survives, and rebuild with a queue of parents consuming two tokens each".</p>
+<p>Serialize and Deserialize Binary Tree is the walk-through above. Serialize and Deserialize N-ary Tree writes each node followed by its number of children, so the reader knows how many tokens to consume instead of always two. Serialize and Deserialize BST can omit the markers entirely, because a preorder of a BST is enough to rebuild it using value bounds.</p>

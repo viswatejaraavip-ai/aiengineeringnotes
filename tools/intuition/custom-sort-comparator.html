@@ -1,0 +1,34 @@
+<h3>Start with what you would do by hand</h3>
+<p>You have the numbers 3, 30, 34, 5, 9 and must glue them together, in some order, to make the largest possible number. Trying a few: 9534330, 9533430, 3430953. The biggest is 9534330.</p>
+<p>By hand you might try every order: 5 numbers give 120 orders, 10 numbers give 3.6 million, 20 numbers give more than a billion billion. You need a way to decide the order without trying them all.</p>
+<p>Your first instinct is "sort from biggest to smallest": 34, 30, 9, 5, 3 gives 3430953, which is wrong, because 9 should come first. Second instinct: "sort by the first digit": then 3, 30 and 34 all tie, and ordinary comparison says 30 &lt; 34 &lt; 3 or similar, but 3 should go before 30 (330 beats 303) and after 34 (343 beats 334). The usual order of numbers is the wrong order for this problem.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Sorting is the structure, but with a custom rule for "which of two things comes first".</p>
+<p><strong>Piece 1: a rule for two items.</strong> Given <var>a</var> and <var>b</var>, glue them both ways as strings and compare: <var>a</var> goes before <var>b</var> if <var>a</var>+<var>b</var> is bigger than <var>b</var>+<var>a</var>. For 3 and 30: "330" versus "303", so 3 first. For 3 and 34: "334" versus "343", so 34 first. For 5 and 9: "59" versus "95", so 9 first.</p>
+<p><strong>Piece 2: hand the rule to a sort.</strong> Any sorting algorithm only ever asks "does <var>a</var> come before <var>b</var>?" Give it this rule and it produces 9, 5, 34, 3, 30.</p>
+<p><strong>Piece 3: glue the result.</strong> "9" + "5" + "34" + "3" + "30" = 9534330. Strip leading zeros if everything was 0.</p>
+<div class="table-wrap"><table>
+<tr><th>Pair</th><th><var>a</var>+<var>b</var></th><th><var>b</var>+<var>a</var></th><th>First</th></tr>
+<tr><td>3, 30</td><td>330</td><td>303</td><td>3</td></tr>
+<tr><td>3, 34</td><td>334</td><td>343</td><td>34</td></tr>
+<tr><td>30, 34</td><td>3034</td><td>3430</td><td>34</td></tr>
+<tr><td>5, 9</td><td>59</td><td>95</td><td>9</td></tr>
+</table></div>
+<p>Many problems only need the simpler form of this idea: a <em>key</em> for each item (its frequency, its distance from the origin, its length) and the sort orders by the key. The pairwise rule is for when no single number per item captures the order, as here.</p>
+
+<h3>Why it is correct</h3>
+<p>A sort is only meaningful when the rule is a <em>total order</em>: it must be consistent, so that if <var>a</var> comes before <var>b</var> and <var>b</var> before <var>c</var>, then <var>a</var> comes before <var>c</var>. Otherwise different sorting algorithms could give different results, or loop.</p>
+<p>For the gluing rule, consistency holds, and the reason is a small piece of algebra. Writing <var>a</var>+<var>b</var> as a number means <var>a</var> &times; 10<sup>len(<var>b</var>)</sup> + <var>b</var>. So "<var>a</var>+<var>b</var> &gt; <var>b</var>+<var>a</var>" is</p>
+<p class="formula"><var>a</var> &times; 10<sup>len(<var>b</var>)</sup> + <var>b</var> &gt; <var>b</var> &times; 10<sup>len(<var>a</var>)</sup> + <var>a</var>, which rearranges to <var>a</var> / (10<sup>len(<var>a</var>)</sup> &minus; 1) &gt; <var>b</var> / (10<sup>len(<var>b</var>)</sup> &minus; 1)</p>
+<p>So the rule compares each number by the single value <var>a</var> / (10<sup>len(<var>a</var>)</sup> &minus; 1), which is the value of the infinite repetition 0.<var>a</var><var>a</var><var>a</var>&hellip; Comparing by a single value is always consistent. That also explains the answer: 9 = 0.999&hellip; beats 5 = 0.555&hellip; beats 34 = 0.3434&hellip; beats 3 = 0.333&hellip; beats 30 = 0.3030&hellip;.</p>
+<p>Why is the sorted order the best? If two adjacent numbers in the final string were in the wrong order, swapping them would make the string bigger (only those digits change, and the rule says the swap wins), so the best string has every adjacent pair in rule order, which is exactly what the sort produces.</p>
+
+<h3>Why it is fast</h3>
+<p>A comparison sort makes about <var>n</var> log<sub>2</sub> <var>n</var> comparisons, and each comparison here concatenates two short strings.</p>
+<p class="formula">time = O(<var>n</var> log <var>n</var> &times; <var>L</var>) for numbers of up to <var>L</var> digits</p>
+<p>For 20 numbers that is around 90 comparisons instead of a billion billion orders.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The cues are "arrange to form the largest/smallest", "sort by frequency then by value", "closest <var>k</var> points", "relative order given by another array", or any "order these by a rule" wording. Ask yourself whether one key per item captures the order; if not, whether a pairwise rule is consistent. Say: "I define the comparison for two items, check it is a total order, and sort once."</p>
+<p>Largest Number is the example above. Sort Characters By Frequency sorts letters by a key, their count, descending. K Closest Points to Origin sorts by the key <var>x</var><sup>2</sup> + <var>y</var><sup>2</sup> and takes the first <var>k</var> (a heap or quickselect can avoid the full sort).</p>

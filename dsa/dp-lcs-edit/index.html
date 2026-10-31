@@ -394,24 +394,42 @@
       <p>dp[i][j] is the answer for s[:i] and t[:j].</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Turn the word "horse" into "ros" using the fewest edits, where one edit inserts a letter, deletes a letter, or replaces a letter. By hand: replace h with r (rorse), delete r (rose), delete e (ros). Three edits. Could two work? "horse" has five letters and "ros" three, so at least two deletions are needed, and after any two deletions of "horse" the remaining three letters are not "ros". So three is the answer, but that argument was special to this case.</p>
+<p>In general you cannot try all edit sequences; their number grows exponentially with the word lengths. The trick is to compare only prefixes, and to notice that the answer for two prefixes depends on the answers for three slightly shorter pairs of prefixes.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a table with one row per prefix of the first word (including the empty prefix) and one column per prefix of the second. dp[<var>i</var>][<var>j</var>] will be the fewest edits turning the first <var>i</var> letters of "horse" into the first <var>j</var> letters of "ros".</p>
+<p>Piece two: the edges. Turning <var>i</var> letters into nothing costs <var>i</var> deletions, so dp[<var>i</var>][0] = <var>i</var>; turning nothing into <var>j</var> letters costs <var>j</var> insertions, so dp[0][<var>j</var>] = <var>j</var>.</p>
+<p>Piece three: the inside. Look at the last letters of the two prefixes. If they are equal, they need no edit and dp[<var>i</var>][<var>j</var>] = dp[<var>i</var> − 1][<var>j</var> − 1], the diagonal. If not, the last edit is one of three: delete the last letter of the first word (dp[<var>i</var> − 1][<var>j</var>], from above), insert the last letter of the second (dp[<var>i</var>][<var>j</var> − 1], from the left), or replace one with the other (dp[<var>i</var> − 1][<var>j</var> − 1], diagonal). Each costs one edit:</p>
+<p class="formula">dp[<var>i</var>][<var>j</var>] = 1 + min( up, left, diagonal )</p>
+<div class="table-wrap"><table><tr><th></th><th>ε</th><th>r</th><th>o</th><th>s</th></tr><tr><th>ε</th><td>0</td><td>1</td><td>2</td><td>3</td></tr><tr><th>h</th><td>1</td><td>1</td><td>2</td><td>3</td></tr><tr><th>o</th><td>2</td><td>2</td><td>1</td><td>2</td></tr><tr><th>r</th><td>3</td><td>2</td><td>2</td><td>2</td></tr><tr><th>s</th><td>4</td><td>3</td><td>3</td><td>2</td></tr><tr><th>e</th><td>5</td><td>4</td><td>4</td><td>3</td></tr></table></div>
+<p>Row o, column o: the letters match, so copy the diagonal, 1. Row e, column s: no match, 1 + min(2, 4, 2) = 3. The bottom-right corner is the answer, 3.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: every filled cell holds the true minimum for its pair of prefixes. The edges are right by counting. For an inside cell, consider the best edit sequence for the two prefixes and look at how it treats the last letter of the first prefix and the last letter of the second: the options are exactly match, delete, insert or replace, and in each case what remains is a best sequence for one of the three smaller pairs, which are already correct. The formula takes the cheapest option, so the cell is correct.</p>
+<p>Longest common subsequence is the same table with a different rule: match adds 1 to the diagonal, otherwise take the max of up and left.</p>
+<h3>Why it is fast</h3>
+<p class="formula">work = (<var>n</var> + 1)(<var>m</var> + 1) cells × constant, memory two rows if rolled</p>
+<p>Two words of 1,000 letters cost a million cell updates; trying edit sequences would never finish.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: two strings or two sequences, "minimum edits", "longest common", "minimum deletions to make equal", "is one an interleaving of the others". The first thing to say: "a table over prefixes of both strings; match takes the diagonal, otherwise the best neighbour." Edit Distance is the example above. Longest Common Subsequence uses the max rule. Delete Operation for Two Strings is LCS in disguise: delete everything outside the common subsequence, so the answer is <var>n</var> + <var>m</var> − 2·LCS.</p>
 
-
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>dp[i][j] compares prefixes; match takes the diagonal, else the best neighbour.</p>
     <p><strong>Reach for it when:</strong> LCS, edit distance, distinct subsequences, delete operation, interleaving.</p>
     <p><strong>Cost:</strong> O(nm) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Edit Distance &#x27;horse&#x27; → &#x27;ros&#x27;</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Match → take the diagonal; else 1 + min(delete ↑, insert ←, replace ↖)</li><li>Base row and column: turning a prefix into <em>empty</em> costs its length</li><li>Row &#x27;h&#x27;: dp[1][1] = 1 + min(1, 1, 0) = <em>1</em></li><li>Row &#x27;o&#x27;: dp[2][1] = 1 + min(1, 2, 1) = <em>2</em></li><li>Row &#x27;r&#x27;: dp[3][1] = diagonal 2 (match &#x27;r&#x27;)</li><li>Row &#x27;s&#x27;: dp[4][2] = 1 + min(2, 3, 2) = <em>3</em></li><li>Row &#x27;e&#x27;: dp[5][1] = 1 + min(3, 5, 4) = <em>4</em></li><li>dp[5][3] = <em>3</em>: replace h→r, delete r, delete e</li><li>Fill |s|·|t| cells, each in O(1): <em>O(n·m)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>8 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/edit-distance">Edit Distance</a></td><td><span class="diff medium">Medium</span></td><td class="num">46</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/longest-common-subsequence">Longest Common Subsequence</a></td><td><span class="diff medium">Medium</span></td><td class="num">39</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/distinct-subsequences">Distinct Subsequences</a></td><td><span class="diff hard">Hard</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/shortest-common-supersequence">Shortest Common Supersequence </a></td><td><span class="diff hard">Hard</span></td><td class="num">30</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/interleaving-string">Interleaving String</a></td><td><span class="diff medium">Medium</span></td><td class="num">27</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/delete-operation-for-two-strings">Delete Operation for Two Strings</a></td><td><span class="diff medium">Medium</span></td><td class="num">26</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/minimum-ascii-delete-sum-for-two-strings">Minimum ASCII Delete Sum for Two Strings</a></td><td><span class="diff medium">Medium</span></td><td class="num">11</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/uncrossed-lines">Uncrossed Lines</a></td><td><span class="diff medium">Medium</span></td><td class="num">5</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-dynamic-programming">Dynamic Programming</a>: <a href="/dsa/dp-1d-linear/">1-D linear DP</a>, <a href="/dsa/dp-kadane/">Kadane (best ending here)</a>, <a href="/dsa/dp-lis/">Longest increasing subsequence</a>, <a href="/dsa/dp-grid-paths/">Grid path DP</a>, <a href="/dsa/dp-knapsack-01/">0/1 knapsack (subset sum)</a>, <a href="/dsa/dp-unbounded-coin/">Unbounded knapsack (coin change)</a>, <a href="/dsa/dp-pattern-matching/">Wildcard / regex matching DP</a>, <a href="/dsa/dp-palindrome-expand/">Palindromes: expand or table</a>, <a href="/dsa/dp-word-break/">Prefix segmentation DP</a>, <a href="/dsa/dp-interval/">Interval DP (last operation)</a>, <a href="/dsa/dp-state-machine-stock/">State-machine DP (stocks)</a>, <a href="/dsa/dp-bitmask/">Bitmask DP over subsets</a>, <a href="/dsa/dp-memo-dfs/">Memoised DFS (top-down)</a>, <a href="/dsa/dp-digit/">Digit DP</a>, <a href="/dsa/dp-game-minimax/">Game DP (minimax on a range)</a>, <a href="/dsa/dp-count-ways-mod/">Counting ways with modulo</a>, <a href="/dsa/dp-longest-string-chain/">DP over sorted keys (chains)</a>.</p>
   </article>
 
@@ -430,6 +448,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

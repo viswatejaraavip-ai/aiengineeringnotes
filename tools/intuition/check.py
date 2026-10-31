@@ -4,7 +4,7 @@
 import os, re, sys
 from html.parser import HTMLParser
 HERE = os.path.dirname(os.path.abspath(__file__))
-ALLOWED = {"p", "h3", "ol", "ul", "li", "strong", "em", "var", "sup", "sub", "code", "br", "div", "span", "table", "tr", "th", "td", "thead", "tbody"}
+ALLOWED = {"a", "p", "h3", "ol", "ul", "li", "strong", "em", "var", "sup", "sub", "code", "br", "div", "span", "table", "tr", "th", "td", "thead", "tbody"}
 VOID = {"br"}
 class P(HTMLParser):
     def __init__(self):

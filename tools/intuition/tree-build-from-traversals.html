@@ -1,0 +1,21 @@
+<h3>Start with what you would do by hand</h3>
+<p>Someone walked a tree twice and wrote down the nodes in two different orders. Preorder, "me first, then my left side, then my right side", gave [3, 9, 20, 15, 7]. Inorder, "left side, then me, then right side", gave [9, 3, 15, 20, 7]. Can you rebuild the tree from the two lists? Yes, and the by-hand reasoning is the algorithm, so let us do it slowly.</p>
+<p>Preorder always writes the root first, so the root is 3. Now find 3 in the inorder list: it is at position 1. Everything left of it in inorder, [9], is the left subtree; everything right of it, [15, 20, 7], is the right subtree. Now repeat on each part. The slow part by hand is "find 3 in the inorder list": scanning the list for every node costs about <var>n</var> steps each, <var>n</var><sup>2</sup> in total.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a cursor into the preorder list. It starts at 0 and only ever moves forward by one each time we place a node. Whatever it points at is the root of the subtree we are currently building. We never have to search preorder.</p>
+<p>Piece two: a lookup table from value to inorder position, built once: {9:0, 3:1, 15:2, 20:3, 7:4}. Now "find 3 in inorder" is a single lookup instead of a scan. This needs distinct values, which the problems guarantee.</p>
+<p>Piece three: build a subtree from an inorder slice [<var>lo</var>, <var>hi</var>]. If the slice is empty, return nothing. Otherwise take the value under the cursor, advance the cursor, look up its inorder index <var>m</var>, then build the left child from [<var>lo</var>, <var>m</var> − 1] and the right child from [<var>m</var> + 1, <var>hi</var>]. Left before right, because that is the order preorder listed them.</p>
+<div class="table-wrap"><table><tr><th>Cursor value</th><th>Inorder index</th><th>Left slice</th><th>Right slice</th></tr><tr><td>3</td><td>1</td><td>[0, 0]</td><td>[2, 4]</td></tr><tr><td>9</td><td>0</td><td>empty</td><td>empty</td></tr><tr><td>20</td><td>3</td><td>[2, 2]</td><td>[4, 4]</td></tr><tr><td>15</td><td>2</td><td>empty</td><td>empty</td></tr><tr><td>7</td><td>4</td><td>empty</td><td>empty</td></tr></table></div>
+<p>Read the rows top to bottom and you see the cursor hand out 3, 9, 20, 15, 7 in preorder, each landing in the slice that inorder reserved for it.</p>
+
+<h3>Why it is correct</h3>
+<p>Two facts about traversals do all the work. First, in preorder the root of any subtree is written before every node of that subtree, so when we start building a subtree the cursor is on its root. Second, in inorder the root of a subtree sits between its left-subtree nodes and its right-subtree nodes, so the inorder position splits the slice exactly. Because we build the left subtree completely before touching the right, and preorder lists the whole left subtree before the right, the cursor arrives at the right subtree's root exactly when we need it.</p>
+<p class="formula">size(left) = <var>m</var> − <var>lo</var>, size(right) = <var>hi</var> − <var>m</var>, and the cursor advances by exactly size(left) + 1 before the right subtree begins</p>
+<p>With inorder and postorder the same idea runs the cursor backwards from the end, building right before left, because postorder writes the root last.</p>
+
+<h3>Why it is fast</h3>
+<p>Building the lookup table costs <var>n</var> insertions. Each node is placed exactly once with one lookup and two slice computations, all constant time. Total O(<var>n</var>), against the by-hand <var>n</var><sup>2</sup> from rescanning inorder for every node. The recursion depth is the height, O(<var>h</var>).</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>"Construct the tree from its preorder and inorder", "deserialize", "verify a serialization", or any task where you are handed a traversal and must recover structure. Say: "Preorder gives me the root through a forward-moving cursor; inorder tells me how many nodes go left, so I split the slice there with a precomputed index map." Construct Binary Tree from Preorder and Inorder Traversal is the direct form. Serialize and Deserialize Binary Tree is the same cursor idea with explicit null markers instead of a second list, so no index map is needed.</p>

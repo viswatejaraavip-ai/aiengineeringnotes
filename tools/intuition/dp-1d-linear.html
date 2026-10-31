@@ -1,0 +1,18 @@
+<h3>Start with what you would do by hand</h3>
+<p>Five houses in a row hold 2, 7, 9, 3 and 1 rupees. A thief may rob any houses but never two neighbours, because the alarms are linked. What is the most the thief can take? By hand you try combinations: 2 + 9 + 1 = 12, 7 + 3 = 10, 2 + 3 = 5, 7 + 1 = 8, 9 alone... The best is 12.</p>
+<p>Trying combinations means, for each house, "rob or not", and 2<sup>5</sup> = 32 choices here. For 100 houses that is 2<sup>100</sup>, more than the number of grains of sand on Earth many times over. We need a way to reuse work instead of re-deciding every house for every combination.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a question with a small answer. Let dp[<var>i</var>] mean "the most you can take from houses 0 to <var>i</var> only". The final answer is dp[4].</p>
+<p>Piece two: notice that the decision for house <var>i</var> has only two cases. Skip it: then the best is whatever the best was for houses 0 to <var>i</var> − 1, which is dp[<var>i</var> − 1]. Rob it: then house <var>i</var> − 1 is off limits and the best is nums[<var>i</var>] plus the best for houses 0 to <var>i</var> − 2, which is dp[<var>i</var> − 2]. Take the larger:</p>
+<p class="formula">dp[<var>i</var>] = max( dp[<var>i</var> − 1], dp[<var>i</var> − 2] + nums[<var>i</var>] )</p>
+<p>Piece three: fill the table from the left, because each entry needs the two before it.</p>
+<div class="table-wrap"><table><tr><th><var>i</var></th><td>0</td><td>1</td><td>2</td><td>3</td><td>4</td></tr><tr><th>nums</th><td>2</td><td>7</td><td>9</td><td>3</td><td>1</td></tr><tr><th>dp</th><td>2</td><td>max(2, 7) = 7</td><td>max(7, 2 + 9) = 11</td><td>max(11, 7 + 3) = 11</td><td>max(11, 11 + 1) = 12</td></tr></table></div>
+<p>Piece four: the table only ever looks back two places, so you do not need the whole array. Keep two variables, "best so far" and "best before that", and roll them forward.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: after computing dp[<var>i</var>], it is the true best for the prefix ending at <var>i</var>. The base cases are right: dp[0] = nums[0], dp[1] = max of the two. For a larger <var>i</var>, any legal plan for houses 0 .. <var>i</var> either robs house <var>i</var> or not, and those two cases are exactly the two terms in the formula, each resting on a smaller prefix whose value is already correct. So the maximum of the two is the true best.</p>
+<h3>Why it is fast</h3>
+<p>Each entry costs one comparison and one addition, and there are <var>n</var> entries:</p>
+<p class="formula">work = <var>n</var> steps, memory = 2 numbers</p>
+<p>For 100 houses that is 100 steps instead of 2<sup>100</sup> combinations. The saving comes entirely from the fact that the best for a prefix does not depend on <em>how</em> it was achieved, only on its value.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "cannot pick two adjacent", "ways to reach step <var>n</var> with steps of 1 or 2", "minimum cost to climb", anything where the answer for position <var>i</var> depends on positions <var>i</var> − 1 and <var>i</var> − 2 only. The first thing to say: "define dp[<var>i</var>] for the prefix, write the two-case recurrence, and roll two variables." House Robber is the example above. Climbing Stairs is the same shape with addition instead of max: ways[<var>i</var>] = ways[<var>i</var> − 1] + ways[<var>i</var> − 2], the Fibonacci numbers.</p>

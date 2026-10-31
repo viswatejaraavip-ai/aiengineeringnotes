@@ -1,0 +1,27 @@
+<h3>Start with what you would do by hand</h3>
+<p>Words: <code>a, b, ba, bca, bda, bdca</code>. Word X is a predecessor of word Y if adding exactly one letter somewhere in X gives Y. A chain is a sequence where each word is a predecessor of the next, such as <code>a → ba → bda → bdca</code>. How long is the longest chain?</p>
+<p>By hand you would pick a word and try to extend it forwards and backwards, then pick another word, and so on. With six words it is manageable. With 1,000 words every word has to be compared with every other to see which pairs are predecessor and successor, 500,000 pairs, and then you still have to search for the longest route through those pairs, which is a longest-path search and branches badly.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>First observation: a predecessor is always exactly one letter shorter. So if you sort the words by length, every predecessor of a word comes before it in the sorted order. Second observation: instead of asking "which words are one letter longer than me", ask each word "which words are one letter shorter than me", by deleting each of its letters in turn and looking the result up in a set. A word of length <var>L</var> has only <var>L</var> such candidates.</p>
+<p>Now keep one number per word: <var>chain</var>[<var>w</var>] = the longest chain that ends at <var>w</var>. Walk the sorted list:</p>
+<div class="table-wrap"><table>
+<tr><th>word</th><th>delete one letter → words that exist</th><th><var>chain</var></th></tr>
+<tr><td><code>a</code></td><td>none</td><td>1</td></tr>
+<tr><td><code>b</code></td><td>none</td><td>1</td></tr>
+<tr><td><code>ba</code></td><td><code>a</code> (1), <code>b</code> (1)</td><td>1 + 1 = 2</td></tr>
+<tr><td><code>bca</code></td><td><code>ba</code> (2)</td><td>3</td></tr>
+<tr><td><code>bda</code></td><td><code>ba</code> (2)</td><td>3</td></tr>
+<tr><td><code>bdca</code></td><td><code>bca</code> (3), <code>bda</code> (3)</td><td>4</td></tr>
+</table></div>
+<p>The longest value is 4: <code>a → ba → bda → bdca</code>. The structure is a dictionary from word to best chain length, filled in length order so every lookup already has its final value.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: when word <var>w</var> is processed, every shorter word already holds its true longest chain. The longest chain ending at <var>w</var> is either <var>w</var> alone, or some chain ending at a predecessor <var>p</var> followed by <var>w</var>. The best such chain is 1 + the best chain ending at the best predecessor, and every predecessor of <var>w</var> is one of the <var>L</var> deletions, all shorter and therefore final. So <var>chain</var>[<var>w</var>] = 1 + max over existing deletions of <var>chain</var>[deletion] is exact, and the invariant extends to <var>w</var>. Words of equal length never affect each other, so their order among themselves does not matter.</p>
+<p class="formula"><var>chain</var>[<var>w</var>] = 1 + max( 0, max over <var>p</var> = <var>w</var> with one letter removed, <var>p</var> in the set, of <var>chain</var>[<var>p</var>] )</p>
+
+<h3>Why it is fast</h3>
+<p>Sorting <var>n</var> words costs O(<var>n</var> log <var>n</var>). Each word of length <var>L</var> tries <var>L</var> deletions, and building each deletion string costs O(<var>L</var>), so a word costs O(<var>L</var><sup>2</sup>) and all words cost O(<var>n</var> · <var>L</var><sup>2</sup>), with <var>L</var> at most 16 in the usual problem. For 1,000 words that is about 250,000 cheap steps, against 500,000 pairwise comparisons plus a longest-path search. The win comes from looking downwards (deletions) rather than comparing every pair.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: a "comes before" relation that only runs from smaller to larger (shorter string, smaller number, smaller envelope), and "longest chain" or "largest subset where every pair is related". Say: I will sort by the size key so predecessors are already solved, then each item extends the best predecessor it can find. <em>Longest String Chain</em> is this example. <em>Largest Divisible Subset</em> sorts numbers and extends from the largest earlier divisor. <em>Longest Arithmetic Subsequence</em> keys the table by (index, difference).</p>

@@ -1,0 +1,32 @@
+<h3>Start with what you would do by hand</h3>
+<p>Asteroids move along a line: 5, 10, −5, −11, 3. A positive number moves right, a negative one moves left, and the size is the absolute value. When two meet, the smaller explodes; equal sizes both explode. Which asteroids survive?</p>
+<p>By hand you simulate: 5 and 10 both move right, so they never meet. −5 moves left into 10 and explodes. −11 moves left into 10, which explodes, then into 5, which explodes. 3 moves right behind −11 and never meets it. Survivors: −11, 3.</p>
+<p>Simulating time step by step would be hopeless: positions are continuous and collisions can cascade. What you actually did was notice that only one kind of meeting is possible: a right-mover that is already <em>to the left</em> of a newly arriving left-mover. Everything else never meets.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: process asteroids left to right and keep a <strong>stack of survivors so far</strong>. Anything moving left on the stack has nothing to its left that can ever reach it, so it is safe. Anything moving right on the stack might still be hit by a left-mover that arrives later.</p>
+<p>Piece two: when a new asteroid arrives, if it moves right, or if the top of the stack moves left, there is no collision: push it. If it moves left and the top moves right, they collide. Resolve the collision: the smaller one disappears. If the newcomer wins, pop the top and <em>check again</em> against the new top, because the newcomer keeps travelling left. If the top wins, the newcomer is gone. If they are equal, both are gone.</p>
+<div class="table-wrap"><table>
+<tr><th>Arrives</th><th>Top of stack</th><th>Collision?</th><th>Result</th><th>Stack</th></tr>
+<tr><td>5</td><td>(empty)</td><td>no</td><td>push</td><td>5</td></tr>
+<tr><td>10</td><td>5 (right)</td><td>no, both right</td><td>push</td><td>5, 10</td></tr>
+<tr><td>−5</td><td>10 (right)</td><td>yes</td><td>10 wins, −5 gone</td><td>5, 10</td></tr>
+<tr><td>−11</td><td>10 (right)</td><td>yes</td><td>−11 wins, pop 10, check again</td><td>5</td></tr>
+<tr><td>−11</td><td>5 (right)</td><td>yes</td><td>−11 wins, pop 5, check again</td><td>(empty)</td></tr>
+<tr><td>−11</td><td>(empty)</td><td>no</td><td>push</td><td>−11</td></tr>
+<tr><td>3</td><td>−11 (left)</td><td>no, top moves left</td><td>push</td><td>−11, 3</td></tr>
+</table></div>
+<p>The same "newcomer fights the top until settled" loop appears in car fleets (a faster car behind a slower one joins its fleet), in robots walking a corridor, and in a typed string with deletes.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: <em>the stack holds exactly the survivors among the asteroids processed so far, in order, and no two of them can ever collide</em>. The second half is the important one. Two stack members cannot collide if the left one moves left, or the right one moves right, or both move away from each other; the only colliding arrangement is a right-mover to the left of a left-mover, and the loop never leaves that arrangement on the stack, because a left-moving newcomer fights every right-mover on top until one of them is gone or the top moves left. Processing in position order is what makes the stack top the correct opponent: the newcomer meets the nearest surviving right-mover first, and that is the most recently pushed one.</p>
+<p>Could an asteroid that was popped have survived in reality? It was destroyed by a bigger left-mover that was definitely going to reach it, since nothing between them survived. So every pop is a real destruction and every push a real survival.</p>
+
+<h3>Why it is fast</h3>
+<p>Each asteroid is pushed at most once and popped at most once. A single newcomer may cause many pops, but the pops are paid for by the earlier pushes:</p>
+<p class="formula">total stack operations ≤ 2<var>n</var>, so O(<var>n</var>) time</p>
+<p>with O(<var>n</var>) space. A time-step simulation would have no such bound.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "collide", "destroyed", "moving toward each other", "fleet", "the later one cancels the earlier one". The tell is that interactions only happen between a newcomer and the most recent surviving element, which is exactly what a stack top is. Say: "I will process in order with a stack of survivors; a newcomer fights the top until it is destroyed or no longer collides."</p>
+<p><strong>Asteroid Collision</strong> is the example. <strong>Car Fleet</strong> sorts cars by position, computes each car's time to the target, and uses the stack to merge a car into the fleet ahead when it would arrive sooner. <strong>Clear Digits</strong> pushes letters and pops the top letter whenever a digit arrives.</p>

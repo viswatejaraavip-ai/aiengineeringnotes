@@ -1,0 +1,26 @@
+<h3>Start with what you would do by hand</h3>
+<p>A list can hold numbers or other lists: [[1, 1], 2, [1, 1]]. You are asked to hand out its numbers one at a time, in reading order: 1, 1, 2, 1, 1. The obvious plan is to flatten the whole thing into a plain list first and then hand out from that. It works. But imagine the nested list is enormous and the caller only wants the first three numbers, or the inner lists are produced slowly as they are needed. Flattening everything up front does all the work before the first answer. An iterator should do only as much work as the caller asks for, and it should remember where it stopped.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one is a cursor: a record of "where the next unreturned element is". For a flat list that is a single index. For a nested list it has to remember a position in the outer list and, inside that, a position in whichever inner list we are in, and so on for deeper nesting. A stack holds exactly that: each level of nesting we are inside is one entry.</p>
+<p>Piece two is a lazy way to use the stack. Push the top-level elements in reverse order, so the first element sits on top. Then, whenever someone asks "is there a next?", look at the top: if it is a number, the answer is yes; if it is a list, pop it and push its elements in reverse, and look again. Only lists that are about to be read get unpacked. On the example:</p>
+<ol>
+<li>Push the outer list reversed. Stack, top first: [1, 1], 2, [1, 1].</li>
+<li>hasNext: top is a list, so pop it and push its items reversed. Stack: 1, 1, 2, [1, 1]. Top is a number, so yes.</li>
+<li>next returns 1. Stack: 1, 2, [1, 1].</li>
+<li>next returns 1. Stack: 2, [1, 1].</li>
+<li>next returns 2. Stack: [1, 1].</li>
+<li>hasNext: top is a list, unpack. Stack: 1, 1. Yes.</li>
+<li>next, next return 1 and 1. Stack empty, hasNext is false.</li>
+</ol>
+<p>The same two pieces build every lazy iterator. For a binary search tree, the stack holds the path of ancestors whose left side is done, so next pops a node and then pushes the left spine of its right child. For a run-length string like a3b2, the cursor is the current letter and how many of it remain. For a peeking iterator, keep one extra slot holding the element already fetched but not yet handed out.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant is that reading the stack from the top gives exactly the elements not yet returned, in order, with lists still folded. Pushing the outer list reversed makes it true at the start. Unpacking a list replaces one entry with its contents in order, which does not change the sequence of numbers the stack represents. Popping a number removes exactly the first unreturned element. So after any sequence of calls, next always returns the next number in reading order, and hasNext is true exactly when some number remains. Empty inner lists are handled by the same rule: unpacking them pushes nothing, and hasNext keeps looking.</p>
+
+<h3>Why it is fast</h3>
+<p>Each number and each list is pushed once and popped once, so the total work over the whole traversal is proportional to the size of the input. A single next call may do more than one pop when it unpacks several nested lists, but that work is charged to the lists being unpacked, each of which is unpacked only once. Spread over all calls, the cost per next is O(1) on average, which is called amortised O(1). The memory is the stack, which holds at most one entry per pending element on the current path, usually much less than the whole input. Flattening up front costs the whole input before the first answer and stores all of it.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "implement an iterator", "next and hasNext", "lazily", "do not flatten up front", "peek". Say: "I will keep a stack as the cursor and unpack only when hasNext looks at a list, so each element is handled once".</p>
+<p>Flatten Nested List Iterator is the walk-through above. Binary Search Tree Iterator is the ancestor-stack version, with O(<var>h</var>) memory for a tree of height <var>h</var>. Peeking Iterator wraps any iterator with one cached element so that peek does not consume it.</p>

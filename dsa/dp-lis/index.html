@@ -394,24 +394,40 @@
       <p>tails[k] is the smallest tail of any increasing subsequence of length k+1.</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Heights of eight people in a line: 10, 9, 2, 5, 3, 7, 101, 18. Pick some of them, keeping their order, so that heights strictly increase. How long can the pick be? By hand you find 2, 5, 7, 101 or 2, 3, 7, 18: four people. Could it be five? You check and no.</p>
+<p>The obvious method keeps, for each person, the longest increasing pick that ends with them, by looking at everyone before them. That is <var>n</var> comparisons per person, <var>n</var><sup>2</sup> in total: for 100,000 people, 10 billion. There is a trick that reduces each person's work to a single binary search.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: think of dealing cards onto piles, the game of patience. Each new height goes onto the leftmost pile whose top is at least as big as it; if no pile qualifies, start a new pile on the right. The number of piles at the end is the answer.</p>
+<p>Piece two: you do not need the piles, only their tops. Keep an array tails where tails[<var>k</var>] is the top of pile <var>k</var>, that is, the smallest possible last height of an increasing pick of length <var>k</var> + 1.</p>
+<p>Piece three: tails is always sorted, so "leftmost pile whose top is at least this height" is a binary search for the first entry ≥ the new height. Replace that entry, or append if none.</p>
+<div class="table-wrap"><table><tr><th>height</th><th>action</th><th>tails after</th></tr><tr><td>10</td><td>append</td><td>[10]</td></tr><tr><td>9</td><td>replaces 10</td><td>[9]</td></tr><tr><td>2</td><td>replaces 9</td><td>[2]</td></tr><tr><td>5</td><td>append</td><td>[2, 5]</td></tr><tr><td>3</td><td>replaces 5</td><td>[2, 3]</td></tr><tr><td>7</td><td>append</td><td>[2, 3, 7]</td></tr><tr><td>101</td><td>append</td><td>[2, 3, 7, 101]</td></tr><tr><td>18</td><td>replaces 101</td><td>[2, 3, 7, 18]</td></tr></table></div>
+<p>Length 4. Note that tails itself is not always a valid pick; it is a record of the best possible endings.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: tails[<var>k</var>] is the smallest last element among all increasing picks of length <var>k</var> + 1 seen so far, and tails is strictly increasing. When a new height <var>x</var> arrives and the first entry ≥ <var>x</var> is at position <var>k</var>, every entry before it is smaller than <var>x</var>, so a pick of length <var>k</var> exists ending below <var>x</var>, and extending it gives a pick of length <var>k</var> + 1 ending at <var>x</var>; since <var>x</var> ≤ tails[<var>k</var>], writing <var>x</var> there keeps the entry minimal. Sortedness survives because <var>x</var> is larger than tails[<var>k</var> − 1] and no larger than the old tails[<var>k</var>]. Appending happens exactly when <var>x</var> beats every top, which is a genuinely longer pick. So the length of tails is the length of the longest increasing pick.</p>
+<h3>Why it is fast</h3>
+<p>One binary search over at most <var>n</var> entries per person:</p>
+<p class="formula">work = <var>n</var> log<sub>2</sub> <var>n</var>, about 1.7 million steps for 100,000 people instead of 10 billion</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "longest increasing subsequence", "nested" or "fits inside" objects sorted by one dimension, "longest chain", "minimum removals to make it sorted". The first thing to say: "I will keep the smallest possible tail for each length and binary-search where each element lands." Longest Increasing Subsequence is the example above. Russian Doll Envelopes sorts envelopes by width ascending and height descending, then runs this on the heights, so two envelopes of equal width can never nest.</p>
 
-
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Patience piles: binary search where each number lands; pile count is the LIS length.</p>
     <p><strong>Reach for it when:</strong> LIS, Russian doll envelopes, number of LIS, longest chain, bitonic.</p>
     <p><strong>Cost:</strong> O(n log n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>LIS on [10,9,2,5,3,7,101,18]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>tails stays sorted: binary search where each number <em>lands</em></li><li>10 is bigger than every tail: <em>append</em>, length 1</li><li>9 replaces tails[0] = 10: same length, <em>smaller tail</em></li><li>2 replaces tails[0] = 9: same length, <em>smaller tail</em></li><li>5 is bigger than every tail: <em>append</em>, length 2</li><li>3 replaces tails[1] = 5: same length, <em>smaller tail</em></li><li>7 is bigger than every tail: <em>append</em>, length 3</li><li>101 is bigger than every tail: <em>append</em>, length 4</li><li>18 replaces tails[3] = 101: same length, <em>smaller tail</em></li><li>Length of tails = <em>4</em> (e.g. 2, 3, 7, 101); tails itself is not the subsequence</li><li>One binary search per element: <em>O(n log n)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>8 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/russian-doll-envelopes">Russian Doll Envelopes</a></td><td><span class="diff hard">Hard</span></td><td class="num">53</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/longest-increasing-subsequence">Longest Increasing Subsequence</a></td><td><span class="diff medium">Medium</span></td><td class="num">52</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/largest-divisible-subset">Largest Divisible Subset</a></td><td><span class="diff medium">Medium</span></td><td class="num">38</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/longest-arithmetic-subsequence">Longest Arithmetic Subsequence</a></td><td><span class="diff medium">Medium</span></td><td class="num">26</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/number-of-longest-increasing-subsequence">Number of Longest Increasing Subsequence</a></td><td><span class="diff medium">Medium</span></td><td class="num">20</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/maximum-length-of-pair-chain">Maximum Length of Pair Chain</a></td><td><span class="diff medium">Medium</span></td><td class="num">8</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/best-team-with-no-conflicts">Best Team With No Conflicts</a></td><td><span class="diff medium">Medium</span></td><td class="num">6</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/minimum-number-of-removals-to-make-mountain-array">Minimum Number of Removals to Make Mountain Array</a></td><td><span class="diff hard">Hard</span></td><td class="num">5</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-dynamic-programming">Dynamic Programming</a>: <a href="/dsa/dp-1d-linear/">1-D linear DP</a>, <a href="/dsa/dp-kadane/">Kadane (best ending here)</a>, <a href="/dsa/dp-grid-paths/">Grid path DP</a>, <a href="/dsa/dp-knapsack-01/">0/1 knapsack (subset sum)</a>, <a href="/dsa/dp-unbounded-coin/">Unbounded knapsack (coin change)</a>, <a href="/dsa/dp-lcs-edit/">Two-sequence DP (LCS / edit distance)</a>, <a href="/dsa/dp-pattern-matching/">Wildcard / regex matching DP</a>, <a href="/dsa/dp-palindrome-expand/">Palindromes: expand or table</a>, <a href="/dsa/dp-word-break/">Prefix segmentation DP</a>, <a href="/dsa/dp-interval/">Interval DP (last operation)</a>, <a href="/dsa/dp-state-machine-stock/">State-machine DP (stocks)</a>, <a href="/dsa/dp-bitmask/">Bitmask DP over subsets</a>, <a href="/dsa/dp-memo-dfs/">Memoised DFS (top-down)</a>, <a href="/dsa/dp-digit/">Digit DP</a>, <a href="/dsa/dp-game-minimax/">Game DP (minimax on a range)</a>, <a href="/dsa/dp-count-ways-mod/">Counting ways with modulo</a>, <a href="/dsa/dp-longest-string-chain/">DP over sorted keys (chains)</a>.</p>
   </article>
 
@@ -430,6 +446,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

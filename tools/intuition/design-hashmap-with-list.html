@@ -1,0 +1,31 @@
+<h3>Start with what you would do by hand</h3>
+<p>You run a club and keep the member list on index cards. Three things happen all day: a new member joins, a member leaves, and the committee asks you to pick a member at random for a prize. Picking at random is easy if the cards are in a numbered stack: roll a die, take that card. Removing a member is easy if you know where their card is, but if a card leaves the middle of the stack every card behind it shifts, and the numbers on the cards are now wrong. Looking up where a member's card is means reading through the stack. We want all three operations to be instant.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one is an array, the numbered stack. Random access is "pick a random index between 0 and size − 1". Insert is "append at the end". Both take constant time. Remove is the problem.</p>
+<p>Piece two is a hash map from value to its index in the array, so finding where a value lives is one lookup instead of a scan. Inserting 1, 2, 3 gives:</p>
+<div class="table-wrap"><table>
+<tr><th>after</th><th>array</th><th>map</th></tr>
+<tr><td>insert(1)</td><td>[1]</td><td>{1: 0}</td></tr>
+<tr><td>insert(2)</td><td>[1, 2]</td><td>{1: 0, 2: 1}</td></tr>
+<tr><td>insert(3)</td><td>[1, 2, 3]</td><td>{1: 0, 2: 1, 3: 2}</td></tr>
+</table></div>
+<p>Piece three is the trick that makes removal constant time. Deleting from the middle of an array shifts everything after it. But nobody cares about the order of the members, so instead of shifting, swap the doomed value with the last value, then pop the last slot. To remove 2: the map says 2 is at index 1; the last value is 3 at index 2; swap them so the array is [1, 3, 2]; update the map so 3 points at index 1; pop the tail and delete 2 from the map:</p>
+<div class="table-wrap"><table>
+<tr><th>after</th><th>array</th><th>map</th></tr>
+<tr><td>swap 2 with the tail</td><td>[1, 3, 2]</td><td>{1: 0, 2: 2, 3: 1}</td></tr>
+<tr><td>pop and forget 2</td><td>[1, 3]</td><td>{1: 0, 3: 1}</td></tr>
+</table></div>
+<p>getRandom() now picks index 0 or 1 with equal chance and returns 1 or 3.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant is that the map holds exactly the values in the array, and map[<var>v</var>] is the index where <var>v</var> currently sits. Insert appends at index size and records that index, so the invariant holds. Remove changes the position of exactly one surviving value, the former tail, and it updates that value's map entry in the same step, before popping; the removed value is dropped from both. getRandom reads an index from 0 to size − 1, every one of which holds a live member, and all are equally likely.</p>
+<p>The one subtle case is removing the last element itself: the swap is with itself and nothing moves, which the same code handles without a special branch.</p>
+
+<h3>Why it is fast</h3>
+<p>Insert is one hash insert and one append: O(1) on average. Remove is one hash lookup, one swap, one hash update, one pop and one hash delete: O(1) on average. getRandom is one random number and one array read: O(1). Against the index-card stack, whose removal shifts up to <var>n</var> cards and whose lookup reads up to <var>n</var> cards, every operation went from O(<var>n</var>) to O(1). The memory is one array slot and one map entry per member, O(<var>n</var>).</p>
+<p>Why not a hash set alone? A set gives O(1) insert and remove but no way to pick a random element without walking it, because its slots are mostly empty. Why not an array alone? Random and append are fine but remove needs a search. Each half covers the other's weakness.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "all operations in O(1)", "getRandom", "pick a random element", "remove by value", "design a data structure that supports…". Say: "an array for random access plus a hash map from value to index, and I remove by swapping with the last element so nothing shifts".</p>
+<p>Insert Delete GetRandom O(1) is the structure above exactly. The duplicates variant keeps, for each value, a set of the indices where it appears, and the swap updates the set of the value that moved. Design Underground System is the same habit of pairing hash maps so that each query is one lookup: one map for in-progress trips keyed by passenger, another for totals keyed by the station pair.</p>

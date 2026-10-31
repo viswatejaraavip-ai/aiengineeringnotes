@@ -1,0 +1,16 @@
+<h3>Start with what you would do by hand</h3>
+<p>A padlock has two wheels, each showing a digit 0 to 9, and starts at 00. One move turns one wheel up or down by one, and wheels wrap, so 0 goes down to 9. Some combinations are dead ends that jam the lock: say 10 and 01. What is the fewest moves to reach 99? By hand: 00 → 90 → 99, two moves, going "down" twice. You found it by thinking of the combinations you could reach in one move, then two.</p>
+<p>That is breadth-first search. The difference from a usual graph problem is that nobody gave you a list of nodes and edges. There are 100 combinations and 400 possible moves, and for a 4-wheel lock 10,000 combinations and 80,000 moves. Writing them all down first would waste time and memory on states you never visit.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: decide what a <strong>state</strong> is. Here, the string of digits on the wheels, such as "00". A state is a node.</p>
+<p>Piece two: a <strong>rule</strong> that produces neighbours on demand instead of a stored list: for each wheel, make two copies of the state, one with that digit +1 and one with −1, wrapping 9 and 0. From "00" the rule gives 10, 90, 01, 09. That rule is the whole edge list; it just has not been written out.</p>
+<p>Piece three: ordinary BFS with a queue and a visited set, plus a dead-end set to refuse.</p>
+<div class="table-wrap"><table><tr><th>step</th><th>took out (moves)</th><th>generated</th><th>queue after</th></tr><tr><td>1</td><td>00 (0)</td><td>10 dead, 90, 01 dead, 09</td><td>[90, 09]</td></tr><tr><td>2</td><td>90 (1)</td><td>00 seen, 80, 91, 99</td><td>[09, 80, 91, 99]</td></tr><tr><td>…</td><td colspan="3">99 was generated with 2 moves; the first time it is seen is the shortest route</td></tr></table></div>
+<h3>Why it is correct</h3>
+<p>BFS takes states out of the queue in order of the number of moves used to reach them: all 0-move states, then 1-move, then 2-move. So the first time the target is generated, no shorter route exists; a shorter route would have generated it in an earlier layer. The visited set stops the search from going round in circles, which matters because wheels wrap. The neighbour rule must produce exactly the legal moves, no more and no fewer, and that is the only place the problem's details enter.</p>
+<h3>Why it is fast</h3>
+<p>Each state is visited at most once, and each visit runs the rule once, producing a fixed number of neighbours <var>b</var>. For <var>w</var> wheels:</p>
+<p class="formula">states = 10<sup><var>w</var></sup>, work ≈ 10<sup><var>w</var></sup> · 2<var>w</var></p>
+<p>For four wheels that is about 80,000 steps. Trying move sequences without a visited set would be 8 to the power of the path length, with no bound at all.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "fewest operations to transform X into Y", "each step changes one letter / one digit / one unit", "minimum moves", with no graph given. The first thing to say: "the states form a graph I never need to store; I will BFS with a function that generates neighbours." Open the Lock is the example above. Word Ladder is the same with words as states and "change one letter to make another dictionary word" as the rule. Minimum Genetic Mutation is Word Ladder with an alphabet of four letters.</p>

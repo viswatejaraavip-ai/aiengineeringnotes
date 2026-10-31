@@ -1,0 +1,21 @@
+<h3>Start with what you would do by hand</h3>
+<p>You have a pile of plane tickets, each from one airport to another: JFK → SFO, JFK → ATL, SFO → ATL, ATL → JFK, ATL → SFO. You must use every ticket exactly once, starting at JFK, and if several orders work, choose the one that is alphabetically first. By hand you start flying: JFK, cheapest alphabetically is ATL, then from ATL to JFK, then SFO, then ATL, then SFO. Every ticket used. The trip is JFK, ATL, JFK, SFO, ATL, SFO.</p>
+<p>That worked because greed happened to never strand us. It can fail: from JFK, flying to the alphabetically earlier airport could lead to a dead end while unused tickets remain elsewhere. Then you would have to back up and try another order, and with hundreds of tickets the retrying explodes.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: for each airport, the list of destinations, sorted alphabetically: JFK: [ATL, SFO], ATL: [JFK, SFO], SFO: [ATL]. We will consume tickets from the front of each list.</p>
+<p>Piece two: a stack holding the airports of the trip so far, like a stack of visited places. Push JFK.</p>
+<p>Piece three, the rule (Hierholzer): look at the airport on top of the stack. If it still has a ticket, take the first one, push the destination. If it has none, it is a dead end; pop it and write it to the <em>end</em> of the answer. Keep going until the stack is empty, then reverse the answer.</p>
+<ol>
+<li>Stack [JFK]. JFK has ATL: push. [JFK, ATL].</li>
+<li>ATL has JFK: push. [JFK, ATL, JFK]. JFK has SFO: push. [..., SFO]. SFO has ATL: push. ATL has SFO: push. Stack [JFK, ATL, JFK, SFO, ATL, SFO].</li>
+<li>SFO has nothing: pop, answer = [SFO]. ATL has nothing: pop, answer = [SFO, ATL]. SFO: pop. JFK: pop. ATL: pop. JFK: pop. Answer = [SFO, ATL, SFO, JFK, ATL, JFK].</li>
+<li>Reverse: JFK, ATL, JFK, SFO, ATL, SFO.</li>
+</ol>
+<p>The clever part is what happens when greed strands you early: the dead end gets written first, which after reversing puts it <em>last</em>, and the stack naturally backs up to an airport with tickets left and continues from there.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: an airport is written to the answer only when it has no unused ticket. So read backwards, the answer begins at the start, and each airport written just before another was reached by a ticket from it; the detours the stack unwinds are closed loops that get spliced in. The standard theorem says an Eulerian path exists exactly when every airport has as many arrivals as departures, except possibly the start (one extra departure) and the end (one extra arrival), and the problem promises this. Taking destinations in sorted order makes the first complete trip found the alphabetically smallest, because any earlier choice would have been tried first and only abandoned if it could not use all tickets.</p>
+<h3>Why it is fast</h3>
+<p>Each ticket is consumed once, each airport is pushed once per arrival and popped once. Sorting each destination list costs the log factor:</p>
+<p class="formula">work ≈ <var>E</var> log <var>E</var>, against the factorial number of orders a retry search could try</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "use every ticket, edge or pair exactly once", "reconstruct the itinerary", "a sequence where consecutive items chain", "shortest string containing every code". The first thing to say: "this is an Eulerian path; walk greedily, record on dead ends, reverse." Reconstruct Itinerary is the example above. Cracking the Safe builds a graph whose nodes are the last <var>n</var> − 1 digits and whose edges are digits, then the same walk gives the shortest superstring.</p>

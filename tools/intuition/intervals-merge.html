@@ -1,0 +1,33 @@
+<h3>Start with what you would do by hand</h3>
+<p>Four time slots: [1,3], [2,6], [8,10], [15,18]. Some overlap. Merge the overlapping ones into single slots. By eye, [1,3] and [2,6] touch, so they become [1,6]; the others stay. Answer: [1,6], [8,10], [15,18].</p>
+<p>By hand with many slots, you would compare every pair to see if they overlap, merge, and repeat until nothing changes. For <var>n</var> slots that is <var>n</var>(<var>n</var> &minus; 1)/2 pair checks per round, and a merge can create a new overlap, so several rounds. Messy and slow.</p>
+<p>The mess comes from the slots being in random order. If they were in order of start time, an overlap could only happen between a slot and the one right before it, because everything earlier started even earlier.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p><strong>Piece 1: sort by start.</strong> [1,3], [2,6], [8,10], [15,18] happens to be sorted already.</p>
+<p><strong>Piece 2: one current slot.</strong> Keep a single slot that is still "open", meaning a later slot might extend it. Start with the first slot, [1,3].</p>
+<p><strong>Piece 3: the overlap test.</strong> Take the next slot [<var>s</var>, <var>e</var>]. If <var>s</var> &le; the current slot's end, the two overlap: extend the current end to max(current end, <var>e</var>). Otherwise the current slot is finished: put it in the output and make the new slot the current one.</p>
+<div class="table-wrap"><table>
+<tr><th>Next slot</th><th>Current end</th><th>Overlap?</th><th>Current after</th><th>Output so far</th></tr>
+<tr><td>[1,3]</td><td>none</td><td>start</td><td>[1,3]</td><td></td></tr>
+<tr><td>[2,6]</td><td>3</td><td>2 &le; 3, yes</td><td>[1,6]</td><td></td></tr>
+<tr><td>[8,10]</td><td>6</td><td>8 &gt; 6, no</td><td>[8,10]</td><td>[1,6]</td></tr>
+<tr><td>[15,18]</td><td>10</td><td>15 &gt; 10, no</td><td>[15,18]</td><td>[1,6], [8,10]</td></tr>
+<tr><td>end</td><td></td><td></td><td></td><td>[1,6], [8,10], [15,18]</td></tr>
+</table></div>
+<p>Why max(current end, <var>e</var>)? A slot like [2,4] after [1,6] overlaps but does not extend; the end must stay 6.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: the output slots are disjoint, sorted, and final; the current slot covers every input slot seen so far that is not already in the output; and the current slot's start is at least the output's last end plus a gap.</p>
+<p>Because the input is sorted by start, the next slot starts at or after the current slot's start. If it starts at or before the current end, it overlaps and merging keeps the current slot as one connected piece. If it starts after the current end, then every later slot also starts after the current end (they start even later), so nothing will ever touch the current slot again, and it is safe to output it.</p>
+<p class="formula">sorted by start and <var>s</var><sub>next</sub> &gt; end<sub>current</sub> &rArr; <var>s</var><sub>later</sub> &ge; <var>s</var><sub>next</sub> &gt; end<sub>current</sub> for every later slot</p>
+<p>That one line is the whole proof: sorting turns "could any slot overlap this one" into "does the very next slot overlap this one".</p>
+
+<h3>Why it is fast</h3>
+<p>Sorting <var>n</var> slots costs O(<var>n</var> log <var>n</var>). The sweep looks at each slot once and does a comparison and a max, so O(<var>n</var>).</p>
+<p class="formula">total = O(<var>n</var> log <var>n</var>) + O(<var>n</var>) = O(<var>n</var> log <var>n</var>)</p>
+<p>For a million slots that is about twenty million steps for the sort, versus repeated rounds of five hundred billion pair checks.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The cues are "merge", "overlapping intervals", "insert an interval", "free time between meetings", "summary ranges of consecutive numbers". Any input made of [start, end] pairs where the question is about unions or gaps. Say: "Sort by start; then only the previous interval can overlap the next one, so one sweep with a current interval does it."</p>
+<p>Merge Intervals is the example above. Insert Interval is the same sweep where one of the slots is new; you can skip the sort if you walk the already-sorted list and merge the new slot in place. Summary Ranges treats consecutive integers as touching intervals of length one.</p>

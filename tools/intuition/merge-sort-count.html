@@ -1,0 +1,31 @@
+<h3>Start with what you would do by hand</h3>
+<p>The list 1, 3, 2, 3, 1. Count the "reverse pairs": positions <var>i</var> &lt; <var>j</var> where nums[<var>i</var>] &gt; 2 &times; nums[<var>j</var>]. Checking by hand: 3 (index 1) &gt; 2 &times; 1 (index 4), and 3 (index 3) &gt; 2 &times; 1 (index 4). Two pairs.</p>
+<p>By hand you check every pair: 10 pairs for 5 numbers, <var>n</var>(<var>n</var> &minus; 1)/2 in general. For fifty thousand numbers that is over a billion checks. The problem is that the left element must be compared with every right element one at a time, because the right side is in no particular order.</p>
+<p>Now imagine the right part were sorted. For a left element 3, the right elements satisfying 3 &gt; 2<var>r</var>, that is <var>r</var> &lt; 1.5, form a prefix of the sorted right part. Counting a prefix is one scan that stops early, and if the left part is also sorted, the stopping point only moves forward as the left element grows. Sorting both halves turns pair checking into a two-pointer walk.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The structure is merge sort, with one extra counting step glued into each merge.</p>
+<p><strong>Piece 1: split.</strong> Cut the list in half: left = 1, 3 and right = 2, 3, 1. Recursively sort and count inside each half. Inside the left half there are no pairs. Inside the right half, 3 &gt; 2 &times; 1 gives one pair, and it becomes sorted: 1, 2, 3. The left half sorts to 1, 3.</p>
+<p><strong>Piece 2: count across the halves.</strong> Both halves are sorted. Walk a pointer <var>r</var> through the right half for each left element, advancing while nums[<var>left</var>] &gt; 2 &times; nums[<var>r</var>]; the number of right elements passed is this left element's count. Because left elements come in increasing order, <var>r</var> never moves backwards.</p>
+<div class="table-wrap"><table>
+<tr><th>Left element</th><th>Right elements with 2<var>r</var> &lt; left</th><th>Pairs added</th></tr>
+<tr><td>1</td><td>none (2 &times; 1 = 2 &ge; 1)</td><td>0</td></tr>
+<tr><td>3</td><td>1 (2 &times; 1 = 2 &lt; 3); stops at 2 (2 &times; 2 = 4)</td><td>1</td></tr>
+</table></div>
+<p><strong>Piece 3: merge.</strong> Now merge the two sorted halves in the usual way: take the smaller front element each time: 1, 1, 2, 3, 3. The merged list is sorted and ready for the level above.</p>
+<p>Total: 1 (inside the right half) + 1 (across) = 2 pairs.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: when a call returns, its range is sorted and the pairs entirely inside that range have been counted.</p>
+<p>Every pair (<var>i</var>, <var>j</var>) lives in exactly one place: both in the left half, both in the right half, or one in each. The first two are counted by the recursive calls (by the invariant). For the cross pairs, sorting within a half does not change which values are in it, and a cross pair is just a left value and a right value, so counting over the sorted halves counts exactly the cross pairs. The two-pointer walk is exact because for a fixed left value the qualifying right values are a prefix of the sorted right half, and that prefix grows as the left value grows.</p>
+<p class="formula">count(range) = count(left) + count(right) + #{(<var>l</var>, <var>r</var>) : <var>l</var> in left, <var>r</var> in right, <var>l</var> &gt; 2<var>r</var>}</p>
+<p>Counting must happen before the merge, because the merge mixes the halves and the information about which side a value came from is lost.</p>
+
+<h3>Why it is fast</h3>
+<p>At each level of the recursion, the counting walk and the merge each pass over the <var>n</var> elements once. Halving the range each time gives log<sub>2</sub> <var>n</var> levels.</p>
+<p class="formula">time = O(<var>n</var>) per level &times; log<sub>2</sub> <var>n</var> levels = O(<var>n</var> log <var>n</var>)</p>
+<p>For fifty thousand numbers that is about 800 000 steps instead of a billion.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The cues are "count pairs with <var>i</var> &lt; <var>j</var> and some inequality", "count inversions", "how many smaller elements after each element", "count of range sums". Whenever the count is over ordered pairs and the inequality involves comparing values, think of sorting halves and counting across. Say: "I run merge sort and count cross pairs between the two sorted halves with a two-pointer walk before merging."</p>
+<p>Reverse Pairs is the example above. Count of Smaller Numbers After Self needs a count per element, so the merge carries original indices along and credits each left element with the number of right elements that jumped ahead of it. Count of Range Sum applies the same counting to the sorted prefix-sum array.</p>

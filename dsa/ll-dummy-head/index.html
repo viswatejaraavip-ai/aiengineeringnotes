@@ -394,24 +394,58 @@
       <p>dummy.next is always the true head of the result.</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>The chain 1 &rarr; 2 &rarr; 3 &rarr; 4 &rarr; 5. Remove the 2nd box from the end, which is box 4. To cut a box out of a chain you need the box <em>before</em> it, so you can point its arrow past the one being removed: 3 &rarr; 5.</p>
+<p>By hand you would count the chain (5 boxes), work out that the 2nd from the end is the 4th from the front, walk to the 3rd box, and splice. Two walks. Fine. Now try removing the 5th from the end: that is box 1, the head, and there is no box before it. You need a special rule: "if the box to remove is the head, just move the head". Every linked-list routine that deletes, inserts or merges grows a thicket of these "but what if it is the first box" cases, and each one is a chance for a bug.</p>
+<p>The fix is a trick from carpentry: add a scrap piece in front of the real thing so the real first piece is no longer first.</p>
 
+<h3>Build the structure, one piece at a time</h3>
+<p><strong>Piece 1: a dummy box.</strong> Create a box with no meaningful value and point it at the head: dummy &rarr; 1 &rarr; 2 &rarr; 3 &rarr; 4 &rarr; 5. Now every real box, including the old head, has a box before it.</p>
+<p><strong>Piece 2: two pointers a fixed distance apart.</strong> To find the box before the <var>n</var>-th from the end in one walk, start fast and slow both at the dummy. Move fast <var>n</var> + 1 = 3 steps ahead. Then move both one step at a time until fast runs off the end (null). The gap between them never changes, so when fast is one past the last box, slow is <var>n</var> + 1 boxes before that, which is the box just before the target.</p>
+<div class="table-wrap"><table>
+<tr><th>Step</th><th>slow</th><th>fast</th></tr>
+<tr><td>start</td><td>dummy</td><td>dummy</td></tr>
+<tr><td>fast ahead 3</td><td>dummy</td><td>3</td></tr>
+<tr><td>both +1</td><td>1</td><td>4</td></tr>
+<tr><td>both +1</td><td>2</td><td>5</td></tr>
+<tr><td>both +1</td><td>3</td><td>null</td></tr>
+</table></div>
+<p>slow is box 3, the box before box 4, which is the 2nd from the end.</p>
+<p><strong>Piece 3: splice.</strong> slow.next = slow.next.next, giving 1 &rarr; 2 &rarr; 3 &rarr; 5.</p>
+<p><strong>Piece 4: return dummy.next.</strong> That is the real head, whatever happened to the old one. If the target had been box 1, slow would have stopped at the dummy and the splice would have made dummy.next = 2, with no special case.</p>
 
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+<h3>Why it is correct</h3>
+<p>The invariant: dummy.next is always the true head of the list being built or edited, and slow is always exactly <var>n</var> + 1 boxes behind fast.</p>
+<p>The gap is set once and both pointers move together, so it never changes. When fast runs off the end (null), it is <var>n</var> + 1 past the last box, so slow is at position (last &minus; <var>n</var>), the box just before the <var>n</var>-th from the end. Splicing there removes exactly the target. Because slow started at the dummy, the smallest position slow can reach is the dummy itself, which handles removing the head with the same line of code.</p>
+<p class="formula">position(slow) = position(fast) &minus; (<var>n</var> + 1); fast = null means slow = last &minus; <var>n</var></p>
+<p>The same dummy serves any routine that builds a result chain: start with dummy, append boxes to a tail pointer, and return dummy.next. The "first box" case disappears because the dummy is always the first box.</p>
+
+<h3>Why it is fast</h3>
+<p>One walk over the chain: fast visits each box once.</p>
+<p class="formula">time = O(<var>n</var>), extra memory = one dummy box + two pointers = O(1)</p>
+<p>The counting method needs two walks; the dummy plus the fixed gap does it in one, and more importantly in one piece of code with no branches for the head.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Reach for a dummy whenever a linked-list operation might change the head: "remove", "delete duplicates", "partition the list", "merge two lists", "add two numbers as lists". Say: "I put a dummy before the head so the head is not a special case, and return dummy.next at the end."</p>
+<p>Remove Nth Node From End of List is the example above. Merge Two Sorted Lists appends to a tail that starts at the dummy, so the first appended box needs no special handling. Remove Linked List Elements walks with a prev pointer that starts at the dummy, so deleting a run of matching boxes at the front is the same loop as anywhere else.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>A sentinel before head removes every &#x27;is it the first node?&#x27; special case.</p>
     <p><strong>Reach for it when:</strong> Remove elements, delete duplicates, partition list, merge lists.</p>
     <p><strong>Cost:</strong> O(n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Remove Nth From End (n=2) on 1→2→3→4→5</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>A <em>dummy</em> before head: deleting the first node is no longer a special case</li><li>Two pointers start at the dummy; move fast <em>n + 1 = 3</em> steps ahead</li><li>fast → node 1 (step 1 of 3)</li><li>fast → node 2 (step 2 of 3)</li><li>fast → node 3 (step 3 of 3)</li><li>Advance both: slow → 1, fast → 4</li><li>Advance both: slow → 2, fast → 5</li><li>fast is at the tail, so slow is <em>just before</em> the node to remove</li><li>Splice: slow.next = slow.next.next, dropping <em>3</em></li><li>Return dummy.next: <em>1→2→3→5</em></li><li>One pass, no head special-case: <em>O(n)</em> time</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>9 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/add-two-numbers">Add Two Numbers</a></td><td><span class="diff medium">Medium</span></td><td class="num">79</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/merge-two-sorted-lists">Merge Two Sorted Lists</a></td><td><span class="diff easy">Easy</span></td><td class="num">62</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/remove-nth-node-from-end-of-list">Remove Nth Node From End of List</a></td><td><span class="diff medium">Medium</span></td><td class="num">50</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/odd-even-linked-list">Odd Even Linked List</a></td><td><span class="diff medium">Medium</span></td><td class="num">40</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/remove-linked-list-elements">Remove Linked List Elements</a></td><td><span class="diff easy">Easy</span></td><td class="num">32</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/partition-list">Partition List</a></td><td><span class="diff medium">Medium</span></td><td class="num">32</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/remove-duplicates-from-sorted-list-ii">Remove Duplicates from Sorted List II</a></td><td><span class="diff medium">Medium</span></td><td class="num">31</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/delete-the-middle-node-of-a-linked-list">Delete the Middle Node of a Linked List</a></td><td><span class="diff medium">Medium</span></td><td class="num">26</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/insert-into-a-sorted-circular-linked-list">Insert into a Sorted Circular Linked List</a></td><td><span class="diff medium">Medium</span></td><td class="num">21</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-linked-list">Linked List</a>: <a href="/dsa/ll-fast-slow/">Fast and slow pointers</a>, <a href="/dsa/ll-reverse/">In-place reversal</a>, <a href="/dsa/ll-carry-arith/">Digit-by-digit with carry</a>, <a href="/dsa/ll-random-pointer-copy/">Clone with a map or interleaving</a>.</p>
   </article>
 
@@ -430,6 +464,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

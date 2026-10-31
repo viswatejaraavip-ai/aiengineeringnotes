@@ -1,0 +1,28 @@
+<h3>Start with what you would do by hand</h3>
+<p>Four children have greed levels 1, 2, 3 and 7: a child is content only with a cookie at least that big. The cookies have sizes 1, 1, 3 and 4. Each child gets at most one cookie. How many children can be made content? By hand you would start matching: give a 1-cookie to the child who needs 1, the 3-cookie to the child who needs 2, the 4-cookie to the child who needs 3, and nobody can satisfy the child who needs 7. Three content children. You can also feel why giving the 4-cookie to the child who needs 1 would be a mistake: it wastes the biggest cookie on the easiest child.</p>
+<p>Trying every way to hand out the cookies is a lot of ways; with <var>n</var> children and <var>m</var> cookies it grows like a factorial. The hand method found the answer by one principle: never spend a big cookie where a small one would do.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: sort both lists. Children by greed: 1, 2, 3, 7. Cookies by size: 1, 1, 3, 4. Sorting is what turns the loose principle into a procedure.</p>
+<p>Piece two: two pointers, one at the smallest child and one at the smallest cookie. Compare the pair at the pointers. If the cookie is big enough, assign it, and advance both. If it is too small, it is too small for every remaining child as well, because the children only get greedier from here; discard it and advance only the cookie pointer:</p>
+<div class="table-wrap"><table>
+<tr><th>child (greed)</th><th>cookie (size)</th><th>decision</th><th>content so far</th></tr>
+<tr><td>1</td><td>1</td><td>fits, assign, both advance</td><td>1</td></tr>
+<tr><td>2</td><td>1</td><td>too small for anyone left, skip cookie</td><td>1</td></tr>
+<tr><td>2</td><td>3</td><td>fits, assign</td><td>2</td></tr>
+<tr><td>3</td><td>4</td><td>fits, assign</td><td>3</td></tr>
+<tr><td>7</td><td>none</td><td>out of cookies, stop</td><td>3</td></tr>
+</table></div>
+<p>The same two sorted lists and two pointers solve the mirror problems: pairing players with trainers of at least their strength, or loading boats where the lightest and heaviest person are paired from the two ends of one sorted list.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant is that after each step, the assignments made so far are part of some best possible assignment of the whole input. The argument is an exchange. Consider the smallest child <var>c</var> and the smallest cookie <var>s</var> that fits <var>c</var>. In any best assignment, either <var>c</var> gets no cookie, or <var>c</var> gets some cookie <var>s</var>′ ≥ <var>s</var>, or <var>s</var> goes to some other child <var>c</var>′ ≥ <var>c</var>. In each case we can rearrange without losing a content child: give <var>s</var> to <var>c</var>, and give <var>s</var>′ (which is at least <var>s</var>) to <var>c</var>′ (whom <var>s</var> satisfied, so <var>s</var>′ does too). So there is a best assignment that makes the greedy choice, and the invariant survives. A cookie that does not fit the smallest remaining child fits no remaining child, so discarding it loses nothing. Since every step keeps us inside some optimal assignment, the final count is optimal.</p>
+
+<h3>Why it is fast</h3>
+<p>Sorting the two lists costs O(<var>n</var> log <var>n</var> + <var>m</var> log <var>m</var>). After that, each step advances at least one pointer and neither pointer ever moves backwards, so there are at most <var>n</var> + <var>m</var> steps:</p>
+<p class="formula">time = O(<var>n</var> log <var>n</var> + <var>m</var> log <var>m</var>), extra memory O(1)</p>
+<p>Against trying all assignments, which is exponential, the whole cost is the sort. If the sizes are small integers, a counting sort makes even that linear.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: two lists to be paired up, "each ... at most once", "at least as big as", "maximise the number of pairs", "minimum number of boats or rooms". Say: "sort both sides and walk them with two pointers, matching the least demanding item with the smallest supply that fits; an exchange argument shows the greedy choice is never worse".</p>
+<p>Assign Cookies is the walk-through. Maximum Matching of Players With Trainers is the same code with players as children and trainers as cookies. Boats to Save People sorts one list and uses a pointer at each end: the heaviest person boards, and the lightest joins if the limit allows, which is the same exchange argument applied to pairs.</p>

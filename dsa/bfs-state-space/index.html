@@ -394,24 +394,44 @@
       <p>Visited is keyed by the full state, not just position.</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>A 3 by 3 grid where some cells are walls (#). You walk from the top left to the bottom right, one step at a time, and you are allowed to break through at most <var>k</var> = 1 wall. What is the fewest steps? Grid: row 0 is . . ., row 1 is # # ., row 2 is . # . with a wall at (1,0), (1,1), (2,1). By hand you try routes: around the right side, (0,0) → (0,1) → (0,2) → (1,2) → (2,2), four steps, no wall broken. Or straight down through (1,0): (0,0) → (1,0) break → (2,0) → then (2,1) is another wall, no break left. Dead end. So four.</p>
+<p>Plain breadth-first search on cells fails here, and it is worth seeing why. BFS marks a cell visited the first time it is reached. Suppose you reach (1,2) first by breaking a wall, with zero breaks left. Later a route reaches (1,2) with one break still in hand, which is a better situation, but the cell is already marked, so that route is thrown away. The cell alone is not enough to describe where you are; what you still have matters.</p>
 
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: the state. Instead of a cell, a node is a pair (cell, breaks left). Two visits to the same cell with different breaks left are different nodes. For keys-and-doors problems the extra part is the set of keys held; for a car that can only turn in some orientations it is the orientation; for a rotating domino it is horizontal or vertical.</p>
+<p>Piece two: moves between states. From (cell, <var>b</var>), a step to an open neighbour gives (neighbour, <var>b</var>); a step onto a wall is allowed only if <var>b</var> &gt; 0 and gives (neighbour, <var>b</var> − 1).</p>
+<p>Piece three: ordinary BFS over these states, with a visited set keyed by the whole pair. The answer is the steps at the first state whose cell is the target, with any number of breaks left.</p>
+<div class="table-wrap"><table><tr><th>Popped (cell, breaks), steps</th><th>Pushed</th></tr><tr><td>((0,0), 1), 0</td><td>((0,1), 1) at 1; ((1,0), 0) at 1 (wall broken)</td></tr><tr><td>((0,1), 1), 1</td><td>((0,2), 1) at 2; ((1,1), 0) at 2</td></tr><tr><td>((1,0), 0), 1</td><td>((2,0), 0) at 2</td></tr><tr><td>((0,2), 1), 2</td><td>((1,2), 1) at 3</td></tr><tr><td>((1,1), 0), 2</td><td>((1,2), 0) at 3, a different state from ((1,2), 1)</td></tr><tr><td>((2,0), 0), 2</td><td>nothing: (2,1) is a wall, no breaks</td></tr><tr><td>((1,2), 1), 3</td><td>((2,2), 1) at 4: target reached</td></tr></table></div>
 
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+<h3>Why it is correct</h3>
+<p>BFS finds shortest paths in any graph whose edges all cost one step. The graph here has states as nodes, and each move is one step, so BFS over states gives the fewest steps to every state. The target is "any state at the goal cell", so the first such state popped is the answer. The visited set keyed by (cell, breaks) never discards a route that is in a different situation, which is what fixed the failure of cell-only BFS.</p>
+<p class="formula">number of states = <var>m</var> × <var>n</var> × (<var>k</var> + 1)</p>
+<p>A small pruning keeps it exact and faster: if <var>k</var> is at least the Manhattan distance, the straight route breaking every wall in the way is optimal, so return that distance at once.</p>
+
+<h3>Why it is fast</h3>
+<p>Each state is pushed and popped at most once, with four moves examined: O(<var>m</var> × <var>n</var> × <var>k</var>). The cost is multiplied by the size of the extra part of the state, so keep that part as small as the problem allows; a set of <var>K</var> keys is a <var>K</var>-bit mask, giving 2<sup><var>K</var></sup> states per cell. Trying all routes by hand is exponential in the path length.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>A shortest-path question where the rules depend on something you carry or on how you arrived: "eliminate up to k obstacles", "collect all keys", "visit every node", "the car can be facing two ways", "a tile that rotates". Say: "The position alone does not determine the future, so my BFS node is (position, extra state) and visited is keyed by the whole pair." Shortest Path in a Grid with Obstacles Elimination is this exactly. Shortest Path to Get All Keys uses (cell, key bitmask). Shortest Path Visiting All Nodes uses (node, bitmask of visited nodes), with every node as a starting source.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>The node is (position, extra state): keys held, obstacles left, parity.</p>
     <p><strong>Reach for it when:</strong> Shortest path with obstacle elimination, all keys, visiting all nodes, sliding puzzle.</p>
     <p><strong>Cost:</strong> O(states · edges) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Obstacle elimination (k=1) on a 3×3 grid</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>The visited set is keyed by <em>(cell, k left)</em>, not the cell alone</li><li>Pop (0,0,1): stepping onto # spends k → <em>(0,1,0)</em></li><li>Pop (0,1,0) at 1: push (0,2,0), (0,0,0)</li><li>Pop (1,0,1): stepping onto # spends k → <em>(1,1,0)</em></li><li>Pop (0,2,0) at 2: push (1,2,0)</li><li>Pop (0,0,0) at 2: push (1,0,0)</li><li>Pop (1,1,0) at 2: push (2,1,0)</li><li>Pop (2,0,1) at 2: push (2,1,1)</li><li>Pop (1,2,0) at 3: push (2,2,0)</li><li>(2,2) reached in <em>4</em> steps by breaking through the wall</li><li>States = cells × (k+1): <em>O(m·n·k)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>7 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/shortest-path-in-a-grid-with-obstacles-elimination">Shortest Path in a Grid with Obstacles Elimination</a></td><td><span class="diff hard">Hard</span></td><td class="num">34</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/race-car">Race Car</a></td><td><span class="diff hard">Hard</span></td><td class="num">33</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/shortest-path-visiting-all-nodes">Shortest Path Visiting All Nodes</a></td><td><span class="diff hard">Hard</span></td><td class="num">29</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/shortest-path-to-get-all-keys">Shortest Path to Get All Keys</a></td><td><span class="diff hard">Hard</span></td><td class="num">21</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/water-and-jug-problem">Water and Jug Problem</a></td><td><span class="diff medium">Medium</span></td><td class="num">20</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/sliding-puzzle">Sliding Puzzle</a></td><td><span class="diff hard">Hard</span></td><td class="num">8</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/jump-game-iii">Jump Game III</a></td><td><span class="diff medium">Medium</span></td><td class="num">6</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-graphs">Graphs</a>: <a href="/dsa/grid-dfs-islands/">Grid flood fill (components)</a>, <a href="/dsa/bfs-multi-source/">Multi-source BFS</a>, <a href="/dsa/bfs-shortest-unweighted/">BFS shortest path (unweighted)</a>, <a href="/dsa/bfs-0-1/">0-1 BFS (deque)</a>, <a href="/dsa/dfs-cycle-coloring/">DFS three-colour cycle detection</a>, <a href="/dsa/topo-kahn/">Topological sort (Kahn&#x27;s)</a>, <a href="/dsa/union-find/">Union–Find (disjoint sets)</a>, <a href="/dsa/dijkstra/">Dijkstra (weighted shortest path)</a>, <a href="/dsa/bellman-ford-k-stops/">Bellman–Ford with k rounds</a>, <a href="/dsa/mst-kruskal-prim/">Minimum spanning tree</a>, <a href="/dsa/graph-bipartite/">Bipartite colouring</a>, <a href="/dsa/eulerian-path/">Eulerian path (Hierholzer)</a>, <a href="/dsa/tarjan-bridges/">Bridges / articulation (low-link)</a>, <a href="/dsa/graph-clone-traverse/">Clone / traverse with a visited map</a>, <a href="/dsa/implicit-graph-search/">Implicit graph (states as nodes)</a>.</p>
   </article>
 
@@ -430,6 +450,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

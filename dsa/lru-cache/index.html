@@ -394,24 +394,59 @@
       <p>List order is recency: head most recent, tail least recent.</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>A cache is a small shelf for things you fetched recently, so the next fetch is instant. The shelf has room for 2 items. When it is full and something new arrives, throw out the item that was used longest ago: the Least Recently Used one. Watch it: put(1), put(2), get(1), put(3). Before put(3) the shelf holds 1 and 2, and 1 was used more recently (the get), so 2 is thrown out. Now get(2) fails.</p>
+<p>By hand you might keep the items in a row ordered by last use and, on every get, find the item, pull it out and move it to the front; on every put when full, drop the last one. Finding the item in a row is a scan: O(<var>n</var>) for a shelf of <var>n</var>. Moving it to the front in an array shifts everything: also O(<var>n</var>). A cache that does O(<var>n</var>) work per lookup defeats its own purpose when <var>n</var> is thousands.</p>
+<p>We need two things fast: find any item by its key, and move any item to the front. No single simple structure does both; two together do.</p>
 
+<h3>Build the structure, one piece at a time</h3>
+<p><strong>Piece 1: a doubly linked list for order.</strong> A chain of boxes where each box has an arrow to the next and to the previous. The front is the most recently used, the back is the least. In a doubly linked chain, a box can be unhooked from wherever it is in constant time (point its neighbours at each other) and hooked in at the front in constant time. With dummy boxes at both ends, no edge cases.</p>
+<p><strong>Piece 2: a hash map for lookup.</strong> map[key] = the box holding that key. Finding a box is one lookup.</p>
+<p><strong>Piece 3: the operations.</strong> get(key): if the key is not in the map, return &minus;1; otherwise unhook its box and hook it at the front, return its value. put(key, value): if the key exists, update the value and move the box to the front; else create a box at the front and add it to the map; if the shelf is now over capacity, unhook the back box and delete its key from the map.</p>
+<div class="table-wrap"><table>
+<tr><th>Operation</th><th>List, front &rarr; back</th><th>Map keys</th><th>Result</th></tr>
+<tr><td>put(1,1)</td><td>1</td><td>1</td><td></td></tr>
+<tr><td>put(2,2)</td><td>2, 1</td><td>1, 2</td><td></td></tr>
+<tr><td>get(1)</td><td>1, 2</td><td>1, 2</td><td>1</td></tr>
+<tr><td>put(3,3)</td><td>3, 1 (2 evicted from the back)</td><td>1, 3</td><td></td></tr>
+<tr><td>get(2)</td><td>3, 1</td><td>1, 3</td><td>&minus;1</td></tr>
+<tr><td>put(4,4)</td><td>4, 3 (1 evicted)</td><td>3, 4</td><td></td></tr>
+<tr><td>get(1)</td><td>4, 3</td><td>3, 4</td><td>&minus;1</td></tr>
+<tr><td>get(3)</td><td>3, 4</td><td>3, 4</td><td>3</td></tr>
+</table></div>
 
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+<h3>Why it is correct</h3>
+<p>The invariant: the map and the list contain exactly the same set of keys; the list is ordered by last use, front most recent; the list has at most capacity boxes.</p>
+<p>Every use (get or put of an existing key) moves that box to the front, so after any operation the touched key is the most recent and the relative order of the others is unchanged; by induction the list is in order of last use. Every insertion adds to both map and list, every eviction removes from both, so the two agree. Eviction happens exactly when the size would exceed capacity and removes the back box, which by the ordering is the least recently used. So the cache keeps precisely the capacity most recently used keys.</p>
+<p class="formula">keys(map) = keys(list), |list| &le; capacity, and list is sorted by time of last use</p>
+<p>The doubly linked list is essential: a singly linked box cannot be unhooked in constant time because its previous box is unknown.</p>
+
+<h3>Why it is fast</h3>
+<p>A get is one map lookup plus one unhook and one hook: a constant number of pointer changes. A put is at most one lookup, one creation, one hook, one unhook and two map updates.</p>
+<p class="formula">get = O(1), put = O(1), memory = O(capacity)</p>
+<p>Compared with scanning and shifting a row, which is O(<var>n</var>) per operation, this is the difference between a cache that helps and one that hurts.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The cues are "LRU", "least recently used", "O(1) get and put", "move to front", "most recently used queue", or any design where items must be found by key and also kept in an order that changes on access. Say: "A hash map for O(1) lookup and a doubly linked list for O(1) reordering; each map entry points at its list box, and the back of the list is evicted."</p>
+<p>LRU Cache is the example above. LFU Cache keeps one such list per frequency count and a map from frequency to list, evicting from the lowest non-empty frequency. Design Browser History is the list alone, with a current pointer that moves back and forward.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>A map for O(1) lookup, a list for O(1) recency moves; evict from the tail.</p>
     <p><strong>Reach for it when:</strong> LRU/LFU caches, &#x27;move to front&#x27;, most recently used queues.</p>
     <p><strong>Cost:</strong> O(1) per op.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>LRU capacity 2: put 1, put 2, get 1, put 3, get 2</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>A map finds a node in O(1); the list keeps <em>recency order</em> in O(1)</li><li>put(1,1): insert at the <em>front</em>, map[1] = node</li><li>put(2,2): insert at the <em>front</em>, map[2] = node</li><li>get(1) = <em>1</em>: found via the map, move it to the front</li><li>put(3,3): full, <em>evict the tail</em> key 2</li><li>put(3,3): insert at the <em>front</em>, map[3] = node</li><li>get(2) = <em>−1</em>: not in the map</li><li>put(4,4): full, <em>evict the tail</em> key 1</li><li>put(4,4): insert at the <em>front</em>, map[4] = node</li><li>get(1) = <em>−1</em>: not in the map</li><li>get(3) = <em>3</em>: found via the map, move it to the front</li><li>Every op touches one node and one map entry: <em>O(1)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>6 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/lru-cache">LRU Cache</a></td><td><span class="diff medium">Medium</span></td><td class="num">57</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/lfu-cache">LFU Cache</a></td><td><span class="diff hard">Hard</span></td><td class="num">36</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/design-a-text-editor">Design a Text Editor</a></td><td><span class="diff hard">Hard</span></td><td class="num">26</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/all-oone-data-structure">All O`one Data Structure</a></td><td><span class="diff hard">Hard</span></td><td class="num">18</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/design-browser-history">Design Browser History</a></td><td><span class="diff medium">Medium</span></td><td class="num">17</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/design-most-recently-used-queue">Design Most Recently Used Queue</a></td><td><span class="diff medium">Medium</span></td><td class="num">17</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-design">Design</a>: <a href="/dsa/design-hashmap-with-list/">Hash map + array for O(1) random</a>, <a href="/dsa/design-time-versioned/">Time-versioned map</a>, <a href="/dsa/design-iterator/">Lazy iterators</a>, <a href="/dsa/design-range-module/">Ordered intervals (range module)</a>, <a href="/dsa/reservoir-stream-design/">Streaming data structures</a>.</p>
   </article>
 
@@ -430,6 +465,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

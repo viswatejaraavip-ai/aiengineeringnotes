@@ -1,0 +1,25 @@
+<h3>Start with what you would do by hand</h3>
+<p>Four villages A, B, C, D need to be joined by roads so that you can drive from any village to any other, possibly through other villages. The possible roads and their costs: B–D 3, A–B 4, A–D 7, B–C 9, A–C 12, C–D 14. You want the cheapest set of roads that connects everyone.</p>
+<p>By hand you would pick the cheapest road first, then the next cheapest that is still useful, and skip a road that only joins villages already connected. That instinct is right, but "already connected" is the hard part: with 4 villages you can see it; with 10,000 points and millions of candidate roads you need a fast way to answer "are these two already joined?"</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a sorted list of roads, cheapest first: B–D 3, A–B 4, A–D 7, B–C 9, A–C 12, C–D 14. Sorting is the only expensive step.</p>
+<p>Piece two: a way to track which villages are already joined. Use a union–find structure (its own pattern page explains it): each village starts as its own group, find tells you a village's group, union merges two groups. Start: {A} {B} {C} {D}.</p>
+<p>Piece three, the one rule (Kruskal): go down the sorted list; take a road if its two ends are in different groups, and union them; skip it if they are already in the same group, because that road would only form a loop.</p>
+<ol>
+<li>B–D 3: different groups, take it. Groups {A} {B,D} {C}. Cost 3.</li>
+<li>A–B 4: different groups, take it. Groups {A,B,D} {C}. Cost 7.</li>
+<li>A–D 7: A and D are already together, skip.</li>
+<li>B–C 9: different groups, take it. Groups {A,B,C,D}. Cost 16.</li>
+</ol>
+<p>Three roads join four villages, and a tree on <var>n</var> nodes always has exactly <var>n</var> − 1 edges, so we can stop. Total 16.</p>
+<p>Prim's method reaches the same tree from the other direction: start at one village, keep a min-heap of roads leaving the villages you have so far, and always add the cheapest road that reaches a new village.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: the roads chosen so far all belong to some cheapest possible connecting tree. The key fact is the <strong>cut property</strong>: split the villages into any two non-empty sides; the cheapest road crossing between the sides is safe to take. Suppose a cheapest tree did not use that road <var>e</var>. Adding <var>e</var> to that tree makes a loop, and the loop must cross between the two sides somewhere else on a road <var>f</var>. Then</p>
+<p class="formula">cost(<var>e</var>) ≤ cost(<var>f</var>), so swapping <var>f</var> for <var>e</var> gives a tree that is no more expensive</p>
+<p>Kruskal's next taken road is exactly the cheapest road crossing between "its group" and "everything else", so each step stays inside some cheapest tree.</p>
+<h3>Why it is fast</h3>
+<p>Sorting <var>E</var> roads costs <var>E</var> log <var>E</var>. The scan then does one or two union–find operations per road, each nearly constant:</p>
+<p class="formula">work ≈ <var>E</var> log <var>E</var> + <var>E</var> · α(<var>n</var>) ≈ <var>E</var> log <var>E</var></p>
+<p>Prim with a binary heap is also <var>E</var> log <var>V</var>. For 10,000 points with all pairs as candidate roads, <var>E</var> is about 50 million, so sorting dominates and Prim with an array scan, <var>V</var><sup>2</sup> = 100 million, is competitive.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "connect all points with minimum total cost", "cheapest network", "every node reachable", costs on edges and no requirement about path lengths. The first thing to say: "this is a minimum spanning tree; sort the edges and union–find, or Prim from one node." Min Cost to Connect All Points is the example above with Manhattan distances as costs. Optimize Water Distribution in a Village adds a virtual node for "dig a well here", turning well costs into edges so the same routine applies.</p>

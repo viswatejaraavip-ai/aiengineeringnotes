@@ -1,0 +1,30 @@
+<h3>Start with what you would do by hand</h3>
+<p>Compute 2<sup>10</sup>. By hand you multiply by 2, ten times: 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024. That is 9 multiplications and it works fine. Now compute 3<sup>1,000,000,000</sup> modulo some number, which is what a programming problem will ask. A billion multiplications is a billion steps, far too slow. The exponent itself is the problem, so the exponent is what we must shrink.</p>
+<p>Here is the one observation that does it. Multiplying by 2 ten times is the same as multiplying by 4 five times, and multiplying by 4 five times is 4 · (16)<sup>2</sup>. Each time you square the base you can halve the exponent:</p>
+<p class="formula"><var>x</var><sup>2<var>k</var></sup> = (<var>x</var><sup>2</sup>)<sup><var>k</var></sup>, and <var>x</var><sup>2<var>k</var>+1</sup> = <var>x</var> · (<var>x</var><sup>2</sup>)<sup><var>k</var></sup></p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>There is no data structure here beyond three variables, and the "structure" is the binary spelling of the exponent. Write 10 in binary: 1010, which means 8 + 2. So 2<sup>10</sup> = 2<sup>8</sup> · 2<sup>2</sup>. The powers 2<sup>1</sup>, 2<sup>2</sup>, 2<sup>4</sup>, 2<sup>8</sup> are each the square of the one before, so we can produce them one squaring at a time and multiply in the ones whose bit is set.</p>
+<p>Keep three things: <code>result</code> (starts at 1), <code>base</code> (starts at 2) and <code>exp</code> (starts at 10). Each round looks at the lowest bit of <code>exp</code>, squares <code>base</code>, and shifts <code>exp</code> right by one bit:</p>
+<div class="table-wrap"><table>
+<tr><th>exp (binary)</th><th>lowest bit</th><th>result</th><th>base before squaring</th><th>base after</th></tr>
+<tr><td>10 (1010)</td><td>0</td><td>1</td><td>2</td><td>4</td></tr>
+<tr><td>5 (101)</td><td>1</td><td>1 · 4 = 4</td><td>4</td><td>16</td></tr>
+<tr><td>2 (10)</td><td>0</td><td>4</td><td>16</td><td>256</td></tr>
+<tr><td>1 (1)</td><td>1</td><td>4 · 256 = 1024</td><td>256</td><td>65536</td></tr>
+<tr><td>0</td><td>stop</td><td>1024</td><td></td><td></td></tr>
+</table></div>
+<p>Four rounds instead of nine multiplications, and the gap widens enormously for big exponents. If the problem asks for the answer modulo <var>m</var>, take the remainder after every multiplication; the numbers then never grow beyond <var>m</var><sup>2</sup>.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant is that at the start of every round</p>
+<p class="formula">result · base<sup>exp</sup> = <var>x</var><sup><var>n</var></sup></p>
+<p>At the beginning it is 1 · 2<sup>10</sup>, true. Suppose it holds and <code>exp</code> is even, say 2<var>k</var>. Squaring the base and halving the exponent gives result · (base<sup>2</sup>)<sup><var>k</var></sup>, which equals result · base<sup>2<var>k</var></sup>, the same value. If <code>exp</code> is odd, 2<var>k</var> + 1, we first move one factor of base into result, leaving result · base · base<sup>2<var>k</var></sup>, and then square and halve as before. So the product never changes. When <code>exp</code> reaches 0 the product is result · 1, so result is the answer.</p>
+
+<h3>Why it is fast</h3>
+<p>Each round removes one bit from <code>exp</code>, so the number of rounds is the number of bits in <var>n</var>, which is ⌊log<sub>2</sub> <var>n</var>⌋ + 1. Each round does at most two multiplications (one square, possibly one multiply into result). For <var>n</var> = 10<sup>9</sup> that is 30 rounds and at most 60 multiplications, against a billion the slow way. That is O(log <var>n</var>).</p>
+<p>The same loop works for anything that can be multiplied associatively: numbers modulo <var>m</var>, and matrices. Raising a 2×2 matrix to a power this way computes Fibonacci numbers in logarithmic time, the subject of the matrix exponentiation pattern.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Look for an exponent that is huge (10<sup>9</sup> or more), a "modulo 10<sup>9</sup> + 7" in the statement, or a count that multiplies the same factor many times. Say: "the exponent is too big to loop over, so I will square the base and halve the exponent, which is logarithmic in <var>n</var>".</p>
+<p>Pow(x, n) is the pattern itself, with the extra care of a negative <var>n</var> (invert the base) and the most negative integer. Count Good Numbers reduces to 5<sup>⌈<var>n</var>/2⌉</sup> · 4<sup>⌊<var>n</var>/2⌋</sup> modulo 10<sup>9</sup> + 7, two fast powers and one multiplication.</p>

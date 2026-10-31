@@ -1,0 +1,29 @@
+<h3>Start with what you would do by hand</h3>
+<p>Given 1, 2, 3, −2, 2 and the target <var>k</var> = 3, count how many contiguous stretches of the list add up to 3. By hand you try every start and every end: 1+2 = 3 yes; 3 alone yes; 3 + (−2) + 2 = 3 yes; 1+2+3−2−1 … and so on. The answer is 3 stretches.</p>
+<p>There are about <var>n</var><sup>2</sup> ÷ 2 start–end pairs, and adding up each stretch from scratch costs up to <var>n</var> more, so the plain method is O(<var>n</var><sup>3</sup>); keeping a running total as the end moves brings it to O(<var>n</var><sup>2</sup>). For a list of 100,000 numbers that is still five billion additions.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: <strong>prefix sums</strong>. Let <var>P</var>[<var>j</var>] be the sum of the first <var>j</var> numbers, with <var>P</var>[0] = 0. For our list: <var>P</var> = 0, 1, 3, 6, 4, 6. Now any stretch is a subtraction:</p>
+<p class="formula">sum of positions <var>i</var> … <var>j</var> − 1 = <var>P</var>[<var>j</var>] − <var>P</var>[<var>i</var>]</p>
+<p>Piece two: turn the question around. A stretch ending just before <var>j</var> sums to <var>k</var> exactly when <var>P</var>[<var>i</var>] = <var>P</var>[<var>j</var>] − <var>k</var> for some earlier <var>i</var>. So at each <var>j</var> we need to know: <em>how many earlier prefix sums equal <var>P</var>[<var>j</var>] − <var>k</var></em>? That is a counting question, and a hash map from prefix value to count answers it in one step.</p>
+<p>Walk once, keeping the running prefix and the map. Seed the map with {0: 1}, which stands for the empty prefix before the first element. At each number: update the prefix, look up prefix − <var>k</var> and add its count to the answer, then record the prefix in the map.</p>
+<div class="table-wrap"><table>
+<tr><th>Number</th><th>Prefix <var>P</var></th><th>Need <var>P</var> − 3</th><th>Count in map</th><th>Answer</th><th>Map afterwards</th></tr>
+<tr><td></td><td>0</td><td></td><td></td><td>0</td><td>{0:1}</td></tr>
+<tr><td>1</td><td>1</td><td>−2</td><td>0</td><td>0</td><td>{0:1, 1:1}</td></tr>
+<tr><td>2</td><td>3</td><td>0</td><td>1</td><td>1</td><td>{0:1, 1:1, 3:1}</td></tr>
+<tr><td>3</td><td>6</td><td>3</td><td>1</td><td>2</td><td>{…, 6:1}</td></tr>
+<tr><td>−2</td><td>4</td><td>1</td><td>1</td><td>3</td><td>{…, 4:1}</td></tr>
+<tr><td>2</td><td>6</td><td>3</td><td>1</td><td>4</td><td>{…, 6:2}</td></tr>
+</table></div>
+<p>The final answer is 4: the stretches 1+2, 3, 3−2+2, and 2+3−2 (positions 1 … 3). The by-hand count missed one, which is exactly why the method is worth having.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: <em>when we are at position <var>j</var>, the map holds the count of every prefix <var>P</var>[0] … <var>P</var>[<var>j</var> − 1]</em>. We record each prefix after using it, so this holds. Then the number we add at step <var>j</var> is exactly the number of <var>i</var> &lt; <var>j</var> with <var>P</var>[<var>i</var>] = <var>P</var>[<var>j</var>] − <var>k</var>, which by the subtraction formula is exactly the number of stretches ending at position <var>j</var> − 1 that sum to <var>k</var>. Summing over all <var>j</var> counts every stretch once, grouped by where it ends. Looking up before recording matters: an empty stretch (<var>i</var> = <var>j</var>) sums to 0 and must only count when <var>k</var> = 0, and the seed {0: 1} handles the stretches that start at position 0.</p>
+
+<h3>Why it is fast</h3>
+<p>One pass of <var>n</var> steps, each doing one addition, one lookup and one insert, all about one step: O(<var>n</var>) time, O(<var>n</var>) memory for the map. Five billion additions became a few hundred thousand operations. The gain comes from never re-adding a stretch: the prefix sums store every partial total once, and the map turns "find a matching earlier total" from a scan into a lookup.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "count subarrays whose sum is", "subarray sum divisible by", "equal numbers of 0s and 1s" (map 0 to −1 and look for sum 0), "longest subarray with sum <var>k</var>" (store the first index instead of a count). The first thing to say: "A subarray sum is a difference of two prefix sums, so I will count earlier prefixes equal to current minus <var>k</var> with a hash map."</p>
+<p><strong>Subarray Sum Equals K</strong> is the example. <strong>Subarray Sums Divisible by K</strong> keeps prefixes modulo <var>k</var>, because two prefixes with the same remainder differ by a multiple of <var>k</var>. <strong>Path Sum III</strong> is the same pattern walking down a tree, where the "prefix" is the sum from the root and you remove it from the map when you backtrack.</p>

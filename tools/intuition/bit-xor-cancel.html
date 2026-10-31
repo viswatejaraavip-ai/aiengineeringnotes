@@ -1,0 +1,31 @@
+<h3>Start with what you would do by hand</h3>
+<p>In <code>[4, 1, 2, 1, 2]</code> every number appears twice except one. Which one? By hand you would tick off pairs: the two 1s, the two 2s, leaving 4. That is easy with five numbers. With a million numbers you would need to sort them first (slow) or keep a tally of how many times each number has appeared, which needs memory the size of the input. The problem asks for one pass and no extra memory, which the tally cannot do.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The tool is a single operation on binary numbers, <strong>XOR</strong>, written ⊕. Write both numbers in binary and compare bit by bit: the result has a 1 where the two bits differ and a 0 where they are the same. For example, 5 ⊕ 3: 101 ⊕ 011 = 110 = 6.</p>
+<p>Three facts about ⊕ are all that is needed:</p>
+<ul>
+<li><var>a</var> ⊕ <var>a</var> = 0, because every bit is the same as itself.</li>
+<li><var>a</var> ⊕ 0 = <var>a</var>, because XOR with a zero bit leaves a bit unchanged.</li>
+<li>The order does not matter: <var>a</var> ⊕ <var>b</var> = <var>b</var> ⊕ <var>a</var>, and (<var>a</var> ⊕ <var>b</var>) ⊕ <var>c</var> = <var>a</var> ⊕ (<var>b</var> ⊕ <var>c</var>), since each bit position is handled independently and for one bit XOR is just addition without carry.</li>
+</ul>
+<p>So the structure is one number, an accumulator starting at 0, and the procedure is to XOR every element into it:</p>
+<div class="table-wrap"><table>
+<tr><th>element</th><th>binary</th><th>accumulator before</th><th>accumulator after</th></tr>
+<tr><td>4</td><td>0100</td><td>0000</td><td>0100 (4)</td></tr>
+<tr><td>1</td><td>0001</td><td>0100</td><td>0101 (5)</td></tr>
+<tr><td>2</td><td>0010</td><td>0101</td><td>0111 (7)</td></tr>
+<tr><td>1</td><td>0001</td><td>0111</td><td>0110 (6)</td></tr>
+<tr><td>2</td><td>0010</td><td>0110</td><td>0100 (4)</td></tr>
+</table></div>
+<p>The accumulator ends at 4, the single number. Watch the second 1 arrive: it flips the lowest bit back off, undoing the first 1. The pairs cancel no matter how far apart they are.</p>
+
+<h3>Why it is correct</h3>
+<p>Because order does not matter, the final accumulator equals the XOR of all elements in any order you like. Reorder them so the pairs sit together: (1 ⊕ 1) ⊕ (2 ⊕ 2) ⊕ 4. Each pair is 0 by the first fact, and 0 ⊕ 0 ⊕ 4 = 4 by the second. In general, every number that appears an even number of times cancels completely, and what remains is the XOR of the numbers that appear an odd number of times. With exactly one such number, the accumulator is that number.</p>
+<p class="formula">⊕ over all elements = ⊕ over elements with odd count, since <var>a</var> ⊕ <var>a</var> = 0</p>
+
+<h3>Why it is fast</h3>
+<p>One XOR per element: O(<var>n</var>) time, and the memory is a single integer, O(1). Sorting is O(<var>n</var> log <var>n</var>), and a tally is O(<var>n</var>) time but O(<var>n</var>) memory. XOR is also a single machine instruction, so the pass is as fast as reading the array.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "every element appears twice except one", "find the missing number", "find the difference between two strings", or any setting where things come in pairs that should cancel. Say: XOR of a pair is zero, so XOR everything and the unpaired element survives. <em>Single Number</em> is the example. <em>Missing Number</em> XORs 0..<var>n</var> together with the array; every present number appears twice and cancels, leaving the missing one. <em>Single Number III</em> has two unpaired numbers: XOR everything to get <var>a</var> ⊕ <var>b</var>, pick any bit where they differ, and XOR the two groups separately.</p>

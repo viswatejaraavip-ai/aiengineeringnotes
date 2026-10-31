@@ -1,0 +1,28 @@
+<h3>Start with what you would do by hand</h3>
+<p>Two sorted lists, 1, 2, 3 and 2, 5, 6, must become one sorted list. By hand you would put everything together and sort: 1, 2, 2, 3, 5, 6. Sorting six numbers is nothing, but sorting <var>n</var> + <var>m</var> numbers costs about (<var>n</var> + <var>m</var>) log(<var>n</var> + <var>m</var>) comparisons, and it throws away the fact that each list is already in order. There should be a way to use that order so the merge costs only one look per element.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a finger on the front of each list. The smallest unused number overall must be one of the two fingers, because everything behind a finger is larger than it. So the merge is: compare the two fingers, take the smaller, advance that finger, repeat. With 1, 2, 3 and 2, 5, 6: take 1, take 2 (from the first list, on ties take either), take 2, take 3, then the first list is empty, so copy the rest of the second: 5, 6.</p>
+<p>Piece two, for the in-place version: the first array has spare room at its end, and the merge must happen inside it. Filling from the front would overwrite numbers in the first array that you have not yet read. So fill from the <strong>back</strong>: put a finger <var>i</var> on the last real value of the first array, <var>j</var> on the last value of the second, and <var>k</var> on the last empty slot. Compare, write the <em>larger</em> at <var>k</var>, move that finger and <var>k</var> left.</p>
+<div class="table-wrap"><table>
+<tr><th>nums1 (3 real + 3 empty)</th><th><var>i</var></th><th><var>j</var></th><th>Compare</th><th>Write at <var>k</var></th></tr>
+<tr><td>1, 2, 3, _, _, _</td><td>3</td><td>6</td><td>6 ≥ 3</td><td>6 → slot 5</td></tr>
+<tr><td>1, 2, 3, _, _, 6</td><td>3</td><td>5</td><td>5 ≥ 3</td><td>5 → slot 4</td></tr>
+<tr><td>1, 2, 3, _, 5, 6</td><td>3</td><td>2</td><td>3 &gt; 2</td><td>3 → slot 3</td></tr>
+<tr><td>1, 2, 3, 3, 5, 6</td><td>2</td><td>2</td><td>2 ≥ 2</td><td>2 → slot 2</td></tr>
+<tr><td>1, 2, 2, 3, 5, 6</td><td>2</td><td>none</td><td>second list empty</td><td>stop</td></tr>
+</table></div>
+<p>When the second list runs out first, the remaining first-list numbers are already in place, so there is nothing to do. When the first runs out, keep copying the second.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant for the front-to-back merge: <em>the output is sorted and contains exactly the elements consumed so far, and every unconsumed element is at least as large as the last output</em>. Taking the smaller finger keeps the last part true, because the other finger and everything behind both fingers are larger, by sortedness. So each appended element is at least the previous one, and the output stays sorted.</p>
+<p>For the back-to-front version the extra claim is that <em>no unread element is ever overwritten</em>. Slot <var>k</var> is the last empty slot, and the number of empty slots to its left equals the number of elements remaining in the second list; the first array's unread elements sit at indices up to <var>i</var>, and</p>
+<p class="formula"><var>k</var> = <var>i</var> + <var>j</var> + 1 ≥ <var>i</var> + 1</p>
+<p>whenever <var>j</var> ≥ 0, so <var>k</var> is always strictly past <var>i</var>. The slot we write into was either empty or already read.</p>
+
+<h3>Why it is fast</h3>
+<p>Each comparison consumes one element from one list, so there are at most <var>n</var> + <var>m</var> comparisons and exactly <var>n</var> + <var>m</var> writes: O(<var>n</var> + <var>m</var>) time, O(1) extra memory in the in-place version. Compared with re-sorting, the log factor disappears because sortedness lets us know the next smallest element without searching.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "two sorted …", "merge", "intersection of sorted arrays", "<var>k</var> sorted lists" (merge pairwise or with a heap), "in place with extra space at the end" (merge from the back). The first thing to say: "Both inputs are sorted, so I will walk them with one pointer each and always take the smaller head; if it must be in place I will fill from the back."</p>
+<p><strong>Merge Sorted Array</strong> is the example. <strong>Merge Two Sorted Lists</strong> is the front-to-back version on linked nodes, splicing instead of copying. <strong>Intersection of Two Arrays II</strong> is the same walk where equal heads are output and unequal heads advance the smaller one.</p>

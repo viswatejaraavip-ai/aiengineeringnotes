@@ -1,0 +1,20 @@
+<h3>Start with what you would do by hand</h3>
+<p>Daily profits of a small shop over nine days: −2, 1, −3, 4, −1, 2, 1, −5, 4. Which stretch of consecutive days earned the most in total? By hand you add up stretches: days 4 to 7 give 4 − 1 + 2 + 1 = 6; days 4 to 9 give 6 − 5 + 4 = 5; day 9 alone gives 4. The best is 6.</p>
+<p>How many stretches are there? Any start day and any end day on or after it: for 9 days that is 45 stretches, and for <var>n</var> days about <var>n</var><sup>2</sup>/2. Adding each one up costs up to <var>n</var> more, so about <var>n</var><sup>3</sup>/6 additions, or 166 billion for a million days. Even with running sums it is 500 billion stretches to compare.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a different question. Instead of "best stretch anywhere", ask "best stretch that <em>ends exactly on day <var>i</var></em>". Call it cur[<var>i</var>].</p>
+<p>Piece two: the observation that makes the question easy. A stretch ending on day <var>i</var> either is day <var>i</var> alone, or is a stretch ending on day <var>i</var> − 1 with day <var>i</var> added. The best of the second kind is cur[<var>i</var> − 1] + nums[<var>i</var>]. So</p>
+<p class="formula">cur[<var>i</var>] = max( nums[<var>i</var>], cur[<var>i</var> − 1] + nums[<var>i</var>] )</p>
+<p>In words: extend the run if the run so far is positive, otherwise start fresh at day <var>i</var>, because a run that has gone negative only drags you down.</p>
+<p>Piece three: a single number best that remembers the largest cur seen.</p>
+<div class="table-wrap"><table><tr><th>day</th><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td>9</td></tr><tr><th>nums</th><td>−2</td><td>1</td><td>−3</td><td>4</td><td>−1</td><td>2</td><td>1</td><td>−5</td><td>4</td></tr><tr><th>cur</th><td>−2</td><td>1</td><td>−2</td><td>4</td><td>3</td><td>5</td><td>6</td><td>1</td><td>5</td></tr><tr><th>best</th><td>−2</td><td>1</td><td>1</td><td>4</td><td>4</td><td>5</td><td>6</td><td>6</td><td>6</td></tr></table></div>
+<p>On day 2, cur[1] = −2 is negative, so cur[2] restarts at 1. On day 4 the same: −2 + 4 = 2 is worse than 4 alone.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: cur is the maximum total of any stretch ending exactly at the current day. The two-case argument above shows the formula computes it from the previous day's value, and day 1 is trivially right. Every stretch ends on some day, so the best overall is the maximum of cur over all days, which is what best tracks.</p>
+<p>The mathematical heart: if cur[<var>i</var> − 1] &lt; 0 then cur[<var>i</var> − 1] + nums[<var>i</var>] &lt; nums[<var>i</var>], so a negative prefix can never help, and dropping it is always safe.</p>
+<h3>Why it is fast</h3>
+<p>One max and one addition per day:</p>
+<p class="formula">work = <var>n</var>, memory = 2 numbers</p>
+<p>A million days cost a million steps instead of hundreds of billions.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "contiguous subarray", "maximum sum", "best stretch", "buy on one day and sell on a later day". The first thing to say: "track the best run ending here, restart when it goes negative." Maximum Subarray is the example above. Best Time to Buy and Sell Stock is Kadane on the day-to-day price differences, since a buy-sell profit is the sum of consecutive differences. Maximum Product Subarray needs the same idea with two runs, best and worst, because a negative times a negative becomes the new best.</p>

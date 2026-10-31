@@ -1,0 +1,35 @@
+<h3>Start with what you would do by hand</h3>
+<p>A cache is a small shelf for things you fetched recently, so the next fetch is instant. The shelf has room for 2 items. When it is full and something new arrives, throw out the item that was used longest ago: the Least Recently Used one. Watch it: put(1), put(2), get(1), put(3). Before put(3) the shelf holds 1 and 2, and 1 was used more recently (the get), so 2 is thrown out. Now get(2) fails.</p>
+<p>By hand you might keep the items in a row ordered by last use and, on every get, find the item, pull it out and move it to the front; on every put when full, drop the last one. Finding the item in a row is a scan: O(<var>n</var>) for a shelf of <var>n</var>. Moving it to the front in an array shifts everything: also O(<var>n</var>). A cache that does O(<var>n</var>) work per lookup defeats its own purpose when <var>n</var> is thousands.</p>
+<p>We need two things fast: find any item by its key, and move any item to the front. No single simple structure does both; two together do.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p><strong>Piece 1: a doubly linked list for order.</strong> A chain of boxes where each box has an arrow to the next and to the previous. The front is the most recently used, the back is the least. In a doubly linked chain, a box can be unhooked from wherever it is in constant time (point its neighbours at each other) and hooked in at the front in constant time. With dummy boxes at both ends, no edge cases.</p>
+<p><strong>Piece 2: a hash map for lookup.</strong> map[key] = the box holding that key. Finding a box is one lookup.</p>
+<p><strong>Piece 3: the operations.</strong> get(key): if the key is not in the map, return &minus;1; otherwise unhook its box and hook it at the front, return its value. put(key, value): if the key exists, update the value and move the box to the front; else create a box at the front and add it to the map; if the shelf is now over capacity, unhook the back box and delete its key from the map.</p>
+<div class="table-wrap"><table>
+<tr><th>Operation</th><th>List, front &rarr; back</th><th>Map keys</th><th>Result</th></tr>
+<tr><td>put(1,1)</td><td>1</td><td>1</td><td></td></tr>
+<tr><td>put(2,2)</td><td>2, 1</td><td>1, 2</td><td></td></tr>
+<tr><td>get(1)</td><td>1, 2</td><td>1, 2</td><td>1</td></tr>
+<tr><td>put(3,3)</td><td>3, 1 (2 evicted from the back)</td><td>1, 3</td><td></td></tr>
+<tr><td>get(2)</td><td>3, 1</td><td>1, 3</td><td>&minus;1</td></tr>
+<tr><td>put(4,4)</td><td>4, 3 (1 evicted)</td><td>3, 4</td><td></td></tr>
+<tr><td>get(1)</td><td>4, 3</td><td>3, 4</td><td>&minus;1</td></tr>
+<tr><td>get(3)</td><td>3, 4</td><td>3, 4</td><td>3</td></tr>
+</table></div>
+
+<h3>Why it is correct</h3>
+<p>The invariant: the map and the list contain exactly the same set of keys; the list is ordered by last use, front most recent; the list has at most capacity boxes.</p>
+<p>Every use (get or put of an existing key) moves that box to the front, so after any operation the touched key is the most recent and the relative order of the others is unchanged; by induction the list is in order of last use. Every insertion adds to both map and list, every eviction removes from both, so the two agree. Eviction happens exactly when the size would exceed capacity and removes the back box, which by the ordering is the least recently used. So the cache keeps precisely the capacity most recently used keys.</p>
+<p class="formula">keys(map) = keys(list), |list| &le; capacity, and list is sorted by time of last use</p>
+<p>The doubly linked list is essential: a singly linked box cannot be unhooked in constant time because its previous box is unknown.</p>
+
+<h3>Why it is fast</h3>
+<p>A get is one map lookup plus one unhook and one hook: a constant number of pointer changes. A put is at most one lookup, one creation, one hook, one unhook and two map updates.</p>
+<p class="formula">get = O(1), put = O(1), memory = O(capacity)</p>
+<p>Compared with scanning and shifting a row, which is O(<var>n</var>) per operation, this is the difference between a cache that helps and one that hurts.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The cues are "LRU", "least recently used", "O(1) get and put", "move to front", "most recently used queue", or any design where items must be found by key and also kept in an order that changes on access. Say: "A hash map for O(1) lookup and a doubly linked list for O(1) reordering; each map entry points at its list box, and the back of the list is evicted."</p>
+<p>LRU Cache is the example above. LFU Cache keeps one such list per frequency count and a map from frequency to list, evicting from the lowest non-empty frequency. Design Browser History is the list alone, with a current pointer that moves back and forward.</p>

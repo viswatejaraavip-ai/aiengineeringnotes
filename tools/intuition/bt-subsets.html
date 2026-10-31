@@ -1,0 +1,19 @@
+<h3>Start with what you would do by hand</h3>
+<p>List every possible team you can pick from three friends, 1, 2 and 3, including the empty team and the full team. By hand you might write: nobody, 1, 2, 3, 12, 13, 23, 123. Eight teams. You probably got there by some mix of memory and checking you had not missed one, and with four friends you would start to lose track. With twenty friends there are over a million teams, and "did I miss one?" is hopeless.</p>
+<p>There is a cleaner way to count first. For each friend you make one decision, in or out, and the decisions are independent:</p>
+<p class="formula">2 × 2 × 2 = 2<sup>3</sup> = 8 teams, and 2<sup><var>n</var></sup> in general</p>
+<p>The pattern turns that counting argument into a procedure that writes each team exactly once.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: an index <var>i</var> that walks through the friends in order, 0, 1, 2. At each index you make the one decision for that friend.</p>
+<p>Piece two: a <strong>path</strong>, which is the team built so far. It behaves like a stack: deciding "in" pushes the friend, and undoing that decision pops them.</p>
+<p>Piece three: the rule, as a function solve(<var>i</var>): if <var>i</var> is past the last friend, record a copy of the path; otherwise push friend <var>i</var>, call solve(<var>i</var> + 1), pop friend <var>i</var>, and call solve(<var>i</var> + 1) again. "Take, recurse, untake, recurse."</p>
+<div class="table-wrap"><table><tr><th>call</th><th>path</th><th>what happens</th></tr><tr><td>solve(0)</td><td>[]</td><td>take 1</td></tr><tr><td>solve(1)</td><td>[1]</td><td>take 2</td></tr><tr><td>solve(2)</td><td>[1, 2]</td><td>take 3</td></tr><tr><td>solve(3)</td><td>[1, 2, 3]</td><td>record 123</td></tr><tr><td>back in solve(2)</td><td>[1, 2]</td><td>pop 3, skip it</td></tr><tr><td>solve(3)</td><td>[1, 2]</td><td>record 12</td></tr><tr><td>back in solve(1)</td><td>[1]</td><td>pop 2, skip it, take 3</td></tr><tr><td>solve(3)</td><td>[1, 3]</td><td>record 13, then 1, then 23, 2, 3, and finally the empty team</td></tr></table></div>
+<p>The order the teams come out is a depth-first walk of a decision tree with 2 branches at every level and 2<sup><var>n</var></sup> leaves.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: when solve(<var>i</var>) is called, the path holds exactly the friends among 0 .. <var>i</var> − 1 who were decided "in". It is true at the start (empty path, <var>i</var> = 0) and each call keeps it: pushing friend <var>i</var> then calling solve(<var>i</var> + 1) hands over a path that is correct for the "in" choice; popping restores the previous path before the "out" choice. Each sequence of decisions is tried exactly once, so each team is recorded exactly once, and every team corresponds to some sequence, so none is missed.</p>
+<h3>Why it is fast</h3>
+<p>There are 2<sup><var>n</var></sup> leaves and each costs up to <var>n</var> to copy the path, so the work is</p>
+<p class="formula">about <var>n</var> · 2<sup><var>n</var></sup></p>
+<p>You cannot beat 2<sup><var>n</var></sup>, because that is how many teams must be written down. The pattern spends nothing beyond the output itself.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "all subsets", "all combinations", "every way to choose", "power set", or a question where <var>n</var> is small (up to about 20) and each item is either used or not. The first thing to say: "each element is in or out, so I will backtrack with take-then-skip and copy the path at the leaves." Subsets is the example above. Subsets II has duplicates; sort first, and when skipping an element also skip its equal neighbours, so each distinct team is still made once. Partition Equal Subset Sum is the same in-or-out tree with a running sum, where pruning or a DP table replaces listing.</p>

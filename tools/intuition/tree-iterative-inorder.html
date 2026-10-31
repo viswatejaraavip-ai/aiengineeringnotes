@@ -1,0 +1,20 @@
+<h3>Start with what you would do by hand</h3>
+<p>A binary search tree keeps smaller values to the left and larger values to the right. Walking it in the order "left side, me, right side", the inorder, lists the values from smallest to largest. The recursive version is three lines. But sometimes you cannot use recursion: a tree a million nodes deep would blow the call stack, or the problem wants an iterator object with a next() method that returns one value at a time and pauses in between. Recursion cannot pause.</p>
+<p>Take the tree: 4 at the top; 2 and 6 below; 1 and 3 under 2; 7 under 6. By hand you walk down to the far left, say 1, then step back to 2, then look right (3), step back to 4, and so on. The "step back" is the part a plain loop cannot do, because a node does not know its parent. We need our own memory of the way we came.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a stack. A pile where you add on top and remove from the top. Two operations: push and pop. It will hold the nodes we walked through on the way down, so we can step back to them.</p>
+<p>Piece two: the left spine. From the current node, keep going to the left child, pushing each node as you pass. Stop when there is no left child. The stack now holds the path from where you started down to the leftmost node, with the leftmost on top.</p>
+<p>Piece three: pop, visit, go right. Pop the top node: it has no unvisited left side, so it is next in order. Output it. Then move to its right child and run piece two from there. If there is no right child, just pop again.</p>
+<div class="table-wrap"><table><tr><th>Action</th><th>Stack (bottom → top)</th><th>Output so far</th></tr><tr><td>push the left spine from 4</td><td>4, 2, 1</td><td></td></tr><tr><td>pop 1, visit, right is empty</td><td>4, 2</td><td>1</td></tr><tr><td>pop 2, visit, go right to 3, push spine</td><td>4, 3</td><td>1, 2</td></tr><tr><td>pop 3, visit, right is empty</td><td>4</td><td>1, 2, 3</td></tr><tr><td>pop 4, visit, go right to 6, push spine</td><td>6</td><td>1, 2, 3, 4</td></tr><tr><td>pop 6, visit, go right to 7, push spine</td><td>7</td><td>1, 2, 3, 4, 6</td></tr><tr><td>pop 7, visit, right is empty</td><td>(empty)</td><td>1, 2, 3, 4, 6, 7</td></tr></table></div>
+<p>Stop when the stack is empty and there is no node to walk from. For an iterator, next() is exactly one "pop, visit, push the right child's spine", and hasNext() is "the stack is not empty".</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: the stack holds exactly the nodes whose left side has been fully handled but who have not been output yet, in order from top of tree to bottom. Pushing a left spine keeps it true: every node pushed is waiting on its left side, and the spine ends where there is no left side. Popping the top keeps it true: the top is the deepest waiting node, nothing on its left remains, so it is the smallest unvisited value and the correct next output. Walking into its right child and pushing that spine is the same situation one level down.</p>
+<p class="formula">next output = the top of the stack, which is the smallest value not yet output</p>
+
+<h3>Why it is fast</h3>
+<p>Each node is pushed exactly once and popped exactly once, so a full traversal is 2<var>n</var> stack operations, O(<var>n</var>). A single next() call can push a long spine, but across all calls the pushes total <var>n</var>, so next() is O(1) on average. The stack never holds more than one root-to-leaf path, so memory is O(<var>h</var>), the height, which is much less than <var>n</var> for a balanced tree.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>"Without recursion", "implement an iterator over a BST", "kth smallest", "next and hasNext in O(1) average and O(h) memory". Say: "I will keep an explicit stack of the left spine; pop gives the next value and I then push the right child's left spine." Binary Search Tree Iterator is exactly this object. Kth Smallest Element in a BST runs the same loop and stops after <var>k</var> pops. Validate Binary Search Tree uses the loop and checks that each popped value is larger than the previous one.</p>

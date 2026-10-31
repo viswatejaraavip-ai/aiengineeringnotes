@@ -1,0 +1,34 @@
+<h3>Start with what you would do by hand</h3>
+<p>Three meetings: [0,30], [5,10], [15,20]. How many rooms are needed so no two meetings share a room? At time 7 two meetings are running (the first and the second), at time 17 again two (the first and the third), and never three. So two rooms.</p>
+<p>By hand you might check every moment: for each time from 0 to 30, count how many meetings cover it, and take the biggest count. That is 31 moments &times; 3 meetings. If times are in seconds over a year, it is thirty million moments, and the count only changes at a few of them.</p>
+<p>The count only changes when a meeting starts (goes up by one) or ends (goes down by one). Between those moments nothing happens. So we only need to visit the start and end times, in order, and keep a running count.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p><strong>Piece 1: events.</strong> Turn each meeting into two events: (start, +1) and (end, &minus;1). Our three meetings give six events: (0,+1), (30,&minus;1), (5,+1), (10,&minus;1), (15,+1), (20,&minus;1).</p>
+<p><strong>Piece 2: sort the events by time.</strong> When a start and an end share the same time, put the end first: a meeting ending at 10 and another starting at 10 can share a room. Sorted: (0,+1), (5,+1), (10,&minus;1), (15,+1), (20,&minus;1), (30,&minus;1).</p>
+<p><strong>Piece 3: sweep.</strong> Walk the events left to right, adding each &plusmn;1 to a running count, and remember the highest count seen.</p>
+<div class="table-wrap"><table>
+<tr><th>Time</th><th>Event</th><th>Running count</th><th>Peak so far</th></tr>
+<tr><td>0</td><td>+1</td><td>1</td><td>1</td></tr>
+<tr><td>5</td><td>+1</td><td>2</td><td>2</td></tr>
+<tr><td>10</td><td>&minus;1</td><td>1</td><td>2</td></tr>
+<tr><td>15</td><td>+1</td><td>2</td><td>2</td></tr>
+<tr><td>20</td><td>&minus;1</td><td>1</td><td>2</td></tr>
+<tr><td>30</td><td>&minus;1</td><td>0</td><td>2</td></tr>
+</table></div>
+<p>The peak is 2, the number of rooms. The picture to hold in mind is a vertical line sweeping across a timeline of bars; the running count is how many bars the line is cutting through.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: after processing all events with time &le; <var>t</var>, the running count equals the number of meetings that are in progress at time <var>t</var> (started at or before <var>t</var>, not yet ended).</p>
+<p>Each meeting contributes +1 once it starts and &minus;1 once it ends, so at any time its net contribution is 1 while it is running and 0 otherwise. Summing over meetings gives exactly the number in progress. Since the count is constant between events, the maximum over all times equals the maximum over event times, which the sweep records.</p>
+<p>Why is the peak the number of rooms needed? You need at least that many, because at the peak moment that many meetings run at once. And that many suffice: assign each starting meeting any free room; a room is free whenever the count is below the peak, which is always.</p>
+<p class="formula">rooms = max over <var>t</var> of &sum;<sub>meetings</sub> [start &le; <var>t</var> &lt; end]</p>
+
+<h3>Why it is fast</h3>
+<p>There are 2<var>n</var> events. Sorting them costs O(<var>n</var> log <var>n</var>); the sweep is one pass of 2<var>n</var> additions.</p>
+<p class="formula">time = O(<var>n</var> log <var>n</var>), independent of how long the timeline is</p>
+<p>A year of seconds no longer matters; only the number of meetings does. The same result can be reached with two sorted arrays (all starts, all ends) and two pointers, or with a min-heap of end times; the event list is the version that generalises best, for example to adding +<var>w</var> passengers instead of +1.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The cues are "minimum number of rooms", "maximum number overlapping at once", "busiest time", "how many are alive at time <var>t</var>", "capacity of a car along a route", "skyline". Any question about how many intervals cover a point, for every point. Say: "Each interval is a +1 at its start and a &minus;1 at its end; sorting the events and keeping a running sum gives the coverage at every moment."</p>
+<p>Meeting Rooms II is the example above. Car Pooling adds +passengers and &minus;passengers and checks the running sum never exceeds the capacity. The Skyline Problem is a sweep where the running state is the set of active heights, kept in a heap, and the output is every moment the maximum height changes.</p>

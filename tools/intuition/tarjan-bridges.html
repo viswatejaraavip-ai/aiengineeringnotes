@@ -1,0 +1,18 @@
+<h3>Start with what you would do by hand</h3>
+<p>Four servers are wired: 0–1, 1–2, 2–0, and 1–3. Which single cable, if cut, would split the network? By hand you cut each one and check. Cut 0–1: 0 still reaches 1 through 2. Cut 1–3: server 3 is alone. So 1–3 is critical, a <strong>bridge</strong>; the others are not because they sit on a cycle.</p>
+<p>Cutting each cable and re-checking connectivity costs <var>E</var> checks of <var>E</var> work each. For a network with 100,000 cables that is 10 billion steps. We want one walk through the network that recognises bridges as it goes.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: depth-first search from server 0, following cables to unvisited servers. Give each server a <strong>discovery time</strong> disc[], the moment the walk first reached it. Walk: 0 (time 0), then 1 (time 1), then 2 (time 2), then back to 1 and on to 3 (time 3).</p>
+<p>Piece two: the question that decides a bridge. Cable 1–3 is a bridge if, once you are at 3, there is no way back to 1 or above except through that cable. So we need, for each server, the earliest discovery time it can reach using tree cables downward and at most one cable that leads back up. Call it low[].</p>
+<p>Piece three: compute low[] on the way back from the recursion. Start low[v] = disc[v]. When a cable from v reaches an already visited server u that is not v's parent, that is a <em>back cable</em>: low[v] = min(low[v], disc[u]). When returning from a child c: low[v] = min(low[v], low[c]).</p>
+<div class="table-wrap"><table><tr><th>server</th><td>0</td><td>1</td><td>2</td><td>3</td></tr><tr><th>disc</th><td>0</td><td>1</td><td>2</td><td>3</td></tr><tr><th>low</th><td>0</td><td>0</td><td>0 (back cable 2–0)</td><td>3</td></tr></table></div>
+<p>Piece four, the test, applied when returning from child c to parent v: the cable v–c is a bridge exactly when</p>
+<p class="formula">low[c] &gt; disc[v]</p>
+<p>Returning from 2 to 1: low[2] = 0, which is not greater than disc[1] = 1, so 1–2 is safe. Returning from 3 to 1: low[3] = 3 &gt; 1, so 1–3 is a bridge.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: low[v] is the smallest discovery time reachable from v's subtree using any number of tree cables downward plus at most one back cable. If low[c] &gt; disc[v], nothing in c's subtree can climb to v or above without the cable v–c, so cutting it separates the subtree: a bridge. If low[c] ≤ disc[v], some back cable from the subtree lands at v or an ancestor, giving a second route, so the cable is on a cycle and not a bridge. Skipping the cable to the direct parent matters: otherwise every tree cable would look like a cycle of length two.</p>
+<h3>Why it is fast</h3>
+<p>One depth-first search: each server is discovered once, each cable examined twice.</p>
+<p class="formula">work = <var>V</var> + 2<var>E</var>, against <var>E</var><sup>2</sup> for cut-and-recheck</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "critical connection", "removing which edge disconnects", "single point of failure", "articulation point". The first thing to say: "a DFS with discovery times and low-links finds every bridge in one pass." Critical Connections in a Network is exactly the routine above. The same low-link idea, applied to directed graphs, is Tarjan's method for strongly connected components.</p>

@@ -410,7 +410,7 @@
 </table></div>
 <p>Each node's range is split in the middle between its two children, so the tree has about log<sub>2</sub> <var>n</var> levels.</p>
 <p>Piece two: answering a sum. For the range [1..3], start at the root. A node whose range lies entirely inside [1..3] is taken whole and not opened. A node entirely outside is ignored. A node that straddles the boundary is opened and the question is passed to both children. [0..2] straddles, so open it: [0..1] straddles, open it: leaf [0] is outside, leaf [1] is inside, take 3; [2..2] is inside, take 5. [3..5] straddles: [3..4] straddles: leaf [3] inside, take 7; leaf [4] outside; [5..5] outside. Total 3 + 5 + 7 = 15.</p>
-<p>Piece three: a change. Set position 1 to 10. Overwrite the leaf, then walk up the single path of ancestors and recompute each from its two children: [0..1] becomes 10 + 5 is wrong, careful: [0..1] = 1 + 10 = 11, [0..2] = 11 + 5 = 16, root = 16 + 27 = 43. Only three nodes changed. Asking [1..3] again now takes 10 + 5 + 7 = 22.</p>
+<p>Piece three: a change. Set position 1 to 10. Overwrite the leaf, then walk up the single path of ancestors and recompute each from its two children: [0..1] = 1 + 10 = 11, [0..2] = 11 + 5 = 16, root = 16 + 27 = 43. Only three nodes changed. Asking [1..3] again now takes 10 + 5 + 7 = 22.</p>
 
 <h3>Why it is correct</h3>
 <p>The invariant is that every node holds the sum of its whole range. Building it from the leaves up makes it true. A change rewrites one leaf and then every ancestor of that leaf, in order from the bottom; each ancestor is recomputed from children that are already correct, so it becomes correct, and no other node's range contains the changed position, so no other node needs to change.</p>

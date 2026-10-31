@@ -1,0 +1,26 @@
+<h3>Start with what you would do by hand</h3>
+<p>Take the word <code>babad</code>. A palindrome reads the same forwards and backwards, like <code>bab</code> or <code>aba</code>. Asked for the longest palindrome inside <code>babad</code>, a person would probably list every piece of the word and read each one backwards: <code>b</code>, <code>ba</code>, <code>bab</code>, <code>baba</code>, <code>babad</code>, then <code>a</code>, <code>ab</code>, and so on.</p>
+<p>Count that work. A word of length <var>n</var> has about <var>n</var><sup>2</sup>/2 pieces, and reading one backwards costs up to <var>n</var> comparisons. For <code>babad</code> that is 15 pieces and roughly 40 comparisons, which is fine. For a string of 1,000 characters it is about 500,000 pieces and 500 million comparisons. The waste is obvious once you notice it: when you check <code>babad</code> you compare <code>a</code> with <code>a</code> in the middle again, even though you already learned that <code>aba</code> is a palindrome.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The structure here is not a stack or a tree. It is a way of growing an answer from the middle. Every palindrome has a centre. <code>bab</code> is centred on the <code>a</code>; <code>abba</code> is centred on the gap between the two <code>b</code>s. So there are two kinds of centre: a letter, or a gap between two letters. A string of length <var>n</var> has <var>n</var> letter centres and <var>n</var> − 1 gap centres, 2<var>n</var> − 1 in all. For <code>babad</code> that is 9 centres.</p>
+<p>From a centre, grow outwards one step at a time. Keep two fingers, <var>l</var> on the left and <var>r</var> on the right. While the letters under the fingers match, move both fingers one step further apart. The moment they differ, or a finger falls off the end, stop: the last matching stretch is the longest palindrome with that centre.</p>
+<ol>
+<li>Centre at index 1 (<code>a</code>): <var>l</var> = <var>r</var> = 1. One letter is always a palindrome, length 1.</li>
+<li>Step out: <var>l</var> = 0, <var>r</var> = 2. <code>s[0]</code> = <code>b</code>, <code>s[2]</code> = <code>b</code>. They match, so <code>bab</code> is a palindrome, length 3.</li>
+<li>Step out again: <var>l</var> = −1. Off the edge, stop. Best from this centre: <code>bab</code>.</li>
+<li>Centre at index 2 (<code>b</code>): grows to <code>aba</code>, then meets <code>b</code> against <code>d</code> and stops.</li>
+<li>Gap centres, such as between indices 0 and 1: <code>b</code> against <code>a</code>, no match, length 0.</li>
+</ol>
+<p>The longest stretch found anywhere is the answer: <code>bab</code> (or <code>aba</code>, both length 3).</p>
+<p>There is a second, table-based way to say the same thing. Keep a grid <var>dp</var>[<var>i</var>][<var>j</var>] that is true when <code>s[i..j]</code> is a palindrome. A single letter is true. A two-letter piece is true when the letters are equal. Anything longer is true exactly when its two end letters match and the inside piece <var>dp</var>[<var>i</var>+1][<var>j</var>−1] is already true. Fill the grid by length, short pieces first, so the inside is always known before you need it.</p>
+
+<h3>Why it is correct</h3>
+<p>Every palindrome has exactly one centre, so checking all 2<var>n</var> − 1 centres cannot miss one. Growing from a centre is safe because of one fact: if <code>s[l..r]</code> is a palindrome and <code>s[l−1]</code> = <code>s[r+1]</code>, then <code>s[l−1..r+1]</code> is a palindrome too. Reading it backwards, the new outer letters match each other and the inside already reads the same both ways. The moment the outer letters differ, no wider piece with this centre can be a palindrome, because that mismatched pair stays inside every wider piece.</p>
+<p class="formula"><var>dp</var>[<var>i</var>][<var>j</var>] = (<code>s[i]</code> = <code>s[j]</code>) and <var>dp</var>[<var>i</var>+1][<var>j</var>−1]</p>
+
+<h3>Why it is fast</h3>
+<p>There are 2<var>n</var> − 1 centres. From one centre the fingers can take at most <var>n</var>/2 steps before falling off an end, so one centre costs O(<var>n</var>). Altogether that is at most (2<var>n</var> − 1) × <var>n</var>/2, which is O(<var>n</var><sup>2</sup>) comparisons, with no extra memory beyond two indices. The by-hand method was O(<var>n</var><sup>3</sup>): a factor of <var>n</var> slower, because it kept re-reading the middle. The table method is also O(<var>n</var><sup>2</sup>) in time but needs an <var>n</var> × <var>n</var> grid of booleans; it earns that memory when a problem asks the palindrome question many times, such as cutting a string into the fewest palindromic pieces.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Listen for the words palindrome, substring and longest or count. Say out loud: every palindrome has a centre, so I will expand from each of the 2<var>n</var> − 1 centres. In <em>Longest Palindromic Substring</em> that sentence is the whole solution. In <em>Palindromic Substrings</em>, count one for every successful expansion step instead of keeping the longest. In <em>Palindrome Partitioning</em> the grid version pays off: build <var>dp</var>[<var>i</var>][<var>j</var>] once, then a second search only asks the grid, never re-reads the string.</p>

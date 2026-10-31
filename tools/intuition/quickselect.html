@@ -1,0 +1,33 @@
+<h3>Start with what you would do by hand</h3>
+<p>The list 3, 2, 1, 5, 6, 4. What is the 2nd largest number? Sorting gives 1, 2, 3, 4, 5, 6, and the 2nd largest is 5. Sorting is easy but it does more than asked: it puts all six numbers in order when we only care about one position.</p>
+<p>Sorting <var>n</var> numbers costs about <var>n</var> log<sub>2</sub> <var>n</var> comparisons, around 20 million for a million numbers. Can we find one position with about <var>n</var> comparisons?</p>
+<p>Here is a cheaper by-hand move. Pick any number, say 4, and split the others into "smaller than 4" and "at least 4": {3, 2, 1} and {5, 6}. Now 4 is in its final sorted position, index 3, because exactly three numbers are smaller. The 2nd largest is at sorted index 4, which is to the right of 4. So we can throw away the left group entirely and continue with {5, 6}. We never sorted the left group.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The structure is the array itself, rearranged in place, plus a range [lo, hi] that shrinks.</p>
+<p><strong>Piece 1: target index.</strong> The <var>k</var>-th largest of <var>n</var> numbers sits at sorted index <var>n</var> &minus; <var>k</var>. Here <var>k</var> = 2 and <var>n</var> = 6, so the target index is 4.</p>
+<p><strong>Piece 2: partition.</strong> Choose a pivot (the last element, 4). Keep a "store" index starting at lo. Walk the range; every time you see a value smaller than the pivot, swap it into the store position and advance the store. Finally swap the pivot into the store position. Everything left of the store is smaller than the pivot; the pivot is at its final sorted position.</p>
+<div class="table-wrap"><table>
+<tr><th>Step</th><th>Array</th><th>Store</th></tr>
+<tr><td>start, pivot 4 at the end</td><td>3, 2, 1, 5, 6, 4</td><td>0</td></tr>
+<tr><td>3 &lt; 4: swap into slot 0</td><td>3, 2, 1, 5, 6, 4</td><td>1</td></tr>
+<tr><td>2 &lt; 4: swap into slot 1</td><td>3, 2, 1, 5, 6, 4</td><td>2</td></tr>
+<tr><td>1 &lt; 4: swap into slot 2</td><td>3, 2, 1, 5, 6, 4</td><td>3</td></tr>
+<tr><td>5, 6 not smaller: leave</td><td>3, 2, 1, 5, 6, 4</td><td>3</td></tr>
+<tr><td>pivot to slot 3</td><td>3, 2, 1, 4, 6, 5</td><td>pivot at 3</td></tr>
+</table></div>
+<p><strong>Piece 3: recurse into one side.</strong> The pivot landed at 3, the target is 4, so look only in [4, 5]. Pivot 5: 6 is not smaller, so the pivot lands at index 4. That is the target: the 2nd largest is 5.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: the target index lies inside [lo, hi], and every element left of lo is smaller than every element inside the range, and every element right of hi is larger or equal.</p>
+<p>After a partition, the pivot sits at index <var>p</var> with everything smaller to its left and everything else to its right, so the pivot is exactly the element that belongs at sorted index <var>p</var>. If <var>p</var> equals the target, the pivot is the answer. If the target is less than <var>p</var>, the answer is among the smaller elements, which are all in [lo, <var>p</var> &minus; 1]; if greater, in [<var>p</var> + 1, hi]. Discarding the other side never discards the answer.</p>
+<p class="formula">after partition: array[<var>i</var>] &lt; pivot for <var>i</var> &lt; <var>p</var>, array[<var>i</var>] &ge; pivot for <var>i</var> &gt; <var>p</var>, so pivot = sorted[<var>p</var>]</p>
+
+<h3>Why it is fast</h3>
+<p>Each partition walks the current range once. If the pivot splits the range roughly in half each time, the ranges are <var>n</var>, <var>n</var>/2, <var>n</var>/4, &hellip;</p>
+<p class="formula"><var>n</var> + <var>n</var>/2 + <var>n</var>/4 + &hellip; &lt; 2<var>n</var>, so O(<var>n</var>) on average</p>
+<p>Compare with quicksort, which must recurse into <em>both</em> sides and so costs <var>n</var> log <var>n</var>. A bad pivot (always the smallest) gives ranges <var>n</var>, <var>n</var> &minus; 1, &hellip; and O(<var>n</var><sup>2</sup>); choosing the pivot at random makes that vanishingly unlikely. For a million numbers, about two million comparisons instead of twenty million.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The cues are "<var>k</var>-th largest", "<var>k</var>-th smallest", "median", "top <var>k</var>" when the order among the top <var>k</var> does not matter, and especially "can you do better than sorting". Say: "I partition around a pivot and recurse only into the side that contains the <var>k</var>-th index, which is O(<var>n</var>) average."</p>
+<p>Kth Largest Element in an Array is the example above. Top K Frequent Elements runs quickselect over the (value, count) pairs comparing counts. K Closest Points to Origin partitions points by squared distance. When a stream is involved, as in Kth Largest Element in a Stream, a heap is the right tool instead, because quickselect needs the whole array.</p>

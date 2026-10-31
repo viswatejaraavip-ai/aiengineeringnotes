@@ -1,0 +1,26 @@
+<h3>Start with what you would do by hand</h3>
+<p>A string "abcd" comes with a list of replacement rules, each saying: at this index, if the text there is this source, replace it with this target. The rules are (0, "a", "eee") and (2, "cd", "ffff"). By hand you check index 0: the text starts with "a", so that becomes "eee"; index 2: the text there is "cd", so that becomes "ffff"; the answer is "eeebffff". The trap is doing the replacements one at a time on the string itself: after the first replacement the string is "eeebcd" and index 2 now points at "e", so the second rule misfires. The rules refer to positions in the original string, and the original must be the thing you check against.</p>
+<p>The same shape appears whenever a text is scanned against a dictionary of pieces: replacing words by their root, breaking a string into dictionary words, applying substitutions. The by-hand waste is testing every piece at every position, which costs the number of positions times the number of pieces.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: index the rules by position in a hash map, so that at each index we can ask "is there a rule here?" in one lookup: {0: ("a", "eee"), 2: ("cd", "ffff")}.</p>
+<p>Piece two: a single left-to-right pass over the original string with a cursor <var>i</var>, building the output separately. At each <var>i</var>, if a rule exists there and the original text starting at <var>i</var> equals its source, append the target and jump <var>i</var> forward by the source length; otherwise copy one character and move one step:</p>
+<ol>
+<li><var>i</var> = 0: rule ("a", "eee"); text[0:1] = "a" matches; output "eee"; <var>i</var> = 1.</li>
+<li><var>i</var> = 1: no rule; copy "b"; <var>i</var> = 2.</li>
+<li><var>i</var> = 2: rule ("cd", "ffff"); text[2:4] = "cd" matches; output "ffff"; <var>i</var> = 4.</li>
+<li><var>i</var> = 4: end. Result "eeebffff".</li>
+</ol>
+<p>A rule whose source does not match the original text is simply skipped and the character is copied. Piece three, for the dictionary variants where rules are not tied to positions: keep a hash set of dictionary words and the set of distinct word lengths. At each position try each length, slice, and look the slice up in the set. For Replace Words, the first matching prefix length wins and the cursor jumps to the next word.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant is that the output built so far is the correct transformation of the original text up to the cursor, and the cursor only ever reads the original. Because every comparison is made against the original string, no replacement can disturb the positions of later rules; the problem guarantees the rules do not overlap, so after a match the next <var>i</var> is past the whole source and no rule is skipped. A failed match leaves the text untouched, which is what the rules specify. Reading the original and writing a separate output is what makes the invariant easy to keep; editing in place is what breaks it.</p>
+<p>For the dictionary form, each slice is checked against the set exactly once per length, so a word at a position is found if and only if it is in the dictionary.</p>
+
+<h3>Why it is fast</h3>
+<p>The cursor moves forward on every step, by at least one character, so the pass visits each position at most once. Each visit costs one hash lookup plus a comparison of at most the source length, so the time is O(<var>n</var> + total length of the sources), and the output is written once. The naive approach of testing every rule at every position is O(<var>n</var> · <var>r</var>) for <var>r</var> rules, and editing the string in place makes each replacement O(<var>n</var>) on its own. For the dictionary form the cost is O(<var>n</var> · <var>L</var>) where <var>L</var> is the number of distinct word lengths, with each slice hashed in time proportional to its length.</p>
+<p class="formula">positions visited ≤ <var>n</var>, lookups per position ≤ number of distinct lengths</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "replace", "substitute", "at index <var>i</var> if the substring is", "dictionary of words", "root word", "simultaneously". The word simultaneously is the hint that positions refer to the original. Say: "I will index the rules by position (or the dictionary by length), scan the original once, and build a fresh output so no replacement shifts another".</p>
+<p>Find And Replace in String is the walk-through above. Replace Words tries every prefix length of each word against a set of roots and keeps the shortest match. Word Break asks whether the whole string can be cut into dictionary words; the same per-position slice test becomes a DP that records which prefixes are breakable.</p>

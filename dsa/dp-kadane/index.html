@@ -394,24 +394,44 @@
       <p>cur is the maximum subarray sum that ends exactly at i.</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Daily profits of a small shop over nine days: −2, 1, −3, 4, −1, 2, 1, −5, 4. Which stretch of consecutive days earned the most in total? By hand you add up stretches: days 4 to 7 give 4 − 1 + 2 + 1 = 6; days 4 to 9 give 6 − 5 + 4 = 5; day 9 alone gives 4. The best is 6.</p>
+<p>How many stretches are there? Any start day and any end day on or after it: for 9 days that is 45 stretches, and for <var>n</var> days about <var>n</var><sup>2</sup>/2. Adding each one up costs up to <var>n</var> more, so about <var>n</var><sup>3</sup>/6 additions, or 166 billion for a million days. Even with running sums it is 500 billion stretches to compare.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a different question. Instead of "best stretch anywhere", ask "best stretch that <em>ends exactly on day <var>i</var></em>". Call it cur[<var>i</var>].</p>
+<p>Piece two: the observation that makes the question easy. A stretch ending on day <var>i</var> either is day <var>i</var> alone, or is a stretch ending on day <var>i</var> − 1 with day <var>i</var> added. The best of the second kind is cur[<var>i</var> − 1] + nums[<var>i</var>]. So</p>
+<p class="formula">cur[<var>i</var>] = max( nums[<var>i</var>], cur[<var>i</var> − 1] + nums[<var>i</var>] )</p>
+<p>In words: extend the run if the run so far is positive, otherwise start fresh at day <var>i</var>, because a run that has gone negative only drags you down.</p>
+<p>Piece three: a single number best that remembers the largest cur seen.</p>
+<div class="table-wrap"><table><tr><th>day</th><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td>9</td></tr><tr><th>nums</th><td>−2</td><td>1</td><td>−3</td><td>4</td><td>−1</td><td>2</td><td>1</td><td>−5</td><td>4</td></tr><tr><th>cur</th><td>−2</td><td>1</td><td>−2</td><td>4</td><td>3</td><td>5</td><td>6</td><td>1</td><td>5</td></tr><tr><th>best</th><td>−2</td><td>1</td><td>1</td><td>4</td><td>4</td><td>5</td><td>6</td><td>6</td><td>6</td></tr></table></div>
+<p>On day 2, cur[1] = −2 is negative, so cur[2] restarts at 1. On day 4 the same: −2 + 4 = 2 is worse than 4 alone.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: cur is the maximum total of any stretch ending exactly at the current day. The two-case argument above shows the formula computes it from the previous day's value, and day 1 is trivially right. Every stretch ends on some day, so the best overall is the maximum of cur over all days, which is what best tracks.</p>
+<p>The mathematical heart: if cur[<var>i</var> − 1] &lt; 0 then cur[<var>i</var> − 1] + nums[<var>i</var>] &lt; nums[<var>i</var>], so a negative prefix can never help, and dropping it is always safe.</p>
+<h3>Why it is fast</h3>
+<p>One max and one addition per day:</p>
+<p class="formula">work = <var>n</var>, memory = 2 numbers</p>
+<p>A million days cost a million steps instead of hundreds of billions.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "contiguous subarray", "maximum sum", "best stretch", "buy on one day and sell on a later day". The first thing to say: "track the best run ending here, restart when it goes negative." Maximum Subarray is the example above. Best Time to Buy and Sell Stock is Kadane on the day-to-day price differences, since a buy-sell profit is the sum of consecutive differences. Maximum Product Subarray needs the same idea with two runs, best and worst, because a negative times a negative becomes the new best.</p>
 
-
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>best ending at i = max(nums[i], best ending at i−1 + nums[i]).</p>
     <p><strong>Reach for it when:</strong> Maximum subarray, max product subarray, max circular subarray, stock I.</p>
     <p><strong>Cost:</strong> O(n) time, O(1) space.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Maximum Subarray on [-2,1,-3,4,-1,2,1,-5,4]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>cur = max(nums[i], cur + nums[i]): <em>extend</em> the run or <em>restart</em> at i</li><li>i = 0: start, cur = <em>-2</em>, best = -2</li><li>i = 1: restart, cur = <em>1</em>, best = 1</li><li>i = 2: extend, cur = <em>-2</em></li><li>i = 3: restart, cur = <em>4</em>, best = 4</li><li>i = 4: extend, cur = <em>3</em></li><li>i = 5: extend, cur = <em>5</em>, best = 5</li><li>i = 6: extend, cur = <em>6</em>, best = 6</li><li>i = 7: extend, cur = <em>1</em></li><li>i = 8: extend, cur = <em>5</em></li><li>Best = <em>6</em> from the run [4,−1,2,1]</li><li>A negative prefix never helps, so drop it: <em>O(n)</em> time, <em>O(1)</em> space</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>7 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/best-time-to-buy-and-sell-stock">Best Time to Buy and Sell Stock</a></td><td><span class="diff easy">Easy</span></td><td class="num">72</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/maximum-subarray">Maximum Subarray</a></td><td><span class="diff medium">Medium</span></td><td class="num">65</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/maximum-product-subarray">Maximum Product Subarray</a></td><td><span class="diff medium">Medium</span></td><td class="num">51</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/maximum-sum-circular-subarray">Maximum Sum Circular Subarray</a></td><td><span class="diff medium">Medium</span></td><td class="num">26</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/best-sightseeing-pair">Best Sightseeing Pair</a></td><td><span class="diff medium">Medium</span></td><td class="num">20</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/maximum-absolute-sum-of-any-subarray">Maximum Absolute Sum of Any Subarray</a></td><td><span class="diff medium">Medium</span></td><td class="num">18</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/longest-turbulent-subarray">Longest Turbulent Subarray</a></td><td><span class="diff medium">Medium</span></td><td class="num">6</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-dynamic-programming">Dynamic Programming</a>: <a href="/dsa/dp-1d-linear/">1-D linear DP</a>, <a href="/dsa/dp-lis/">Longest increasing subsequence</a>, <a href="/dsa/dp-grid-paths/">Grid path DP</a>, <a href="/dsa/dp-knapsack-01/">0/1 knapsack (subset sum)</a>, <a href="/dsa/dp-unbounded-coin/">Unbounded knapsack (coin change)</a>, <a href="/dsa/dp-lcs-edit/">Two-sequence DP (LCS / edit distance)</a>, <a href="/dsa/dp-pattern-matching/">Wildcard / regex matching DP</a>, <a href="/dsa/dp-palindrome-expand/">Palindromes: expand or table</a>, <a href="/dsa/dp-word-break/">Prefix segmentation DP</a>, <a href="/dsa/dp-interval/">Interval DP (last operation)</a>, <a href="/dsa/dp-state-machine-stock/">State-machine DP (stocks)</a>, <a href="/dsa/dp-bitmask/">Bitmask DP over subsets</a>, <a href="/dsa/dp-memo-dfs/">Memoised DFS (top-down)</a>, <a href="/dsa/dp-digit/">Digit DP</a>, <a href="/dsa/dp-game-minimax/">Game DP (minimax on a range)</a>, <a href="/dsa/dp-count-ways-mod/">Counting ways with modulo</a>, <a href="/dsa/dp-longest-string-chain/">DP over sorted keys (chains)</a>.</p>
   </article>
 
@@ -430,6 +450,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

@@ -1,0 +1,34 @@
+<h3>Start with what you would do by hand</h3>
+<p>Six bars stand side by side with heights 2, 1, 5, 6, 2, 3, each one unit wide. Which rectangle fits inside the skyline with the biggest area? Looking at the picture, the two tall bars 5 and 6 together give a rectangle of height 5 and width 2, area 10. The whole row gives height 1 and width 6, area 6.</p>
+<p>By hand you might try every pair of left and right ends: for each pair find the shortest bar between them, multiply by the width. With 6 bars there are 21 pairs, and finding the shortest bar in each costs more looks, so roughly 50 steps. For <var>n</var> bars the pairs alone number <var>n</var>(<var>n</var> + 1)/2, about half a million for a thousand bars, and each needs a scan. That is cubic work, O(<var>n</var><sup>3</sup>), or O(<var>n</var><sup>2</sup>) if you are careful.</p>
+<p>A better question for each single bar: if this bar is the <em>shortest</em> bar of the rectangle, how far can the rectangle stretch left and right before it hits a shorter bar? For bar 5 (index 2) the next shorter bar on the left is 1 (index 1) and on the right is 2 (index 4), so it stretches over indices 2 and 3, width 2, area 10. Every rectangle has some shortest bar, so checking this for every bar finds the maximum. What we need is, for each bar, its nearest shorter neighbour on each side.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p><strong>Piece 1: a stack of bars.</strong> A stack is a pile where you add to the top and remove from the top. Walk the bars left to right and push each index onto the pile.</p>
+<p><strong>Piece 2: keep the pile increasing.</strong> Before pushing a new bar, look at the top. If the top bar is taller than the new bar, the new bar is the top bar's nearest shorter neighbour on the right. Pop it. And the bar now underneath it on the pile is its nearest shorter neighbour on the left, because the pile only holds bars shorter than the ones above. So one pop tells us both boundaries, and we can compute the popped bar's rectangle immediately.</p>
+<p><strong>Piece 3: a sentinel.</strong> At the end, pretend a bar of height 0 arrives, so everything left on the pile gets popped and measured.</p>
+<p>The pile on the example (heights shown, boundaries are "the bar below on the pile" and "the new bar"):</p>
+<div class="table-wrap"><table>
+<tr><th>Bar arrives</th><th>Pops and areas</th><th>Pile after (heights)</th></tr>
+<tr><td>2</td><td>none</td><td>2</td></tr>
+<tr><td>1</td><td>2: left edge, right 1, width 1, area 2</td><td>1</td></tr>
+<tr><td>5</td><td>none</td><td>1 5</td></tr>
+<tr><td>6</td><td>none</td><td>1 5 6</td></tr>
+<tr><td>2</td><td>6: width 1, area 6; then 5: left 1, right 2, width 2, area 10</td><td>1 2</td></tr>
+<tr><td>3</td><td>none</td><td>1 2 3</td></tr>
+<tr><td>0 (sentinel)</td><td>3: area 3; 2: width 4, area 8; 1: width 6, area 6</td><td>empty</td></tr>
+</table></div>
+<p>The width of a popped bar is (index of the new bar) &minus; (index of the bar below it on the pile) &minus; 1. When the pile is empty below, the left boundary is the start, index &minus;1.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: the pile holds bars whose nearest shorter neighbour on the right has not appeared yet, and from bottom to top their heights increase.</p>
+<p>A bar stays on the pile only until something shorter arrives, so the pile really is "waiting for a shorter neighbour on the right". A bar is pushed only after every taller bar above it is popped, so the bar below it is shorter or equal, which keeps the pile increasing. When bar <var>i</var> is popped by bar <var>j</var>, no bar between them was shorter than <var>i</var>, or it would have popped <var>i</var> earlier, so <var>j</var> is the nearest shorter bar on the right. And the bar under <var>i</var> on the pile is the nearest shorter bar on the left, because any bar between them that was taller than <var>i</var> was popped before <var>i</var> was pushed.</p>
+<p class="formula">area(<var>i</var>) = height[<var>i</var>] &times; (right[<var>i</var>] &minus; left[<var>i</var>] &minus; 1)</p>
+<p>Every rectangle in the skyline is limited by its shortest bar, and that bar's rectangle is at least as large, so the maximum over all bars is the true maximum.</p>
+
+<h3>Why it is fast</h3>
+<p>Each bar is pushed once and popped once (the sentinel guarantees the pop). So there are at most 2<var>n</var> pile operations, and each pop does one multiplication. The running time is O(<var>n</var>), compared with the half-million pairs of the by-hand method for a thousand bars.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The wording is "largest rectangle", "maximal rectangle in a binary matrix" (treat each row as a histogram of consecutive ones above it), or "sum over all subarrays of the minimum" (each element times how many subarrays it is the minimum of, which is exactly the left and right boundaries). Say: "Each bar is the shortest bar of some rectangle; an increasing stack gives me its nearest shorter neighbour on both sides in one pass."</p>
+<p>Largest Rectangle in Histogram is the pattern as shown. Maximal Rectangle runs it once per row. Sum of Subarray Minimums replaces "multiply by height" with "multiply by the count of subarrays", which is (left span) &times; (right span).</p>

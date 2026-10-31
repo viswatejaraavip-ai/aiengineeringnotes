@@ -1,0 +1,21 @@
+<h3>Start with what you would do by hand</h3>
+<p>A map is a grid of cells: 1 for land, 0 for water. Count the islands, where an island is a group of land cells touching along edges (not corners). For a 4 by 5 grid with a block of land in the top left, another block on the right, and a single land cell in the middle, you count 3 by looking at the blobs.</p>
+<p>By hand, "count the blobs" is instant for the eye, but try to say what the eye does: it picks an unvisited land cell, then spreads over everything connected to it, then looks for another unvisited land cell. The slow way a computer might do it is: for every pair of land cells, decide whether they are connected by searching a path between them, then group. That is quadratic in the number of land cells and most of it is repeated work.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: treat each cell as a node of a graph. Its neighbours are the cells directly above, below, left and right, if they are inside the grid. There is no adjacency list to build; the neighbours are computed from the coordinates.</p>
+<p>Piece two: a visited marker per cell. The simplest version writes it into the grid itself, turning a 1 into 0 (or 2) once counted, so no extra memory is needed.</p>
+<p>Piece three: flood fill. Standing on a land cell, mark it visited, then do the same for each of its four neighbours that is land and not yet visited. Depth-first with recursion, or breadth-first with a queue; either way the fill stops exactly at the water edge, having marked the whole island.</p>
+<p>Piece four: the outer scan. Walk the grid row by row. Each time you meet a land cell that is not yet marked, add one to the island count and flood fill from it.</p>
+<div class="table-wrap"><table><tr><th>Scan reaches</th><th>Marked already?</th><th>Action</th><th>Islands</th></tr><tr><td>(0,0), land</td><td>no</td><td>count, fill marks 4 cells</td><td>1</td></tr><tr><td>(0,1), land</td><td>yes</td><td>skip</td><td>1</td></tr><tr><td>(1,4), land</td><td>no</td><td>count, fill marks 4 cells</td><td>2</td></tr><tr><td>(2,2), land</td><td>no</td><td>count, fill marks 1 cell</td><td>3</td></tr><tr><td>rest</td><td>water or marked</td><td>skip</td><td>3</td></tr></table></div>
+
+<h3>Why it is correct</h3>
+<p>The invariant: every marked cell belongs to exactly one counted island, and every island that has had any of its cells marked has been marked completely. The fill guarantees the second half: starting from one cell it marks everything reachable by land steps, which is the whole island by definition. The scan guarantees the first half: it starts a new count only at an unmarked land cell, which cannot belong to an island already filled, since that fill would have marked it.</p>
+<p class="formula">islands = number of times the scan meets an unmarked land cell</p>
+<p>Each island is met exactly once by the scan: at its first cell in row-major order, after which it is fully marked.</p>
+
+<h3>Why it is fast</h3>
+<p>Each cell is looked at by the scan once and marked by a fill at most once, and marking checks four neighbours. Total O(<var>m</var> × <var>n</var>) for an <var>m</var> by <var>n</var> grid. Memory is the recursion stack or queue, up to the size of the largest island in the worst case; iterative BFS avoids deep recursion on a grid that is one huge island.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>A grid with two kinds of cells and a question about connected groups: "number of islands", "largest island area", "regions fully enclosed", "cells from which water reaches both oceans", "fill a region with a new colour". Say: "I will treat cells as graph nodes, scan the grid, and flood fill from each unvisited cell of the target kind." Number of Islands is this exactly. Max Area of Island makes the fill return the count of cells it marked. Surrounded Regions flips the viewpoint: fill from every border 0 first, so that whatever 0 remains unmarked is enclosed. Pacific Atlantic Water Flow fills uphill from each ocean's edge and intersects the two marked sets.</p>

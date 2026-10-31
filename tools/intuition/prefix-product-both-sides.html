@@ -1,0 +1,28 @@
+<h3>Start with what you would do by hand</h3>
+<p>Given 1, 2, 3, 4, produce a new list where each position holds the product of <em>all the other</em> numbers: 24, 12, 8, 6. By hand you would multiply the three others for each position: 2·3·4 = 24, 1·3·4 = 12, and so on. That is <var>n</var> − 1 multiplications per position, about <var>n</var><sup>2</sup> in total.</p>
+<p>The tempting shortcut is to multiply everything once (24) and divide by each number. That fails the moment a 0 appears, and interviewers usually forbid division anyway. So we need a way to get "everything except me" without dividing.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Split "everything except me" into two halves: everything to my <em>left</em> and everything to my <em>right</em>. The answer at position <var>i</var> is left × right.</p>
+<p>Piece one: a <strong>prefix product</strong> array <var>L</var>, where <var>L</var>[<var>i</var>] is the product of positions 0 … <var>i</var> − 1. It is built left to right by one multiplication per step, and starts at 1 because nothing is to the left of position 0:</p>
+<div class="table-wrap"><table>
+<tr><th>Position</th><th>0</th><th>1</th><th>2</th><th>3</th></tr>
+<tr><td>nums</td><td>1</td><td>2</td><td>3</td><td>4</td></tr>
+<tr><td><var>L</var> (product of the left)</td><td>1</td><td>1</td><td>2</td><td>6</td></tr>
+</table></div>
+<p>Piece two: a <strong>suffix product</strong> array <var>R</var>, built right to left the same way: <var>R</var>[3] = 1, <var>R</var>[2] = 4, <var>R</var>[1] = 12, <var>R</var>[0] = 24.</p>
+<p>Piece three: combine. answer[<var>i</var>] = <var>L</var>[<var>i</var>] × <var>R</var>[<var>i</var>]: 1·24, 1·12, 2·4, 6·1 = 24, 12, 8, 6.</p>
+<p>A space saving comes last: write <var>L</var> into the answer array, then sweep from the right with a single running variable for the suffix product and multiply it in as you go. The output array is then the only extra storage.</p>
+<p>The same two-sweep shape answers many "both sides" questions. Replace product with sum and you get "find the index where the sum on the left equals the sum on the right" (pivot index). Replace it with maximum and you get the wall heights used in trapping rain water: the water above a bar is bounded by the tallest wall on its left and the tallest on its right.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant for the left sweep: <em>after step <var>i</var>, <var>L</var>[<var>i</var>] is the product of nums[0 … <var>i</var> − 1]</em>. It holds at <var>i</var> = 0 (empty product is 1), and each step sets <var>L</var>[<var>i</var>] = <var>L</var>[<var>i</var> − 1] × nums[<var>i</var> − 1], which extends the product by exactly one factor. The mirror statement holds for <var>R</var>. Then</p>
+<p class="formula"><var>L</var>[<var>i</var>] × <var>R</var>[<var>i</var>] = (nums[0] ⋯ nums[<var>i</var> − 1]) × (nums[<var>i</var> + 1] ⋯ nums[<var>n</var> − 1])</p>
+<p>which is every factor except nums[<var>i</var>], as required. No division was used, so zeros are harmless: a zero on the left makes <var>L</var> zero from then on, which is the correct answer for every position to its right.</p>
+
+<h3>Why it is fast</h3>
+<p>Three sweeps of <var>n</var> steps, one multiplication each: about 3<var>n</var> operations, O(<var>n</var>) time, against roughly <var>n</var><sup>2</sup> for the by-hand method. For 100,000 numbers that is 300,000 multiplications instead of ten billion. Memory is O(1) beyond the output array in the running-variable version.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "except self", "without division", "left side equals right side", "the best pair where one is before the other", or any formula where the value at <var>i</var> depends on an aggregate of everything before <var>i</var> and an aggregate of everything after. Say: "I will precompute a left aggregate and a right aggregate in two sweeps and combine them per position."</p>
+<p><strong>Product of Array Except Self</strong> is the example. <strong>Find Pivot Index</strong> uses sums: with the total <var>S</var> and the running left sum <var>l</var>, the right sum is <var>S</var> − <var>l</var> − nums[<var>i</var>], so one sweep suffices. <strong>Trapping Rain Water</strong> uses left-max and right-max arrays, and the water at <var>i</var> is min(leftMax, rightMax) − height[<var>i</var>].</p>

@@ -394,24 +394,46 @@
       <p>The heap orders items by remaining count; the cooldown queue holds the waiting ones.</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Rearrange the letters of "aaabbc" so that no two equal letters are next to each other. By hand you would spread out the most common letter first: a _ a _ a _, then fill the gaps with b, b, c: a b a b a c. The rule that worked was "place the letter you have the most of, as early as you can, but never right after itself".</p>
+<p>Trying arrangements at random is hopeless: 6 letters have 60 distinct arrangements, 20 letters have billions. And a simple greedy of "take letters in alphabetical order" gives a a a b b c, wrong at once. The ordering must be by remaining count, and the count changes after every placement.</p>
 
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: count each letter. a: 3, b: 2, c: 1. A frequency table.</p>
+<p>Piece two: a max-heap keyed by remaining count, holding (count, letter). Its top is always the letter with the most copies still to place.</p>
+<p>Piece three: a cooldown slot. After you write a letter, it is not allowed in the very next position, so instead of pushing it back into the heap at once, hold it aside for one turn. On the next turn, first pop and write the new top, then return the held letter to the heap (if it still has copies left) and hold the one you just wrote.</p>
+<div class="table-wrap"><table><tr><th>Turn</th><th>Heap (count, letter)</th><th>Pop and write</th><th>Held aside</th><th>Output</th></tr><tr><td>1</td><td>(3,a) (2,b) (1,c)</td><td>a → (2,a)</td><td>(2,a)</td><td>a</td></tr><tr><td>2</td><td>(2,b) (1,c)</td><td>b → (1,b)</td><td>(1,b); (2,a) returns</td><td>ab</td></tr><tr><td>3</td><td>(2,a) (1,c)</td><td>a → (1,a)</td><td>(1,a); (1,b) returns</td><td>aba</td></tr><tr><td>4</td><td>(1,b) (1,c)</td><td>b → done</td><td>nothing; (1,a) returns</td><td>abab</td></tr><tr><td>5</td><td>(1,a) (1,c)</td><td>a → done</td><td>nothing; nothing returns</td><td>ababa</td></tr><tr><td>6</td><td>(1,c)</td><td>c → done</td><td></td><td>ababac</td></tr></table></div>
+<p>If at some turn the heap is empty but a letter is still held, no valid arrangement exists: that letter has nowhere to go but next to itself. For a cooldown of <var>k</var> turns instead of one, the "held aside" slot becomes a queue of length <var>k</var>.</p>
 
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+<h3>Why it is correct</h3>
+<p>The invariant: the heap holds every letter that still has copies and is allowed at the next position; the held slot holds the one letter that is temporarily forbidden. Each turn writes a letter from the heap, so adjacent equal letters never happen by construction.</p>
+<p>Why does always taking the most frequent letter succeed whenever any arrangement exists? The danger is one letter with too many copies left relative to the remaining positions. Writing the most frequent letter first reduces the largest count as early as possible, which keeps the remaining counts as even as possible. If the most frequent letter <var>x</var> has count <var>f</var> and the string has length <var>n</var>, an arrangement exists exactly when</p>
+<p class="formula"><var>f</var> ≤ ⌈<var>n</var> / 2⌉</p>
+<p>and the greedy never violates this for the remaining string, because it only ever lowers the maximum count when the maximum is what it writes, and otherwise the maximum was already within bound for a shorter remainder.</p>
+
+<h3>Why it is fast</h3>
+<p>Each of the <var>n</var> positions does one pop and at most one push on a heap of at most 26 letters (one per distinct letter): O(<var>n</var> log 26), which is effectively O(<var>n</var>). Counting is O(<var>n</var>) too. The random-arrangement search was factorial; the greedy is linear.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>"No two equal letters adjacent", "same tasks must be at least k apart", "schedule by frequency with a cooldown". Say: "I will keep a max-heap by remaining count and a cooldown queue, always placing the most frequent available item." Reorganize String is this with a one-turn cooldown. Task Scheduler is the same with a cooldown of <var>n</var> turns and idle slots when the heap runs empty before the cooldown expires; it also has a closed-form answer, (max count − 1) × (<var>n</var> + 1) + number of letters tied for the maximum, floored by the total length. Rearrange String k Distance Apart generalises the queue to length <var>k</var>.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Always schedule the most frequent remaining item that is not on cooldown.</p>
     <p><strong>Reach for it when:</strong> Task scheduler, reorganise string, rearrange string k distance apart.</p>
     <p><strong>Cost:</strong> O(n log k) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Reorganize String &#x27;aaabbc&#x27;</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Count letters: a×3, b×2, c×1; the most frequent goes first</li><li>Pop the most frequent, <em>a</em> (3 left), write it</li><li>Pop the most frequent, <em>b</em> (2 left), write it</li><li>Now <em>a</em> may come back: it is no longer adjacent to the output</li><li>Pop the most frequent, <em>a</em> (2 left), write it</li><li>Now <em>b</em> may come back: it is no longer adjacent to the output</li><li>Pop the most frequent, <em>b</em> (1 left), write it</li><li>Now <em>a</em> may come back: it is no longer adjacent to the output</li><li>Pop the most frequent, <em>a</em> (1 left), write it</li><li>Pop the most frequent, <em>c</em> (1 left), write it</li><li>Result <em>ababac</em>: every letter waited one turn before returning</li><li>n pops and pushes on a heap of ≤ 26 letters: <em>O(n log 26)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>5 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/task-scheduler">Task Scheduler</a></td><td><span class="diff medium">Medium</span></td><td class="num">41</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/reorganize-string">Reorganize String</a></td><td><span class="diff medium">Medium</span></td><td class="num">34</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/sort-characters-by-frequency">Sort Characters By Frequency</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/rearrange-string-k-distance-apart">Rearrange String k Distance Apart</a></td><td><span class="diff hard">Hard</span></td><td class="num">20</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/maximum-frequency-stack">Maximum Frequency Stack</a></td><td><span class="diff hard">Hard</span></td><td class="num">8</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-heap">Heap</a>: <a href="/dsa/heap-top-k/">Top-k with a size-k heap</a>, <a href="/dsa/heap-two-heaps-median/">Two heaps (running median)</a>, <a href="/dsa/heap-k-way-merge/">K-way merge</a>, <a href="/dsa/heap-scheduling-greedy/">Greedy scheduling with a heap</a>, <a href="/dsa/heap-lazy-deletion/">Lazy deletion heap</a>.</p>
   </article>
 
@@ -430,6 +452,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

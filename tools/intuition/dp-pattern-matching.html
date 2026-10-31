@@ -1,0 +1,21 @@
+<h3>Start with what you would do by hand</h3>
+<p>Does the pattern *a*b match the word adceb? Here ? stands for any one letter and * stands for any run of letters, including none. By hand you try: the first * takes nothing, a matches a, the second * takes dce, b matches b. Yes. Now try *a*b against adcebx: the b must be last but the word ends in x, so no.</p>
+<p>The trouble with doing it by hand is the stars. Each * can take 0, 1, 2, ... letters, and with several stars the number of ways to split the word among them explodes. Guessing one split and backing up when it fails can take exponential time on nasty inputs like a*a*a*a*b against aaaaaaaaaaaaac.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a table of yes/no cells, one row per prefix of the word (including empty) and one column per prefix of the pattern. dp[<var>i</var>][<var>j</var>] means "the first <var>i</var> letters of the word match the first <var>j</var> characters of the pattern".</p>
+<p>Piece two: the empty row. The empty word matches a pattern prefix only if that prefix is all stars, since each star can take nothing. So dp[0][0] = yes, and dp[0][<var>j</var>] = yes while pattern[<var>j</var>] is *.</p>
+<p>Piece three: the inside, by the pattern character in column <var>j</var>:</p>
+<ol>
+<li>a letter or ?: it must consume exactly the word's letter <var>i</var>, and the rest must match, so dp[<var>i</var>][<var>j</var>] = dp[<var>i</var> − 1][<var>j</var> − 1] and (letters equal or the character is ?);</li>
+<li>a *: it takes nothing, so look left, dp[<var>i</var>][<var>j</var> − 1]; or it takes one more letter, so look up, dp[<var>i</var> − 1][<var>j</var>]. Either makes the cell yes.</li>
+</ol>
+<p>That second rule is the whole idea: a star taking <var>k</var> letters is "a star taking <var>k</var> − 1 letters, then one more", so you never enumerate <var>k</var>.</p>
+<div class="table-wrap"><table><tr><th></th><th>ε</th><th>*</th><th>a</th><th>*</th><th>b</th></tr><tr><th>ε</th><td>✓</td><td>✓</td><td>·</td><td>·</td><td>·</td></tr><tr><th>a</th><td>·</td><td>✓</td><td>✓</td><td>✓</td><td>·</td></tr><tr><th>d</th><td>·</td><td>✓</td><td>·</td><td>✓</td><td>·</td></tr><tr><th>c</th><td>·</td><td>✓</td><td>·</td><td>✓</td><td>·</td></tr><tr><th>e</th><td>·</td><td>✓</td><td>·</td><td>✓</td><td>·</td></tr><tr><th>b</th><td>·</td><td>✓</td><td>·</td><td>✓</td><td>✓</td></tr></table></div>
+<p>Row a, column a: letters equal and the diagonal (ε, *) is ✓, so ✓. Row d, column second *: left is (d, a) = ·, up is (a, *) = ✓, so ✓. Bottom-right: b equals b and the diagonal (e, *) is ✓: match.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: each filled cell correctly says whether its word prefix matches its pattern prefix. Empty row: proved above. Letter or ? column: the pattern character must consume exactly the word's last letter, so the two shorter prefixes must match, which is the diagonal. Star column: in any matching, the star consumed some number of trailing letters; if zero, the prefix without the star matches (left); if at least one, drop the last word letter and the same star still matches what remains (up). Both directions are exact, so the cell is right.</p>
+<h3>Why it is fast</h3>
+<p class="formula">work = (<var>n</var> + 1)(<var>m</var> + 1) cells × constant</p>
+<p>A 2,000-letter word against a 2,000-character pattern is 4 million cells, while the back-up search can take time exponential in the number of stars.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "wildcard", "? and *", "regular expression", "does the pattern cover the whole string", two strings where one contains special characters. The first thing to say: "a table over prefixes; a star looks left for zero letters or up for one more." Wildcard Matching is the example above. Regular Expression Matching is the harder sibling: there the star applies to the character before it, so the "one more" branch also checks that the word's letter matches that preceding character.</p>

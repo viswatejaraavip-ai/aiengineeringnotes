@@ -1,0 +1,24 @@
+<h3>Start with what you would do by hand</h3>
+<p>You have balloons in a row, <code>[3, 1, 5, 8]</code>. Bursting a balloon earns you the product of it and its two current neighbours, and the row closes up afterwards. Outside the row imagine invisible balloons worth 1 on each side. Which order earns the most coins?</p>
+<p>By hand you would try orders. Burst 1 first: 3 × 1 × 5 = 15, leaving <code>[3, 5, 8]</code>. Then 5: 3 × 5 × 8 = 120, leaving <code>[3, 8]</code>. Then 3: 1 × 3 × 8 = 24, then 8: 1 × 8 × 1 = 8. Total 167. Is that the best? There are 4 × 3 × 2 × 1 = 24 orders for four balloons; for 12 balloons there are 479 million. Trying orders is hopeless, and the obvious shortcut fails: after bursting the first balloon, its neighbours become adjacent, so the two halves of the row are no longer separate problems.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The trick is to think about the <strong>last</strong> balloon burst instead of the first. Add the invisible 1s so the row is <code>[1, 3, 1, 5, 8, 1]</code> with indices 0 to 5. Consider an open interval (<var>i</var>, <var>j</var>): the balloons strictly between positions <var>i</var> and <var>j</var>, where the balloons at <var>i</var> and <var>j</var> are still standing. If balloon <var>k</var> is the last one burst inside that interval, then at that moment its neighbours are exactly <var>i</var> and <var>j</var>, so it earns <code>v[i]</code> × <code>v[k]</code> × <code>v[j]</code>. Everything left of <var>k</var> was burst while <var>i</var> and <var>k</var> stood, everything right of <var>k</var> while <var>k</var> and <var>j</var> stood. The two sides never touch, so they are independent smaller problems.</p>
+<p>So the structure is a table <var>dp</var>[<var>i</var>][<var>j</var>] = most coins from bursting everything strictly between <var>i</var> and <var>j</var>. Fill it by the width of the interval, narrow first.</p>
+<ol>
+<li>Width 2, nothing inside: <var>dp</var>[<var>i</var>][<var>i</var>+1] = 0 for every <var>i</var>.</li>
+<li>Width 3, one balloon inside: <var>dp</var>[0][2] = 1 × 3 × 1 = 3, <var>dp</var>[1][3] = 3 × 1 × 5 = 15, <var>dp</var>[2][4] = 1 × 5 × 8 = 40, <var>dp</var>[3][5] = 5 × 8 × 1 = 40.</li>
+<li>Width 4, two balloons inside, two choices of last: <var>dp</var>[1][4] = max(last is 1: 3 × 1 × 8 + 0 + 40 = 64, last is 5: 3 × 5 × 8 + 15 + 0 = 135) = 135.</li>
+<li>Width 6, the whole row: last is 8 gives 1 × 8 × 1 + <var>dp</var>[0][4] + 0 = 8 + 159 = 167; the other choices score less. Answer 167.</li>
+</ol>
+<p>Each cell only needs cells of smaller width, which are already final because of the fill order.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant is that <var>dp</var>[<var>i</var>][<var>j</var>] is the true optimum for the balloons strictly inside (<var>i</var>, <var>j</var>) with <var>i</var> and <var>j</var> standing. Every order of bursting the inside has some last balloon <var>k</var>, so the optimum equals the best over <var>k</var> of: coins for <var>k</var> last, plus the best for the left part, plus the best for the right part. The left and right parts are smaller intervals with their own boundaries standing, so by the invariant their table cells are their true optima. Taking the maximum over all <var>k</var> therefore gives the true optimum for (<var>i</var>, <var>j</var>).</p>
+<p class="formula"><var>dp</var>[<var>i</var>][<var>j</var>] = max over <var>i</var> &lt; <var>k</var> &lt; <var>j</var> of ( <code>v[i]</code>·<code>v[k]</code>·<code>v[j]</code> + <var>dp</var>[<var>i</var>][<var>k</var>] + <var>dp</var>[<var>k</var>][<var>j</var>] )</p>
+
+<h3>Why it is fast</h3>
+<p>With <var>n</var> balloons plus two borders there are about <var>n</var><sup>2</sup>/2 intervals, and each interval tries at most <var>n</var> choices of <var>k</var>. That is O(<var>n</var><sup>3</sup>) multiplications and additions: for 12 balloons roughly 1,000 steps instead of 479 million orders, and for 300 balloons about 27 million steps, still instant. Memory is the <var>n</var> × <var>n</var> table.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: items in a row, an operation that removes or merges neighbours, and a cost that depends on what is adjacent at that moment. The greedy and left-to-right ideas fail because removing one item changes its neighbours. Say: I will define the answer for every interval and decide which element is handled last, so the two sides become independent. <em>Burst Balloons</em> is the textbook case. <em>Minimum Cost to Merge Stones</em> and <em>Strange Printer</em> use the same interval table with a different combine rule, and <em>Predict the Winner</em> fills intervals from the ends inward.</p>

@@ -394,24 +394,45 @@
       <p>Queue front has the smallest distance; all nodes at distance d are expanded before d+1.</p>
     </div>
 
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>A grid of oranges: 2 means rotten, 1 fresh, 0 empty. Each minute every rotten orange rots its fresh neighbours (up, down, left, right). How many minutes until no fresh orange remains? Grid: row 0 is 2 1 1, row 1 is 1 1 0, row 2 is 0 1 1. By hand you redraw the grid minute by minute: after minute 1 the two neighbours of the rotten one are rotten, after minute 2 two more, and so on until minute 4 when the last one in the bottom right goes.</p>
+<p>Redrawing the whole grid each minute costs the grid size per minute, and the number of minutes can be as large as the grid, so about (<var>m</var> × <var>n</var>)<sup>2</sup> steps in the worst case. Also, if several oranges start rotten, you must spread from all of them at the same time; handling one source at a time and taking the minimum per cell works but repeats the whole spread once per source.</p>
 
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a queue of (cell, minute) pairs, and a way to mark a cell as rotten so that it is never processed twice. Writing 2 into the grid is the mark.</p>
+<p>Piece two: seed the queue with <em>every</em> rotten orange at minute 0, all at once. This is the whole trick. A queue served from the front processes all minute-0 cells, then all minute-1 cells, and so on, so the spread from all sources advances in lockstep, exactly like the redrawing.</p>
+<p>Piece three: pop a cell; for each fresh neighbour, mark it rotten and push it with minute + 1. Remember the largest minute pushed. At the end, if any fresh orange is still fresh, the answer is −1; otherwise it is the largest minute.</p>
+<div class="table-wrap"><table><tr><th>Popped (cell, minute)</th><th>Fresh neighbours rotted</th><th>Pushed at</th></tr><tr><td>(0,0), 0</td><td>(0,1), (1,0)</td><td>1</td></tr><tr><td>(0,1), 1</td><td>(0,2), (1,1)</td><td>2</td></tr><tr><td>(1,0), 1</td><td>none new</td><td></td></tr><tr><td>(0,2), 2</td><td>none</td><td></td></tr><tr><td>(1,1), 2</td><td>(2,1)</td><td>3</td></tr><tr><td>(2,1), 3</td><td>(2,2)</td><td>4</td></tr><tr><td>(2,2), 4</td><td>none</td><td></td></tr></table></div>
+<p>Queue empty, largest minute 4, no fresh orange left: answer 4.</p>
 
-    <h2 id="idea"><span class="num">01</span>The idea in one line</h2>
+<h3>Why it is correct</h3>
+<p>Think of all the sources as connected to one imaginary super-source by zero-length edges. Breadth-first search from the super-source then gives every cell its distance to the nearest source, because BFS on an unweighted graph finds shortest distances. Seeding the queue with all sources at minute 0 is exactly BFS from the super-source with the first step already taken.</p>
+<p class="formula">minute(cell) = min over sources <var>s</var> of distance(<var>s</var>, cell), and the answer = max over cells of minute(cell)</p>
+<p>The invariant that makes the queue work: cells are popped in non-decreasing minute order, and all cells of minute <var>d</var> are popped before any of minute <var>d</var> + 1, because pushes always go to the back with a minute one larger than the front. So the first time a cell is marked, it is from a cell at the smallest possible minute, and the recorded minute is the true one.</p>
+
+<h3>Why it is fast</h3>
+<p>Each cell is pushed and popped at most once, with four neighbour checks: O(<var>m</var> × <var>n</var>). Redrawing per minute was up to quadratic in the grid size, and running one BFS per source would multiply by the number of sources. Memory is the queue, at most the grid size.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>"Spreads each minute from several starting points", "distance to the nearest 0 for every cell", "fill each empty room with the distance to its nearest gate", "how far from land is the farthest water". Say: "I will seed a BFS queue with all sources at distance 0; the first visit of each cell is its distance to the nearest source." Rotting Oranges is this exactly. 01 Matrix seeds with every 0 and writes the distance into each 1. Walls and Gates seeds with every gate. Shortest Distance from All Buildings is the exception that needs one BFS per building, because it wants the sum of distances, not the minimum.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Seed the queue with every source; the first visit is the nearest source.</p>
     <p><strong>Reach for it when:</strong> Rotting oranges, 01 matrix, walls and gates, shortest distance from buildings.</p>
     <p><strong>Cost:</strong> O(mn) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Rotting Oranges on [[2,1,1],[1,1,0],[0,1,1]]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Seed the queue with <em>every</em> rotten orange at minute 0</li><li>Pop (0,0) at minute 0: it rots 2 neighbours at minute <em>1</em></li><li>Pop (1,0) at minute 1: it rots 1 neighbour at minute <em>2</em></li><li>Pop (0,1) at minute 1: it rots 1 neighbour at minute <em>2</em></li><li>Pop (1,1) at minute 2: it rots 1 neighbour at minute <em>3</em></li><li>Pop (0,2) at minute 2: no fresh neighbour left</li><li>Pop (2,1) at minute 3: it rots 1 neighbour at minute <em>4</em></li><li>Pop (2,2) at minute 4: no fresh neighbour left</li><li>Queue empty, no fresh orange remains: answer <em>4</em> minutes</li><li>Each cell enters the queue once: <em>O(m·n)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>6 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/rotting-oranges">Rotting Oranges</a></td><td><span class="diff medium">Medium</span></td><td class="num">51</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/01-matrix">01 Matrix</a></td><td><span class="diff medium">Medium</span></td><td class="num">37</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/walls-and-gates">Walls and Gates</a></td><td><span class="diff medium">Medium</span></td><td class="num">26</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/shortest-distance-from-all-buildings">Shortest Distance from All Buildings</a></td><td><span class="diff hard">Hard</span></td><td class="num">26</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/map-of-highest-peak">Map of Highest Peak</a></td><td><span class="diff medium">Medium</span></td><td class="num">18</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/as-far-from-land-as-possible">As Far from Land as Possible</a></td><td><span class="diff medium">Medium</span></td><td class="num">5</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-graphs">Graphs</a>: <a href="/dsa/grid-dfs-islands/">Grid flood fill (components)</a>, <a href="/dsa/bfs-shortest-unweighted/">BFS shortest path (unweighted)</a>, <a href="/dsa/bfs-state-space/">BFS over an augmented state</a>, <a href="/dsa/bfs-0-1/">0-1 BFS (deque)</a>, <a href="/dsa/dfs-cycle-coloring/">DFS three-colour cycle detection</a>, <a href="/dsa/topo-kahn/">Topological sort (Kahn&#x27;s)</a>, <a href="/dsa/union-find/">Union–Find (disjoint sets)</a>, <a href="/dsa/dijkstra/">Dijkstra (weighted shortest path)</a>, <a href="/dsa/bellman-ford-k-stops/">Bellman–Ford with k rounds</a>, <a href="/dsa/mst-kruskal-prim/">Minimum spanning tree</a>, <a href="/dsa/graph-bipartite/">Bipartite colouring</a>, <a href="/dsa/eulerian-path/">Eulerian path (Hierholzer)</a>, <a href="/dsa/tarjan-bridges/">Bridges / articulation (low-link)</a>, <a href="/dsa/graph-clone-traverse/">Clone / traverse with a visited map</a>, <a href="/dsa/implicit-graph-search/">Implicit graph (states as nodes)</a>.</p>
   </article>
 
@@ -430,6 +451,7 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
+      <li><a href="#intuition">The intuition</a></li>
       <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>

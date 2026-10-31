@@ -1,0 +1,27 @@
+<h3>Start with what you would do by hand</h3>
+<p>You have four raffle tickets with weights 1, 3, 2 and 4, and you want to draw one so that the ticket with weight 4 is four times as likely as the ticket with weight 1. By hand you would write the first ticket on 1 slip of paper, the second on 3 slips, the third on 2 and the fourth on 4, put all 10 slips in a hat, and draw one. That is correct. It is also wasteful: if the weights were 1 and 999,999 you would be writing a million slips.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Instead of slips, lay the weights end to end on a number line. Ticket 0 owns the range 1, ticket 1 owns 2 to 4, ticket 2 owns 5 to 6, ticket 3 owns 7 to 10. The right edges of those ranges are the running totals, called prefix sums:</p>
+<div class="table-wrap"><table>
+<tr><th>ticket</th><th>weight</th><th>prefix (running total)</th><th>owns the numbers</th></tr>
+<tr><td>0</td><td>1</td><td>1</td><td>1</td></tr>
+<tr><td>1</td><td>3</td><td>4</td><td>2, 3, 4</td></tr>
+<tr><td>2</td><td>2</td><td>6</td><td>5, 6</td></tr>
+<tr><td>3</td><td>4</td><td>10</td><td>7, 8, 9, 10</td></tr>
+</table></div>
+<p>Now draw a single random integer <var>r</var> from 1 to 10 and find which ticket owns it: the first ticket whose prefix is at least <var>r</var>. Because the prefix column is sorted, that lookup is a binary search. Draw <var>r</var> = 7: the middle prefix 4 is below 7, so look right; prefix 6 is below 7, look right; prefix 10 is the first one at or above 7, so ticket 3 wins. Draw <var>r</var> = 4: prefix 4 is the first one at or above 4, ticket 1 wins.</p>
+<p>The second tool in this family handles the opposite situation, where you do not know how many items there are because they arrive one at a time and cannot be stored. Reservoir sampling keeps one chosen item. When item number <var>i</var> arrives, replace the chosen item with it with probability 1/<var>i</var>. One variable and a coin flip per item.</p>
+
+<h3>Why it is correct</h3>
+<p>For the weighted pick, ticket <var>k</var> owns exactly <var>w</var><sub><var>k</var></sub> of the integers 1 … <var>W</var>, where <var>W</var> is the total, and each integer is equally likely, so</p>
+<p class="formula">P(ticket <var>k</var>) = <var>w</var><sub><var>k</var></sub> / <var>W</var></p>
+<p>which is the definition of a weighted draw. The binary search is correct because prefixes are non-decreasing, so "first prefix ≥ <var>r</var>" is a boundary with everything false on the left and true on the right.</p>
+<p>For the reservoir, the invariant is that after <var>i</var> items each of them is the chosen one with probability 1/<var>i</var>. It is true for <var>i</var> = 1. When item <var>i</var> + 1 arrives it is chosen with probability 1/(<var>i</var> + 1). Any earlier item was chosen with probability 1/<var>i</var> and survives the new coin flip with probability <var>i</var>/(<var>i</var> + 1), so its chance is (1/<var>i</var>) · (<var>i</var>/(<var>i</var> + 1)) = 1/(<var>i</var> + 1), the same as the newcomer's. The invariant holds for every <var>i</var>, including the final count.</p>
+
+<h3>Why it is fast</h3>
+<p>Building the prefix table is one pass, O(<var>n</var>), done once. Each pick is a binary search over <var>n</var> prefixes, O(log <var>n</var>), and uses O(1) random numbers. The slips-in-a-hat method needed O(<var>W</var>) memory, and <var>W</var> can be astronomically larger than <var>n</var>. Reservoir sampling is O(1) memory and O(1) work per item, which is the best possible when the items cannot be stored.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "pick an index with probability proportional to", "random node of a linked list in one pass", "shuffle", "random point inside these rectangles", or "the stream is too large to store". Say: "weighted means prefix sums plus a binary search; unknown length means reservoir sampling".</p>
+<p>Random Pick with Weight is the table above exactly. Linked List Random Node is the reservoir: walk the list once, keeping each node with probability 1/<var>i</var>. Random Point in Non-overlapping Rectangles is the weighted pick where each rectangle's weight is its number of integer points, followed by a uniform point inside the chosen rectangle.</p>

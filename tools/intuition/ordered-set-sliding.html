@@ -1,0 +1,28 @@
+<h3>Start with what you would do by hand</h3>
+<p>Numbers arrive one by one: 1, 5, 9, 1, 5, 9. After each arrival you must say whether the new number is within distance <var>t</var> of any of the last <var>k</var> numbers. Take <var>k</var> = 3 and <var>t</var> = 0, so the question becomes "is there an equal number among the last three?". By hand you look back at the three most recent numbers and compare. That is 3 comparisons per arrival; with <var>k</var> = 100,000 it is 100,000 comparisons per arrival, and a million arrivals makes a hundred billion.</p>
+<p>The waste is in comparing against every window member when only the two members nearest in value matter: the largest member at most <var>x</var>, and the smallest member at least <var>x</var>. If neither is within <var>t</var>, nothing else is.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: keep the window's values in sorted order. In a sorted list the two neighbours of a value are found by bisection, cutting the range in half each step, and they sit next to each other.</p>
+<p>Piece two: a container that stays sorted while things are added and removed in O(log <var>k</var>). A balanced tree does it, and so does a skip list; Python offers a sorted list container, Java a TreeMap, C++ a multiset. The exact machinery does not matter for the pattern; what matters is three operations: insert, remove, and "neighbours of <var>x</var>".</p>
+<p>Piece three: the sliding window. When a value enters, ask for its neighbours, then insert it. When the window is longer than <var>k</var>, remove the oldest value, which you find by position in the original stream, not by its sorted place:</p>
+<div class="table-wrap"><table>
+<tr><th>arrival</th><th>neighbours in the window</th><th>within t = 0?</th><th>sorted window after insert (max 3)</th></tr>
+<tr><td>1</td><td>none</td><td>no</td><td>[1]</td></tr>
+<tr><td>5</td><td>1 below, none above</td><td>no</td><td>[1, 5]</td></tr>
+<tr><td>9</td><td>5 below, none above</td><td>no</td><td>[1, 5, 9]</td></tr>
+<tr><td>1</td><td>1 at or below, 5 above</td><td>yes, 1 − 1 = 0</td><td>stop, answer true</td></tr>
+</table></div>
+<p>Had the answer been no, the oldest value 1 would be removed to keep the window at three, giving [1, 5, 9] again with the new 1.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant is that the container holds exactly the last <var>k</var> values, in sorted order. Insert and remove by value keep it sorted; removing the oldest keeps the membership right. The neighbour test is complete: let <var>a</var> be the largest window value at most <var>x</var> and <var>b</var> the smallest at least <var>x</var>. Any other window value <var>y</var> is either below <var>a</var>, so <var>x</var> − <var>y</var> &gt; <var>x</var> − <var>a</var>, or above <var>b</var>, so <var>y</var> − <var>x</var> &gt; <var>b</var> − <var>x</var>. So if neither neighbour is within <var>t</var>, no window value is:</p>
+<p class="formula">min over the window of |<var>x</var> − <var>y</var>| = min(<var>x</var> − <var>a</var>, <var>b</var> − <var>x</var>)</p>
+
+<h3>Why it is fast</h3>
+<p>Each arrival does one neighbour lookup, one insert and at most one remove, each O(log <var>k</var>) in a balanced sorted container. For <var>n</var> arrivals that is O(<var>n</var> log <var>k</var>): for a million arrivals and a window of 100,000, about 17 million steps against a hundred billion. The memory is the window, O(<var>k</var>).</p>
+<p>The same container answers other window questions. The median is the middle element, reached by index in a sorted list. The maximum minus the minimum is last minus first, which solves "longest subarray with difference at most a limit". "How many earlier values are smaller" is the insertion index of the new value.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "sliding window" together with "median", "within distance <var>t</var>", "difference at most", "k-th smallest so far", or any time you need the value just above or just below <var>x</var> among a changing set. Say: "the only members that matter are the two nearest in value, so I will keep the window in a sorted container and bisect".</p>
+<p>Sliding Window Median keeps the window sorted and reads the middle. Longest Continuous Subarray With Absolute Diff Less Than or Equal to Limit grows a window and shrinks it while last − first exceeds the limit. Count of Smaller Numbers After Self scans from the right and records each value's insertion index.</p>

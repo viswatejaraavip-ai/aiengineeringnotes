@@ -1,0 +1,27 @@
+<h3>Start with what you would do by hand</h3>
+<p>Cut the string <code>ababcbacadefegde</code> into as many pieces as possible so that no letter appears in two different pieces. By hand you would start a piece at the first <code>a</code>, notice that <code>a</code> appears again later, scan forward to its last appearance, notice that the piece now contains <code>b</code> and <code>c</code>, check where those last appear, and so on. It works, but every time a new letter enters the piece you rescan the string to find its last position, and with a long string of many letters that is a lot of rescanning: O(<var>n</var>) per letter, up to O(<var>n</var> × 26) checks for each piece and more in careless versions.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The first piece of structure is a tiny table: for each letter, the index of its <strong>last</strong> occurrence. One pass over the string fills it, overwriting as it goes. For our string: <code>a</code> → 8, <code>b</code> → 5, <code>c</code> → 7, <code>d</code> → 14, <code>e</code> → 15, <code>f</code> → 11, <code>g</code> → 13.</p>
+<p>The second piece is one number, <strong>end</strong>: the furthest index the current piece must stretch to. Walk the string a second time. At each index <var>i</var>, set end = max(end, last[<code>s[i]</code>]). When <var>i</var> catches up with end, the piece can close here: every letter inside it has its last occurrence at or before end.</p>
+<div class="table-wrap"><table>
+<tr><th><var>i</var></th><th>letter</th><th>last</th><th>end</th><th>action</th></tr>
+<tr><td>0</td><td>a</td><td>8</td><td>8</td><td></td></tr>
+<tr><td>1</td><td>b</td><td>5</td><td>8</td><td></td></tr>
+<tr><td>4</td><td>c</td><td>7</td><td>8</td><td></td></tr>
+<tr><td>8</td><td>a</td><td>8</td><td>8</td><td><var>i</var> = end: close a piece of length 9</td></tr>
+<tr><td>9</td><td>d</td><td>14</td><td>14</td><td></td></tr>
+<tr><td>10</td><td>e</td><td>15</td><td>15</td><td></td></tr>
+<tr><td>15</td><td>e</td><td>15</td><td>15</td><td><var>i</var> = end: close a piece of length 7</td></tr>
+</table></div>
+<p>Pieces of length 9 and 7. The piece could not be cut at 8 + 8 because <code>d</code> and <code>e</code> would be split across the cut.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: while scanning the current piece, end is the maximum last-occurrence of every letter seen in the piece so far. A piece cannot close before end, because some letter in it reappears at end. When <var>i</var> reaches end, every letter in the piece has its last occurrence at or before <var>i</var> (that is what the maximum says), so none of them appears later, and closing here is legal. Closing as early as legal makes the most pieces: any cut earlier than this one would split some letter, and delaying the cut only merges pieces that could have been separate.</p>
+<p class="formula">end = max over <var>j</var> ≤ <var>i</var> in the piece of last[<code>s[j]</code>]; close when <var>i</var> = end</p>
+
+<h3>Why it is fast</h3>
+<p>Two passes over the string, each doing constant work per character, plus a table of 26 integers: O(<var>n</var>) time and O(1) extra memory. The precomputed table is what removes the rescanning; "where does this letter last appear" becomes a lookup.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "partition into as many parts as possible", "each letter in at most one part", or intervals defined by first and last occurrence. Say: I will precompute each element's last position, then sweep with a running furthest-reach and cut when the index meets it. <em>Partition Labels</em> is the example. <em>Max Chunks To Make Sorted</em> is the same sweep where the reach is the maximum value seen so far compared with the index. <em>Merge Intervals</em> uses the identical "extend the current end, close when passed" motion over sorted intervals.</p>

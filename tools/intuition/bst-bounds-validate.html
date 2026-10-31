@@ -1,0 +1,21 @@
+<h3>Start with what you would do by hand</h3>
+<p>A binary search tree (BST) has one rule: for every node, everything in its left subtree is smaller than it, and everything in its right subtree is larger. Check this tree: 5 at the top; 1 on its left; 4 on its right; 3 and 6 under 4. Is it a BST?</p>
+<p>A quick glance at each parent and its two children says yes: 1 &lt; 5, 4 &lt; 5... wait, 4 is on the right of 5 and 4 &lt; 5. Already broken. But suppose the right child had been 7 with 3 and 8 under it. Then every parent-child pair looks fine (3 &lt; 7 &lt; 8, 1 &lt; 5 &lt; 7), yet 3 sits in the right subtree of 5 while being smaller than 5. The rule is about <em>every</em> ancestor, not just the parent. Checking each node against all its ancestors by hand costs up to <var>h</var> comparisons per node, roughly <var>n</var> × <var>h</var> in total.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: an allowed range for every node, two numbers (low, high). The root may be anything: (−∞, +∞).</p>
+<p>Piece two: how the range changes when you step down. Going to the left child, every value there must be smaller than the current node, so the high end becomes the current value. Going right, the low end becomes the current value. The range is handed down along with the recursion, exactly like the state in root-to-leaf problems.</p>
+<p>Piece three: the check. At each node, test low &lt; value &lt; high. If it fails anywhere, the tree is not a BST. If it passes everywhere, it is.</p>
+<div class="table-wrap"><table><tr><th>Node</th><th>Range received</th><th>Inside?</th><th>Left child gets</th><th>Right child gets</th></tr><tr><td>5</td><td>(−∞, ∞)</td><td>yes</td><td>(−∞, 5)</td><td>(5, ∞)</td></tr><tr><td>1</td><td>(−∞, 5)</td><td>yes</td><td>(−∞, 1)</td><td>(1, 5)</td></tr><tr><td>4</td><td>(5, ∞)</td><td>no: 4 is not above 5</td><td colspan="2">stop, not a BST</td></tr></table></div>
+<p>In the second tree (7 on the right with 3 under it), 7 receives (5, ∞), passes, and hands 3 the range (5, 7). 3 is not inside, so the deep violation is caught too, without ever looking back at the ancestors.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: the range handed to a node is exactly the set of values that all of its ancestors together allow. At the root no ancestor exists, so the range is everything. Stepping to a left child adds one constraint, "smaller than me", which intersects the old range with (−∞, value); stepping right intersects with (value, ∞). Intersecting intervals is what the two updates do.</p>
+<p class="formula">range(<var>v</var>) = intersection over ancestors <var>a</var> of { (−∞, <var>a</var>) if <var>v</var> is left of <var>a</var>, (<var>a</var>, ∞) if right of <var>a</var> }</p>
+<p>So "value inside its range" means "value satisfies every ancestor", which is the BST rule for that node. Checking it at every node checks the whole rule. Use strict inequalities so duplicate values are rejected, as the problems require.</p>
+
+<h3>Why it is fast</h3>
+<p>Each node receives two numbers and does two comparisons: O(<var>n</var>) time, O(<var>h</var>) stack. The by-hand method compared every node with every ancestor, O(<var>n</var> × <var>h</var>), which for a deep tree is close to <var>n</var><sup>2</sup>. Carrying the bounds compresses all the ancestors into two numbers.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>"Is this a valid BST", "sum of all values between L and R in a BST", "trim the BST to a range", "count subtrees whose values fit a bound". Say: "I will pass an allowed (low, high) range down the recursion, tightening one side at each step." Validate Binary Search Tree is this exactly, and the classic trap is checking only parent and child. Range Sum of BST uses the bounds the other way: because the tree is valid, a node below L has nothing useful on its left, so skip that side. Trim a Binary Search Tree cuts off a subtree the moment its root falls outside the range.</p>

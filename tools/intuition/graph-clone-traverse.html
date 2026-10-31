@@ -1,0 +1,23 @@
+<h3>Start with what you would do by hand</h3>
+<p>You are given a drawing of four nodes in a ring, 1–2–3–4–1, where each node holds a list of its neighbours, and you must make an exact copy: new nodes, same values, same connections. By hand you draw four fresh circles, write 1 to 4 in them, and draw the same four lines. Easy, because you can see the whole drawing.</p>
+<p>A program cannot see the whole drawing; it only holds node 1 and can follow neighbour pointers. If it copies node 1, then copies neighbour 2, then from 2 copies neighbour 1 again, it makes a second copy of 1, then a second copy of 2, and never stops, because the ring has no end. The naive copy loops forever and also creates the wrong shape.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a <strong>map</strong> from original node to its copy. Before copying a node, look it up. If it is there, reuse the copy; if not, create the copy and record it immediately, before touching its neighbours.</p>
+<p>Piece two: a traversal, depth-first or breadth-first, that visits each original once. The map doubles as the visited set.</p>
+<p>Walk the ring starting at 1:</p>
+<ol>
+<li>1 not in map: create 1′, map = {1: 1′}. Visit its neighbours 2 and 4.</li>
+<li>2 not in map: create 2′, map = {1: 1′, 2: 2′}. Neighbours of 2 are 1 and 3. 1 is in the map: reuse 1′, wire 2′ → 1′.</li>
+<li>3 not in map: create 3′. Its neighbour 2 is in the map: wire 3′ → 2′.</li>
+<li>4 not in map: create 4′. Its neighbours 3 and 1 are both in the map: wire 4′ → 3′ and 4′ → 1′.</li>
+<li>Back at 1: neighbour 4 is in the map, wire 1′ → 4′. Done: four copies, four edges mirrored.</li>
+</ol>
+<p>The same skeleton, "map plus traversal", clones a linked list with random pointers, finds whether a path exists, or collects which rooms a set of keys can open; only the work done per node changes.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: every original node that has been seen has exactly one copy, and it is in the map. Creating the copy before exploring neighbours is what keeps it true in a ring: when the walk comes back round to 1, the lookup finds 1′ instead of making a new one. Every edge u → v in the original becomes u′ → map[v], which exists because v is either already copied or copied on the spot, so the copy has exactly the original's edges and no others.</p>
+<h3>Why it is fast</h3>
+<p>Each node is created once and each edge is wired once; map lookups are constant time on average:</p>
+<p class="formula">work = <var>V</var> + <var>E</var>, and memory <var>V</var> for the map</p>
+<p>Without the map the walk never terminates on any graph with a cycle, so the comparison is not slow versus fast but finite versus infinite.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "deep copy", "clone", "each node has a random or extra pointer", "reachable from the start", "can you reach every room". The first thing to say: "I will traverse once and keep a map from original to copy so each node is created exactly once." Clone Graph is the example above. Keys and Rooms is the same traversal with a visited set instead of a copy map: count rooms reached from room 0.</p>

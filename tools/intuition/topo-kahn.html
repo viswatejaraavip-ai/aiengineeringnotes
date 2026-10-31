@@ -1,0 +1,18 @@
+<h3>Start with what you would do by hand</h3>
+<p>Four courses: 0 has no prerequisite; 1 needs 0; 2 needs 0; 3 needs both 1 and 2. In what order can you take them? By hand you say "0 has nothing before it, so take 0 first. Now 1 and 2 are free, take them. Now 3 is free." You never wrote a rule, but you used one: <em>take something that has nothing left waiting on it</em>.</p>
+<p>With 4 courses you can see what is free. With 5,000 courses and 20,000 prerequisites you cannot see it, and if you rescan the whole list every time you take a course that is 5,000 × 20,000 = 100 million checks. We want to keep the "how many prerequisites are still waiting" number for every course and update it cheaply.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>First, store the arrows: for each course, the list of courses that need it. 0: [1, 2], 1: [3], 2: [3], 3: [].</p>
+<p>Second, a counter per course called its <strong>in-degree</strong>: how many arrows point into it, that is, how many prerequisites it still has. Count once at the start:</p>
+<div class="table-wrap"><table><tr><th>course</th><td>0</td><td>1</td><td>2</td><td>3</td></tr><tr><th>in-degree</th><td>0</td><td>1</td><td>1</td><td>2</td></tr></table></div>
+<p>Third, a queue of courses whose in-degree is 0. These can be taken right now. Start: queue = [0].</p>
+<p>Now the loop. Take 0 from the queue and write it to the output. For every arrow out of 0, lower the target's counter by one, because one of its prerequisites is now done. 1 drops to 0, so enqueue it; 2 drops to 0, so enqueue it. Queue = [1, 2], output = [0]. Take 1: arrow 1 → 3 lowers 3 to 1, still waiting. Take 2: arrow 2 → 3 lowers 3 to 0, enqueue it. Take 3. Output = [0, 1, 2, 3].</p>
+<p>If the prerequisites contain a loop, every course in the loop keeps a counter of at least 1 forever, because each is waiting for another member of the loop. The queue runs dry with courses left over. That is how the same loop also detects cycles: fewer than <var>V</var> courses in the output means a cycle.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: a course is in the queue only when its counter is 0, and its counter is 0 only when every prerequisite has already been written to the output. Each decrement happens exactly when a prerequisite is written, so the counter always equals the number of prerequisites not yet output. A course therefore never appears before anything it needs, which is the definition of a valid order.</p>
+<h3>Why it is fast</h3>
+<p>Counting in-degrees looks at each arrow once. The loop writes each course once and, when writing it, touches each of its outgoing arrows once. So:</p>
+<p class="formula">work = <var>V</var> + <var>E</var></p>
+<p>For 5,000 courses and 20,000 prerequisites that is 25,000 steps instead of 100 million rescans.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "order such that every dependency comes first", "build order", "which words come before which" in an unknown alphabet, "can all be done". The first thing to say: "count in-degrees, queue the zeros, and peel." Course Schedule II asks for the order itself; this output list is the answer. Alien Dictionary first turns adjacent words into arrows between letters, then runs exactly this peel. Minimum Height Trees peels leaves (degree 1) layer by layer with the same queue idea.</p>

@@ -1,0 +1,34 @@
+<h3>Start with what you would do by hand</h3>
+<p>The list 3, 1, 5, 4, 2 holds each number from 1 to 5 exactly once, just shuffled. Sort it. Any sorting method works, but there is something special here: we know in advance where every number belongs. The number 3 belongs in slot 3, which is index 2 if we count from 0. The number <var>v</var> belongs at index <var>v</var> &minus; 1.</p>
+<p>By hand with that knowledge you would not compare anything. You would pick up the 3 from the first slot, walk to slot 3, put it there, and carry away whatever was sitting there. A general sort compares pairs and needs about <var>n</var> log<sub>2</sub> <var>n</var> steps; here we can do it with at most <var>n</var> moves and no extra paper.</p>
+<p>The same knowledge answers questions without sorting: which number is missing from 1 to <var>n</var>, which one is duplicated, what is the smallest positive integer not present. Once every number is in its home slot, a slot holding the wrong number is the whole answer.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The structure is the array itself, used as its own address book: index <var>v</var> &minus; 1 is the home of value <var>v</var>.</p>
+<p><strong>Piece 1: a pointer <var>i</var>.</strong> Start at index 0.</p>
+<p><strong>Piece 2: the swap rule.</strong> Look at the value <var>v</var> at index <var>i</var>. If <var>v</var> is already home (<var>v</var> = <var>i</var> + 1), move on to <var>i</var> + 1. Otherwise swap it with whatever is at its home index <var>v</var> &minus; 1, and stay at <var>i</var>, because a new value has just arrived there.</p>
+<div class="table-wrap"><table>
+<tr><th><var>i</var></th><th>Value at <var>i</var></th><th>Home index</th><th>Action</th><th>Array after</th></tr>
+<tr><td>0</td><td>3</td><td>2</td><td>swap 0 &harr; 2</td><td>5, 1, 3, 4, 2</td></tr>
+<tr><td>0</td><td>5</td><td>4</td><td>swap 0 &harr; 4</td><td>2, 1, 3, 4, 5</td></tr>
+<tr><td>0</td><td>2</td><td>1</td><td>swap 0 &harr; 1</td><td>1, 2, 3, 4, 5</td></tr>
+<tr><td>0</td><td>1</td><td>0</td><td>home, advance</td><td>1, 2, 3, 4, 5</td></tr>
+<tr><td>1..4</td><td>2, 3, 4, 5</td><td></td><td>all home, advance</td><td>1, 2, 3, 4, 5</td></tr>
+</table></div>
+<p>Three swaps and five advances. The name "cyclic" comes from the chain 3 &rarr; 5 &rarr; 2 &rarr; 1 that the first slot followed: each value displaced the next, around a cycle, until the cycle closed.</p>
+<p><strong>Piece 3: handling bad values.</strong> If a value is out of range (0, negative, or larger than <var>n</var>) or its home already holds a copy of it, there is nothing useful to do: advance. That is what makes the same loop work for finding a missing or duplicated number.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: every index before <var>i</var> holds its home value, and no value that has been placed in its home is ever moved out again.</p>
+<p>The second part is why it works: a swap only moves the value at <var>i</var>, which is not home (else we would have advanced), and the value at its home index, which cannot be the correct value there (else the home-already-holds-a-copy check would have fired). So each swap puts exactly one value in its home permanently, and the other value simply changes position without losing anything. We advance past index <var>i</var> only when it holds its home value, so the first part holds too.</p>
+<p>When the loop ends, every index that could be satisfied is satisfied. If the input really was a permutation of 1 to <var>n</var>, the array is sorted. If one number was missing, its home slot holds the intruder, so a final scan for "index <var>k</var> does not hold <var>k</var> + 1" finds both the missing number (<var>k</var> + 1) and the extra one.</p>
+<p class="formula">after the loop: array[<var>k</var>] = <var>k</var> + 1 for every <var>k</var> whose value is present; the first violation reveals the missing value</p>
+
+<h3>Why it is fast</h3>
+<p>Each swap places one value permanently, and there are only <var>n</var> values, so there are at most <var>n</var> swaps. Each advance moves <var>i</var> forward, so there are exactly <var>n</var> advances.</p>
+<p class="formula">steps &le; <var>n</var> swaps + <var>n</var> advances = 2<var>n</var>, so O(<var>n</var>) time and O(1) extra space</p>
+<p>No comparisons between values, no extra array. For a million numbers, two million steps.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The cue is a range: "numbers from 1 to <var>n</var>", "0 to <var>n</var>", or "in the range [1, <var>n</var>]", together with "missing", "duplicate", "first missing positive", and often "O(1) extra space". Say: "Every value has a known home index, so I swap each value into its home; then the slots that hold the wrong value are the answer."</p>
+<p>First Missing Positive is the example loop with bad values skipped, then a scan for the first index <var>k</var> with array[<var>k</var>] &ne; <var>k</var> + 1. Find All Numbers Disappeared in an Array is the same scan reporting every violation. Find the Duplicate Number stops at the first swap where the home already holds the same value.</p>

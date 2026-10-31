@@ -1,0 +1,35 @@
+<h3>Start with what you would do by hand</h3>
+<p>In 2, 3, 1, 2, 4, 3 find the shortest stretch of consecutive numbers whose sum is at least 7. By hand you check lengths from short to long: any single number ≥ 7? No. Any pair? 4 + 3 = 7, yes, so the answer is 2.</p>
+<p>Checking every stretch is O(<var>n</var><sup>2</sup>) sums. The longest-window pattern grows the right end and shrinks the left end only when forced. Here the question is flipped: we want the <em>shortest</em> window that satisfies a condition, so the shrinking must be eager, not reluctant.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a window [<var>l</var>, <var>r</var>] and a running sum of its contents, all numbers being positive.</p>
+<p>Piece two: grow <var>r</var> until the window <em>satisfies</em> the condition (sum ≥ 7). Before that there is nothing to record.</p>
+<p>Piece three: while the window still satisfies, record its length and then shrink from the left. Shrinking as far as possible is what finds the shortest window ending at this <var>r</var>. When the window stops satisfying, go back to growing.</p>
+<div class="table-wrap"><table>
+<tr><th>Step</th><th>Window</th><th>Sum</th><th>Satisfies ≥ 7?</th><th>Action</th><th>Best length</th></tr>
+<tr><td>grow</td><td>[0..0] 2</td><td>2</td><td>no</td><td>grow</td><td>—</td></tr>
+<tr><td>grow</td><td>[0..1] 2, 3</td><td>5</td><td>no</td><td>grow</td><td>—</td></tr>
+<tr><td>grow</td><td>[0..2] 2, 3, 1</td><td>6</td><td>no</td><td>grow</td><td>—</td></tr>
+<tr><td>grow</td><td>[0..3] 2, 3, 1, 2</td><td>8</td><td>yes</td><td>record 4, drop 2</td><td>4</td></tr>
+<tr><td>shrink</td><td>[1..3] 3, 1, 2</td><td>6</td><td>no</td><td>grow</td><td>4</td></tr>
+<tr><td>grow</td><td>[1..4] 3, 1, 2, 4</td><td>10</td><td>yes</td><td>record 4, drop 3</td><td>4</td></tr>
+<tr><td>shrink</td><td>[2..4] 1, 2, 4</td><td>7</td><td>yes</td><td>record 3, drop 1</td><td>3</td></tr>
+<tr><td>shrink</td><td>[3..4] 2, 4</td><td>6</td><td>no</td><td>grow</td><td>3</td></tr>
+<tr><td>grow</td><td>[3..5] 2, 4, 3</td><td>9</td><td>yes</td><td>record 3, drop 2</td><td>3</td></tr>
+<tr><td>shrink</td><td>[4..5] 4, 3</td><td>7</td><td>yes</td><td>record 2, drop 4</td><td>2</td></tr>
+<tr><td>shrink</td><td>[5..5] 3</td><td>3</td><td>no</td><td>end of input</td><td>2</td></tr>
+</table></div>
+<p>With a different condition the aggregate changes but the two loops do not: for "shortest substring containing all letters of a pattern", the aggregate is a count table plus a "missing" counter, and "satisfies" means missing = 0.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant at the moment we record a length: <em>[<var>l</var>, <var>r</var>] satisfies the condition</em> (we only record inside the "while it satisfies" loop), and when we leave that loop <em>[<var>l</var>, <var>r</var>] no longer satisfies</em>, so no window ending at <var>r</var> and starting at or after <var>l</var> satisfies either, because shrinking a satisfying window of positive numbers can only lower the sum. Combined, for each <var>r</var> the shortest satisfying window ending at <var>r</var> was recorded, because we recorded every window from the first satisfying one down to the last satisfying one. Taking the minimum over all <var>r</var> gives the shortest overall. The property needed is the mirror of the longest-window case: if a window satisfies, every larger window containing it satisfies too (sums only grow with positive numbers; a superset still contains all required letters).</p>
+
+<h3>Why it is fast</h3>
+<p><var>r</var> moves right <var>n</var> times and <var>l</var> moves right at most <var>n</var> times in total, since it never retreats and never passes <var>r</var>. Every move is one addition or subtraction on the aggregate:</p>
+<p class="formula">≤ 2<var>n</var> pointer moves, O(<var>n</var>) time</p>
+<p>against O(<var>n</var><sup>2</sup>) for checking every stretch. The eager shrinking does not cost extra, because each element leaves the window at most once.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "shortest", "minimum length", "smallest window", together with a condition that keeps holding when the window grows ("sum at least", "contains all of", "covers"). If the numbers can be negative, the sum is no longer monotone and this pattern fails; that is when a monotonic deque or prefix sums are needed instead.</p>
+<p>Say: "I will grow the right end until the window satisfies, then shrink the left end while it still satisfies, recording lengths as I go." <strong>Minimum Size Subarray Sum</strong> is the example. <strong>Minimum Window Substring</strong> is the same loop with a need-count table and a missing counter, recording the shortest window whenever missing is zero.</p>

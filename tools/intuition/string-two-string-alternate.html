@@ -1,0 +1,26 @@
+<h3>Start with what you would do by hand</h3>
+<p>Is <code>abc</code> a subsequence of <code>ahbgdc</code>? A subsequence keeps the letters in order but may skip letters in between. By hand you would look for an <code>a</code> in the long string, then look for a <code>b</code> after it, then a <code>c</code> after that. Easy.</p>
+<p>The careless version of this is slow: for each letter of <code>abc</code>, search the long string from the beginning, or try every way of choosing three positions out of six, which is 20 ways here and billions for long strings. The careful version only ever moves forward, and that is the pattern.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Two pointers, one per string. <var>i</var> points at the next unmatched letter of the short string <code>s</code>; <var>j</var> points at the next unread letter of the long string <code>t</code>. The rule is simple: compare <code>s[i]</code> with <code>t[j]</code>. On a match, advance both. On a mismatch, advance only <var>j</var>. Stop when either pointer runs off its end.</p>
+<div class="table-wrap"><table>
+<tr><th><var>j</var></th><th><code>t[j]</code></th><th><code>s[i]</code></th><th>match?</th><th><var>i</var> after</th></tr>
+<tr><td>0</td><td>a</td><td>a</td><td>yes</td><td>1</td></tr>
+<tr><td>1</td><td>h</td><td>b</td><td>no</td><td>1</td></tr>
+<tr><td>2</td><td>b</td><td>b</td><td>yes</td><td>2</td></tr>
+<tr><td>3</td><td>g</td><td>c</td><td>no</td><td>2</td></tr>
+<tr><td>4</td><td>d</td><td>c</td><td>no</td><td>2</td></tr>
+<tr><td>5</td><td>c</td><td>c</td><td>yes</td><td>3</td></tr>
+</table></div>
+<p><var>i</var> reached 3, the length of <code>s</code>, so every letter was found in order: true. The same lockstep shape, with a different rule at each step, handles many two-string tasks: merging <code>abc</code> and <code>pqr</code> alternately into <code>apbqcr</code> takes one letter from each in turn and then appends whatever is left over; the longest common prefix of two strings advances both pointers while the letters agree and stops at the first difference.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: <code>s[0..i−1]</code> is a subsequence of <code>t[0..j−1]</code>, and <var>i</var> is the largest value for which that is true. Matching greedily, as early as possible, is safe: if <code>s[i]</code> can be matched at position <var>j</var> and also at some later position, choosing <var>j</var> leaves more of <code>t</code> available for the remaining letters, so it can never hurt. Therefore if any way of embedding <code>s</code> in <code>t</code> exists, the greedy scan finds one, and if the scan ends with <var>i</var> short of the end, no embedding exists. For merging and prefix problems the invariant is the simpler "both pointers sit at the next unused letter of their string", which each step preserves by construction.</p>
+<p class="formula">earliest match for <code>s[i]</code> leaves the longest suffix of <code>t</code> for <code>s[i+1..]</code></p>
+
+<h3>Why it is fast</h3>
+<p>Each step advances at least one pointer, and neither pointer ever moves backwards, so there are at most <var>n</var> + <var>m</var> steps for strings of length <var>n</var> and <var>m</var>: O(<var>n</var> + <var>m</var>) time and O(1) memory. Restarting the search from the beginning for each letter would be O(<var>n</var> · <var>m</var>), and enumerating positions is exponential.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: two strings or two arrays, "in order", "subsequence", "merge", "common prefix", "compare". Say: I will walk both with one pointer each, never moving backwards, and decide at each step which pointer moves. <em>Is Subsequence</em> is the example. <em>Merge Strings Alternately</em> moves both pointers every step and copies the leftover tail. <em>Backspace String Compare</em> walks both strings from the end, skipping the characters that backspaces delete, and compares what survives.</p>

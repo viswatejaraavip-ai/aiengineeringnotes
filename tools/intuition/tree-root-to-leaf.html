@@ -1,0 +1,20 @@
+<h3>Start with what you would do by hand</h3>
+<p>A tree holds numbers, and you are asked: is there a path from the top node down to some bottom node (a leaf) whose numbers add to 22? The tree: 5 at the top; 4 and 8 below; 11 under 4; 13 and 4 under 8; 7 and 2 under 11. By hand you would list every top-to-bottom path and add it up: 5+4+11+7 = 27, 5+4+11+2 = 22, found. That works, but it repeats the same additions: 5 + 4 + 11 is computed for both paths under 11, and in a big tree the shared prefix of thousands of paths is re-added thousands of times.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The tree is unchanged. What we add is a small bundle of information that travels <em>down</em> the tree with the walk. Compare this with post-order folding, where answers travel up. Here the parent tells the child something before the child does anything.</p>
+<p>Piece one: carry the "remaining target". Start at the root with 22. When you step onto a node, subtract its value. Hand the new remaining amount to each child. The child never needs to know the path above it; the single number stands in for the whole path.</p>
+<p>Piece two: only leaves decide. A leaf checks: is the remaining amount, after subtracting me, exactly 0? If yes, a valid path exists. An inner node never decides; it only passes the state down and returns true if any child says true.</p>
+<div class="table-wrap"><table><tr><th>Step onto</th><th>Remaining before</th><th>Remaining after</th><th>Decision</th></tr><tr><td>5</td><td>22</td><td>17</td><td>not a leaf, go down</td></tr><tr><td>4</td><td>17</td><td>13</td><td>go down</td></tr><tr><td>11</td><td>13</td><td>2</td><td>go down</td></tr><tr><td>7</td><td>2</td><td>−5</td><td>leaf, not 0: dead end</td></tr><tr><td>2</td><td>2</td><td>0</td><td>leaf, 0: found</td></tr></table></div>
+<p>Piece three, generalising the bundle: for "sum of all root-to-leaf numbers" carry the number built so far, times 10 plus the digit at each step. For "print every path" carry the list of nodes so far and remove the last one when you come back up. For "count good nodes" carry the largest value seen so far on the path.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: the state handed to a node describes exactly the path from the root to that node. At the root that is true (the state is the empty path, remaining 22). If it is true for a node, then subtracting the node's value gives a state that describes the path extended by that node, which is what each child receives. So it is true for every node.</p>
+<p class="formula">remaining at a leaf = target − (sum of every value on the root-to-leaf path)</p>
+<p>So "remaining = 0 at a leaf" is the same statement as "that path sums to the target". Checking only at leaves is required by the problem, which asks for root-to-leaf paths; an inner node reaching 0 is not an answer because the path must continue.</p>
+
+<h3>Why it is fast</h3>
+<p>Each node is stepped onto once and does one subtraction, so the time is O(<var>n</var>). The hand method re-added shared prefixes; here each value is added exactly once into the state that passes through it. Memory is the recursion depth, O(<var>h</var>). If the state is a growing list (for printing paths), copying it at every node would cost O(<var>h</var>) per node; push and pop on one shared list avoids that.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Phrases like "root-to-leaf", "a path from the root", "the number formed by the digits along a path", "nodes that are the largest on their path". Say: "I will pass the accumulated state down the recursion and decide only at leaves." Path Sum carries the remaining target. Sum Root to Leaf Numbers carries the number built so far and adds it to a total at each leaf. Binary Tree Paths carries the string of the path and emits it at each leaf.</p>

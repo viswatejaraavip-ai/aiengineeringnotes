@@ -1,0 +1,16 @@
+<h3>Start with what you would do by hand</h3>
+<p>Coins of 1, 2 and 5 rupees, unlimited of each. What is the fewest coins that make 11? By hand you reach for the biggest first: 5 + 5 + 1, three coins. That greedy habit works for these coins, but try coins of 1, 3 and 4 making 6: greedy gives 4 + 1 + 1, three coins, while 3 + 3 is two. So "biggest first" is not reliable, and the honest by-hand method is to consider every way, which blows up quickly.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a row dp[0] to dp[11], where dp[<var>a</var>] will be the fewest coins making amount <var>a</var>. dp[0] = 0, because zero rupees needs zero coins. Everything else starts as "unknown", written ∞.</p>
+<p>Piece two: the thought for one amount. Whatever the best pile for 11 is, it has a last coin, which is 1, 2 or 5. Remove it and you are left with a best pile for 10, 9 or 6. So</p>
+<p class="formula">dp[<var>a</var>] = 1 + min( dp[<var>a</var> − 1], dp[<var>a</var> − 2], dp[<var>a</var> − 5] ) over coins that fit</p>
+<p>Piece three, the rule that allows reuse: sweep amounts <strong>upward</strong>, 1, 2, 3, ... This is the opposite of the 0/1 knapsack sweep. Going upward, dp[<var>a</var> − coin] already includes piles that use the same coin, so a coin may appear many times, which is exactly what we want.</p>
+<div class="table-wrap"><table><tr><th>amount</th><td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td>9</td><td>10</td><td>11</td></tr><tr><th>dp</th><td>0</td><td>1</td><td>1</td><td>2</td><td>2</td><td>1</td><td>2</td><td>2</td><td>3</td><td>3</td><td>2</td><td>3</td></tr></table></div>
+<p>Check dp[3]: 1 + min(dp[2], dp[1]) = 1 + 1 = 2, the pile 2 + 1. Check dp[11]: 1 + min(dp[10], dp[9], dp[6]) = 1 + 2 = 3, the pile 5 + 5 + 1. For the 1, 3, 4 coins and amount 6 the same table gives dp[6] = 1 + min(dp[5], dp[3], dp[2]) = 1 + 1 = 2, fixing the greedy mistake.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: when dp[<var>a</var>] is written, it is the true minimum for amount <var>a</var>. It holds for 0. For larger <var>a</var>, any pile for <var>a</var> ends with some coin <var>c</var> and the rest is a pile for <var>a</var> − <var>c</var>, which cannot beat dp[<var>a</var> − <var>c</var>]; the formula takes the best over every possible last coin, so it is neither too large nor too small. The upward order guarantees every dp[<var>a</var> − <var>c</var>] is final before it is read.</p>
+<h3>Why it is fast</h3>
+<p>Each amount tries each coin once:</p>
+<p class="formula">work = (number of coins) × amount, 33 steps here, 300,000 for 30 coins and amount 10,000</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "unlimited supply", "may reuse", "fewest coins", "number of ways to make the amount", "sum of perfect squares". The first thing to say: "a row over amounts swept upward so items repeat." Coin Change is the example above. Coin Change II counts ways instead of minimising: loop over coins on the outside and amounts on the inside, adding dp[<var>a</var> − <var>c</var>] into dp[<var>a</var>], so each combination is counted in one coin order. Perfect Squares is this with the coins being 1, 4, 9, 16, and so on.</p>

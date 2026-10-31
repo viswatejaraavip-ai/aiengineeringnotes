@@ -1,0 +1,37 @@
+<h3>Start with what you would do by hand</h3>
+<p>Prices on five days are <code>[1, 2, 3, 0, 2]</code>. You may buy one share, sell it later, and buy again, as many times as you like, but after a sale you must rest one day before buying (a cooldown). What is the most money you can make?</p>
+<p>By hand you would try plans. Buy at 1, sell at 3, rest on day 3, buy at 0, sell at 2: profit 2 + 2 = 4? No, check the cooldown: you sold on day 2, so day 3 is the rest day and you cannot buy at 0. Buy at 1, sell at 2, rest, buy at 0, sell at 2: profit 1 + 2 = 3. There are many plans, and each day you have two or three choices, so for 30 days there are billions of plans. The by-hand method also makes it easy to break a rule without noticing, as the first attempt did.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Instead of remembering plans, remember only what situation you are in at the end of each day. There are three situations, called states:</p>
+<ul>
+<li><strong>hold</strong>: you own a share right now.</li>
+<li><strong>sold</strong>: you sold today, so tomorrow is a forced rest.</li>
+<li><strong>rest</strong>: you own nothing and are free to buy.</li>
+</ul>
+<p>For each state keep one number: the most cash you could have while being in that state. Each new day, each state can be reached from a few earlier states, and you take the best:</p>
+<ul>
+<li>hold today = max(hold yesterday, rest yesterday − price): keep holding, or buy today from a free day.</li>
+<li>sold today = hold yesterday + price: you must have held a share to sell it.</li>
+<li>rest today = max(rest yesterday, sold yesterday): stay free, or come off cooldown.</li>
+</ul>
+<p>Before day 0, rest = 0, hold = −∞ (impossible), sold = −∞. Now run the days:</p>
+<div class="table-wrap"><table>
+<tr><th>day</th><th>price</th><th>hold</th><th>sold</th><th>rest</th></tr>
+<tr><td>0</td><td>1</td><td>−1</td><td>−∞</td><td>0</td></tr>
+<tr><td>1</td><td>2</td><td>−1</td><td>1</td><td>0</td></tr>
+<tr><td>2</td><td>3</td><td>−1</td><td>2</td><td>1</td></tr>
+<tr><td>3</td><td>0</td><td>1</td><td>−1</td><td>2</td></tr>
+<tr><td>4</td><td>2</td><td>1</td><td>3</td><td>2</td></tr>
+</table></div>
+<p>Day 3 shows the cooldown working: hold becomes rest − price = 1 − 0 = 1, and that rest value, 1, came from a sale on day 1, not from the sale on day 2. The answer is the best of sold and rest on the last day: max(3, 2) = 3, which is buy at 1, sell at 2, rest, buy at 0, sell at 2.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: after day <var>d</var>, hold is the best cash over all legal plans that end day <var>d</var> owning a share, and likewise for sold and rest. A plan that ends day <var>d</var> holding a share either held it yesterday too or bought it today; buying today is only legal from a free day, which is exactly the rest state, never the sold state. So the three update rules list every legal way into each state and nothing illegal. Taking the maximum over legal ways keeps each number the true best, so the invariant passes from one day to the next.</p>
+<p class="formula">hold<sub><var>d</var></sub> = max(hold<sub><var>d</var>−1</sub>, rest<sub><var>d</var>−1</sub> − <var>p</var><sub><var>d</var></sub>), sold<sub><var>d</var></sub> = hold<sub><var>d</var>−1</sub> + <var>p</var><sub><var>d</var></sub>, rest<sub><var>d</var></sub> = max(rest<sub><var>d</var>−1</sub>, sold<sub><var>d</var>−1</sub>)</p>
+
+<h3>Why it is fast</h3>
+<p>Each day does three updates, each a maximum of two numbers. For <var>n</var> days that is about 6<var>n</var> operations: O(<var>n</var>) time. Only yesterday's three numbers are needed, so memory is O(1). The by-hand search grew like 2<sup><var>n</var></sup>. With a limit of <var>k</var> transactions the states become (holding or not) × (transactions used), giving O(<var>n</var> · <var>k</var>).</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: a sequence of days or steps, a small set of situations you can be in (holding, resting, used <var>k</var> of something), and rules about which situation can follow which. Draw the states as circles and the legal moves as arrows, then write one line per circle. <em>Best Time to Buy and Sell Stock with Cooldown</em> is the three-circle version above. <em>Best Time to Buy and Sell Stock II</em> drops the sold circle. <em>Best Time to Buy and Sell Stock IV</em> copies the circles once per allowed transaction.</p>

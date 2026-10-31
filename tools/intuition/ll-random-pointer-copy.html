@@ -1,0 +1,38 @@
+<h3>Start with what you would do by hand</h3>
+<p>A linked list where each box has two arrows: next, which goes to the following box as usual, and random, which can point to any box in the list or to nothing. Three boxes: 7, 13, 11. next arrows: 7 &rarr; 13 &rarr; 11. random arrows: 7 &rarr; nothing, 13 &rarr; 7, 11 &rarr; 11 (itself). Make an exact copy: new boxes, same values, same shape of arrows, sharing no box with the original.</p>
+<p>By hand, copying the values and the next arrows is easy: walk the list and build 7&prime; &rarr; 13&prime; &rarr; 11&prime;. The random arrows are the problem. The original 13 points at 7; the copy 13&prime; must point at 7&prime;, not at the original 7. When you reach 13&prime;, how do you find 7&prime;? You could search the new list for the box whose original was 7, but that search walks the list every time: <var>n</var> boxes, each with a walk of up to <var>n</var>, so <var>n</var><sup>2</sup> work.</p>
+<p>What you need is a lookup: given an original box, find its copy instantly. That is what a map (a dictionary) is for.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p><strong>Piece 1: a map from original to copy.</strong> A map stores pairs (key, value) and answers "what is the value for this key" in constant time. The keys are original boxes, the values are their copies.</p>
+<p><strong>Piece 2: pass one, create copies.</strong> Walk the original list. For each box, create a copy with the same value and no arrows yet, and record map[original] = copy.</p>
+<div class="table-wrap"><table>
+<tr><th>Original</th><th>Copy created</th><th>Map so far</th></tr>
+<tr><td>7</td><td>7&prime;</td><td>7 &rarr; 7&prime;</td></tr>
+<tr><td>13</td><td>13&prime;</td><td>7 &rarr; 7&prime;, 13 &rarr; 13&prime;</td></tr>
+<tr><td>11</td><td>11&prime;</td><td>7 &rarr; 7&prime;, 13 &rarr; 13&prime;, 11 &rarr; 11&prime;</td></tr>
+</table></div>
+<p><strong>Piece 3: pass two, wire the arrows.</strong> Walk the original list again. For each box, set copy.next = map[original.next] and copy.random = map[original.random], where map[nothing] is nothing.</p>
+<div class="table-wrap"><table>
+<tr><th>Copy</th><th>next</th><th>random</th></tr>
+<tr><td>7&prime;</td><td>map[13] = 13&prime;</td><td>map[nothing] = nothing</td></tr>
+<tr><td>13&prime;</td><td>map[11] = 11&prime;</td><td>map[7] = 7&prime;</td></tr>
+<tr><td>11&prime;</td><td>map[nothing] = nothing</td><td>map[11] = 11&prime;</td></tr>
+</table></div>
+<p>The result is 7&prime; &rarr; 13&prime; &rarr; 11&prime; with randoms nothing, 7&prime;, 11&prime;: the same picture, drawn entirely in new boxes.</p>
+<p><strong>A variant without the map.</strong> Interleave: after each original box insert its copy (7 &rarr; 7&prime; &rarr; 13 &rarr; 13&prime; &rarr; 11 &rarr; 11&prime;). Now the copy of any box <var>x</var> is <var>x</var>.next, which plays the role of the map. Set each copy's random to original.random.next, then unweave the two lists. Same idea, O(1) extra memory.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant after pass one: every original box has exactly one copy, with the same value, and the map finds it.</p>
+<p>Pass two then sets each arrow of each copy to the copy of whatever the original arrow pointed to. So for every arrow in the original there is a matching arrow between the corresponding copies, and no other arrows. That is the definition of an identical structure. Nothing in the copy points into the original because every target is looked up in the map, which only contains copies.</p>
+<p class="formula">for every box <var>x</var>: copy(<var>x</var>).next = copy(<var>x</var>.next) and copy(<var>x</var>).random = copy(<var>x</var>.random)</p>
+<p>The two passes must be separate: during pass one, a random arrow may point forward to a box whose copy does not exist yet, so arrows can only be wired once every copy exists. The same two-pass shape clones a graph, except that a graph is walked by DFS or BFS and the map doubles as the visited set.</p>
+
+<h3>Why it is fast</h3>
+<p>Two walks over <var>n</var> boxes, with constant work per box because each map lookup is constant time.</p>
+<p class="formula">time = O(<var>n</var>), memory = O(<var>n</var>) for the map (O(1) extra with interleaving)</p>
+<p>Versus <var>n</var><sup>2</sup> for searching the new list on every random arrow.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The cues are "deep copy", "clone", "random pointer", "copy a graph", or any structure with cross-references that must be duplicated without sharing. Say: "First pass creates every copy and maps original to copy; second pass wires each copy's pointers through the map."</p>
+<p>Copy List with Random Pointer is the example above. Clone Graph is the same map, filled while traversing: when you meet a neighbour not yet in the map, create its copy and recurse; the map also prevents visiting a node twice.</p>
