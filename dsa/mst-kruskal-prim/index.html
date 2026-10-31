@@ -394,22 +394,49 @@
       <p>The chosen edges never form a cycle and stay minimal by the cut property.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Four villages A, B, C, D need to be joined by roads so that you can drive from any village to any other, possibly through other villages. The possible roads and their costs: B–D 3, A–B 4, A–D 7, B–C 9, A–C 12, C–D 14. You want the cheapest set of roads that connects everyone.</p>
+<p>By hand you would pick the cheapest road first, then the next cheapest that is still useful, and skip a road that only joins villages already connected. That instinct is right, but "already connected" is the hard part: with 4 villages you can see it; with 10,000 points and millions of candidate roads you need a fast way to answer "are these two already joined?"</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a sorted list of roads, cheapest first: B–D 3, A–B 4, A–D 7, B–C 9, A–C 12, C–D 14. Sorting is the only expensive step.</p>
+<p>Piece two: a way to track which villages are already joined. Use a union–find structure (its own pattern page explains it): each village starts as its own group, find tells you a village's group, union merges two groups. Start: {A} {B} {C} {D}.</p>
+<p>Piece three, the one rule (Kruskal): go down the sorted list; take a road if its two ends are in different groups, and union them; skip it if they are already in the same group, because that road would only form a loop.</p>
+<ol>
+<li>B–D 3: different groups, take it. Groups {A} {B,D} {C}. Cost 3.</li>
+<li>A–B 4: different groups, take it. Groups {A,B,D} {C}. Cost 7.</li>
+<li>A–D 7: A and D are already together, skip.</li>
+<li>B–C 9: different groups, take it. Groups {A,B,C,D}. Cost 16.</li>
+</ol>
+<p>Three roads join four villages, and a tree on <var>n</var> nodes always has exactly <var>n</var> − 1 edges, so we can stop. Total 16.</p>
+<p>Prim's method reaches the same tree from the other direction: start at one village, keep a min-heap of roads leaving the villages you have so far, and always add the cheapest road that reaches a new village.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: the roads chosen so far all belong to some cheapest possible connecting tree. The key fact is the <strong>cut property</strong>: split the villages into any two non-empty sides; the cheapest road crossing between the sides is safe to take. Suppose a cheapest tree did not use that road <var>e</var>. Adding <var>e</var> to that tree makes a loop, and the loop must cross between the two sides somewhere else on a road <var>f</var>. Then</p>
+<p class="formula">cost(<var>e</var>) ≤ cost(<var>f</var>), so swapping <var>f</var> for <var>e</var> gives a tree that is no more expensive</p>
+<p>Kruskal's next taken road is exactly the cheapest road crossing between "its group" and "everything else", so each step stays inside some cheapest tree.</p>
+<h3>Why it is fast</h3>
+<p>Sorting <var>E</var> roads costs <var>E</var> log <var>E</var>. The scan then does one or two union–find operations per road, each nearly constant:</p>
+<p class="formula">work ≈ <var>E</var> log <var>E</var> + <var>E</var> · α(<var>n</var>) ≈ <var>E</var> log <var>E</var></p>
+<p>Prim with a binary heap is also <var>E</var> log <var>V</var>. For 10,000 points with all pairs as candidate roads, <var>E</var> is about 50 million, so sorting dominates and Prim with an array scan, <var>V</var><sup>2</sup> = 100 million, is competitive.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "connect all points with minimum total cost", "cheapest network", "every node reachable", costs on edges and no requirement about path lengths. The first thing to say: "this is a minimum spanning tree; sort the edges and union–find, or Prim from one node." Min Cost to Connect All Points is the example above with Manhattan distances as costs. Optimize Water Distribution in a Village adds a virtual node for "dig a well here", turning well costs into edges so the same routine applies.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Kruskal: sort edges, union-find to skip cycles. Prim: grow from one node with a heap.</p>
     <p><strong>Reach for it when:</strong> Min cost to connect points, water distribution, critical edges.</p>
     <p><strong>Cost:</strong> O(E log E) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Min Cost to Connect 4 points</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Sort all 6 edges by weight; the MST needs <em>n − 1 = 3</em> of them</li><li>B–D (3): joins two components, <em>take it</em>, cost 3</li><li>A–B (4): joins two components, <em>take it</em>, cost 7</li><li>A–D (7): both already connected, would form a <em>cycle</em>, skip</li><li>B–C (9): joins two components, <em>take it</em>, cost 16</li><li>3 edges chosen: every point connected, total cost <em>16</em></li><li>Cut property: the lightest edge leaving a component is always safe</li><li>Sorting dominates: <em>O(E log E)</em>; Prim with a heap is the same bound</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>4 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/min-cost-to-connect-all-points">Min Cost to Connect All Points</a></td><td><span class="diff medium">Medium</span></td><td class="num">22</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/optimize-water-distribution-in-a-village">Optimize Water Distribution in a Village</a></td><td><span class="diff hard">Hard</span></td><td class="num">18</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/minimum-cost-to-connect-sticks">Minimum Cost to Connect Sticks</a></td><td><span class="diff medium">Medium</span></td><td class="num">18</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/find-critical-and-pseudo-critical-edges-in-minimum-spanning-tree">Find Critical and Pseudo-Critical Edges in Minimum Spanning Tree</a></td><td><span class="diff hard">Hard</span></td><td class="num">8</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-graphs">Graphs</a>: <a href="/dsa/grid-dfs-islands/">Grid flood fill (components)</a>, <a href="/dsa/bfs-multi-source/">Multi-source BFS</a>, <a href="/dsa/bfs-shortest-unweighted/">BFS shortest path (unweighted)</a>, <a href="/dsa/bfs-state-space/">BFS over an augmented state</a>, <a href="/dsa/bfs-0-1/">0-1 BFS (deque)</a>, <a href="/dsa/dfs-cycle-coloring/">DFS three-colour cycle detection</a>, <a href="/dsa/topo-kahn/">Topological sort (Kahn&#x27;s)</a>, <a href="/dsa/union-find/">Union–Find (disjoint sets)</a>, <a href="/dsa/dijkstra/">Dijkstra (weighted shortest path)</a>, <a href="/dsa/bellman-ford-k-stops/">Bellman–Ford with k rounds</a>, <a href="/dsa/graph-bipartite/">Bipartite colouring</a>, <a href="/dsa/eulerian-path/">Eulerian path (Hierholzer)</a>, <a href="/dsa/tarjan-bridges/">Bridges / articulation (low-link)</a>, <a href="/dsa/graph-clone-traverse/">Clone / traverse with a visited map</a>, <a href="/dsa/implicit-graph-search/">Implicit graph (states as nodes)</a>.</p>
   </article>
 
@@ -428,7 +455,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

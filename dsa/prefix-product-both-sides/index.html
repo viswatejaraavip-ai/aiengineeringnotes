@@ -394,22 +394,52 @@
       <p>left[i] is the product of nums[0..i-1]; right[i] of nums[i+1..].</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Given 1, 2, 3, 4, produce a new list where each position holds the product of <em>all the other</em> numbers: 24, 12, 8, 6. By hand you would multiply the three others for each position: 2·3·4 = 24, 1·3·4 = 12, and so on. That is <var>n</var> − 1 multiplications per position, about <var>n</var><sup>2</sup> in total.</p>
+<p>The tempting shortcut is to multiply everything once (24) and divide by each number. That fails the moment a 0 appears, and interviewers usually forbid division anyway. So we need a way to get "everything except me" without dividing.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Split "everything except me" into two halves: everything to my <em>left</em> and everything to my <em>right</em>. The answer at position <var>i</var> is left × right.</p>
+<p>Piece one: a <strong>prefix product</strong> array <var>L</var>, where <var>L</var>[<var>i</var>] is the product of positions 0 … <var>i</var> − 1. It is built left to right by one multiplication per step, and starts at 1 because nothing is to the left of position 0:</p>
+<div class="table-wrap"><table>
+<tr><th>Position</th><th>0</th><th>1</th><th>2</th><th>3</th></tr>
+<tr><td>nums</td><td>1</td><td>2</td><td>3</td><td>4</td></tr>
+<tr><td><var>L</var> (product of the left)</td><td>1</td><td>1</td><td>2</td><td>6</td></tr>
+</table></div>
+<p>Piece two: a <strong>suffix product</strong> array <var>R</var>, built right to left the same way: <var>R</var>[3] = 1, <var>R</var>[2] = 4, <var>R</var>[1] = 12, <var>R</var>[0] = 24.</p>
+<p>Piece three: combine. answer[<var>i</var>] = <var>L</var>[<var>i</var>] × <var>R</var>[<var>i</var>]: 1·24, 1·12, 2·4, 6·1 = 24, 12, 8, 6.</p>
+<p>A space saving comes last: write <var>L</var> into the answer array, then sweep from the right with a single running variable for the suffix product and multiply it in as you go. The output array is then the only extra storage.</p>
+<p>The same two-sweep shape answers many "both sides" questions. Replace product with sum and you get "find the index where the sum on the left equals the sum on the right" (pivot index). Replace it with maximum and you get the wall heights used in trapping rain water: the water above a bar is bounded by the tallest wall on its left and the tallest on its right.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant for the left sweep: <em>after step <var>i</var>, <var>L</var>[<var>i</var>] is the product of nums[0 … <var>i</var> − 1]</em>. It holds at <var>i</var> = 0 (empty product is 1), and each step sets <var>L</var>[<var>i</var>] = <var>L</var>[<var>i</var> − 1] × nums[<var>i</var> − 1], which extends the product by exactly one factor. The mirror statement holds for <var>R</var>. Then</p>
+<p class="formula"><var>L</var>[<var>i</var>] × <var>R</var>[<var>i</var>] = (nums[0] ⋯ nums[<var>i</var> − 1]) × (nums[<var>i</var> + 1] ⋯ nums[<var>n</var> − 1])</p>
+<p>which is every factor except nums[<var>i</var>], as required. No division was used, so zeros are harmless: a zero on the left makes <var>L</var> zero from then on, which is the correct answer for every position to its right.</p>
+
+<h3>Why it is fast</h3>
+<p>Three sweeps of <var>n</var> steps, one multiplication each: about 3<var>n</var> operations, O(<var>n</var>) time, against roughly <var>n</var><sup>2</sup> for the by-hand method. For 100,000 numbers that is 300,000 multiplications instead of ten billion. Memory is O(1) beyond the output array in the running-variable version.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "except self", "without division", "left side equals right side", "the best pair where one is before the other", or any formula where the value at <var>i</var> depends on an aggregate of everything before <var>i</var> and an aggregate of everything after. Say: "I will precompute a left aggregate and a right aggregate in two sweeps and combine them per position."</p>
+<p><strong>Product of Array Except Self</strong> is the example. <strong>Find Pivot Index</strong> uses sums: with the total <var>S</var> and the running left sum <var>l</var>, the right sum is <var>S</var> − <var>l</var> − nums[<var>i</var>], so one sweep suffices. <strong>Trapping Rain Water</strong> uses left-max and right-max arrays, and the water at <var>i</var> is min(leftMax, rightMax) − height[<var>i</var>].</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Answer at i = everything to the left × everything to the right.</p>
     <p><strong>Reach for it when:</strong> &#x27;Product except self&#x27;, pivot index, best split point, two-sided aggregates.</p>
     <p><strong>Cost:</strong> O(n) time, O(1) extra with the output array.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Product of Array Except Self on [1,2,3,4]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>No division: answer[i] = (product on the <em>left</em>) × (product on the <em>right</em>)</li><li>left[0] = <em>1</em>: nothing is before index 0</li><li>left[1] = 1 (product of nums[0..0])</li><li>left[2] = 2 (product of nums[0..1])</li><li>left[3] = 6 (product of nums[0..2])</li><li>right[3] = <em>1</em>: nothing is after index 3</li><li>right[2] = 4 (product of nums[3..3])</li><li>right[1] = 12 (product of nums[2..3])</li><li>right[0] = 24 (product of nums[1..3])</li><li>Multiply column-wise: <em>[24, 12, 8, 6]</em></li><li>Two passes, and right can be a running scalar: <em>O(n)</em> time, O(1) extra</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>5 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/trapping-rain-water">Trapping Rain Water</a></td><td><span class="diff hard">Hard</span></td><td class="num">74</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/product-of-array-except-self">Product of Array Except Self</a></td><td><span class="diff medium">Medium</span></td><td class="num">53</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-pivot-index">Find Pivot Index</a></td><td><span class="diff easy">Easy</span></td><td class="num">34</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/best-sightseeing-pair">Best Sightseeing Pair</a></td><td><span class="diff medium">Medium</span></td><td class="num">20</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-the-middle-index-in-array">Find the Middle Index in Array</a></td><td><span class="diff easy">Easy</span></td><td class="num">8</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-prefix-sums">Prefix Sums</a>: <a href="/dsa/prefix-sum-hash/">Prefix sum + hashmap</a>, <a href="/dsa/difference-array/">Difference array (range add)</a>, <a href="/dsa/prefix-sum-2d/">2D prefix sums</a>.</p>
   </article>
 
@@ -428,7 +458,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

@@ -394,22 +394,45 @@
       <p>The BST property holds after every operation.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>A binary search tree keeps smaller values to the left and larger to the right, so finding a value is like the number-guessing game: compare, go left or right, repeat. The tree: 5 at the top; 3 and 6 below; 2 and 4 under 3; 7 under 6. Find 4: 4 &lt; 5 go left, 4 &gt; 3 go right, found. Three comparisons for six values, and the path only ever gets as long as the tree is tall.</p>
+<p>Inserting is just a failed search: look for the value, and when you fall off the tree, hang the new node there. The hard case is deleting. Delete 3 by hand and you have a hole with two children, 2 and 4, dangling. Which one fills the hole? Both must stay on the correct sides of whatever goes there.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: search. Start at the root. If the target equals the node, done. If smaller, go left; if larger, go right. If there is no child to go to, the value is absent.</p>
+<p>Piece two: insert. Search; at the empty spot where the search ends, attach a new node. The new node is a leaf, so the only ordering it must respect is the path that led to it, and the path chose the correct side at every step.</p>
+<p>Piece three: delete, in three cases. A leaf: unlink it. One child: replace the node by that child; the child's whole subtree was already on the correct side of everything above. Two children: find the inorder successor, the smallest value in the right subtree (go right once, then left as far as possible). Copy that value into the node, then delete the successor from the right subtree, which is easy because the smallest value there has no left child, so it is a leaf or a one-child case.</p>
+<div class="table-wrap"><table><tr><th>Step</th><th>Tree (inorder reading)</th></tr><tr><td>start</td><td>2, 3, 4, 5, 6, 7</td></tr><tr><td>find 3: it has two children, 2 and 4</td><td>2, 3, 4, 5, 6, 7</td></tr><tr><td>successor of 3 = smallest in its right subtree = 4</td><td></td></tr><tr><td>copy 4 over 3</td><td>2, 4, 4, 5, 6, 7 (temporarily a duplicate)</td></tr><tr><td>delete the old 4, a leaf: unlink</td><td>2, 4, 5, 6, 7</td></tr></table></div>
+<p>The sorted reading lost exactly one value, 3, and stayed sorted.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: the BST rule holds after every operation. Search changes nothing. Insert adds a leaf at the position the comparisons chose, so every ancestor's rule is satisfied for the new node, and no other node's subtrees changed. For delete with two children, the successor <var>s</var> is the smallest value larger than the deleted value <var>d</var>, so:</p>
+<p class="formula">every value in the left subtree &lt; <var>d</var> &lt; <var>s</var> ≤ every other value in the right subtree</p>
+<p>Putting <var>s</var> where <var>d</var> was keeps the left subtree smaller and the right subtree larger. Removing <var>s</var> from the right subtree is a leaf or one-child deletion, already shown safe. The predecessor, the largest value on the left, works symmetrically.</p>
+
+<h3>Why it is fast</h3>
+<p>Each operation walks one path from the root downward, and the successor search continues along a path too, so the cost is the height <var>h</var>: O(<var>h</var>). For a balanced tree of a million values that is about 20 steps. For a tree that degenerated into a chain it is a million, which is why self-balancing trees exist; interview problems usually just ask for the O(<var>h</var>) version.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>"Insert into a BST", "delete a node from a BST", "search", "closest value to a target", "successor of a node". Say: "I will walk one path by comparison; for deletion with two children I replace the value with the inorder successor and delete that successor instead." Delete Node in a BST is the full three-case version. Insert into a Binary Search Tree is piece two. Closest Binary Search Tree Value is a search that remembers the nearest value seen on the way down, since the closest value is always on the search path or adjacent to it.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Walk left or right by comparison; delete replaces with the inorder successor.</p>
     <p><strong>Reach for it when:</strong> Insert, delete, search, closest value, successor/predecessor.</p>
     <p><strong>Cost:</strong> O(h) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Delete 3 from [5,3,6,2,4,null,7]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Search for 3 starting at the root</li><li>3 &lt; 5: go <em>left</em></li><li>Found 3, and it has <em>two</em> children: 2 and 4</li><li>Its inorder successor is the smallest key on the right: <em>4</em></li><li>Copy 4 into the node, so the order is preserved</li><li>Now delete the old 4, a leaf: simply <em>unlink</em> it</li><li>Gone. 2 &lt; 4 &lt; 5 still holds everywhere</li><li>Delete 2 (a leaf) would just unlink; delete 6 (one child) splices 7 up</li><li>Each operation follows one root-to-leaf path: <em>O(h)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>7 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/delete-node-in-a-bst">Delete Node in a BST</a></td><td><span class="diff medium">Medium</span></td><td class="num">31</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-search-tree">Lowest Common Ancestor of a Binary Search Tree</a></td><td><span class="diff medium">Medium</span></td><td class="num">28</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/insert-into-a-binary-search-tree">Insert into a Binary Search Tree</a></td><td><span class="diff medium">Medium</span></td><td class="num">27</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/search-in-a-binary-search-tree">Search in a Binary Search Tree</a></td><td><span class="diff easy">Easy</span></td><td class="num">27</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/closest-nodes-queries-in-a-binary-search-tree">Closest Nodes Queries in a Binary Search Tree</a></td><td><span class="diff medium">Medium</span></td><td class="num">21</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/closest-binary-search-tree-value">Closest Binary Search Tree Value</a></td><td><span class="diff easy">Easy</span></td><td class="num">18</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/inorder-successor-in-bst">Inorder Successor in BST</a></td><td><span class="diff medium">Medium</span></td><td class="num">6</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-binary-search-tree">Binary Search Tree</a>: <a href="/dsa/bst-bounds-validate/">BST range bounds</a>, <a href="/dsa/bst-inorder-sorted/">Inorder = sorted order</a>, <a href="/dsa/bst-build-balanced/">Build a balanced BST from sorted input</a>.</p>
   </article>
 
@@ -428,7 +451,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

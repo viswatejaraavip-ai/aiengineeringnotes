@@ -394,22 +394,53 @@
       <p>The counter is exact for everything seen so far.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Someone hands you six words: eat, tea, tan, ate, nat, bat, and asks you to group the ones that are anagrams, meaning they use exactly the same letters. By hand you would compare word pairs: is "eat" an anagram of "tea"? Check that each has one e, one a, one t. Yes. Is "eat" an anagram of "tan"? No. You keep going until every pair has been compared.</p>
+<p>Six words make 15 pairs, and each comparison means counting letters in both words. For <var>n</var> words that is about <var>n</var><sup>2</sup> ÷ 2 pair checks. A hundred thousand words would need about five billion checks. The waste is obvious once you see it: you keep re-counting the letters of the same word for every partner it is compared with.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The fix has two parts, and both are about counting <em>once</em>.</p>
+<p>First, decide what "the same letters" really means. Two words are anagrams exactly when their letter counts match: the same number of a's, the same number of b's, and so on. So the identity of a word, for this question, is its count table. Write that table in a fixed way, for example by sorting the letters: eat → aet, tea → aet, tan → ant. Now equal words have equal signatures and you can check equality by comparing two short strings.</p>
+<p>Second, use a <strong>hash map</strong> whose keys are signatures and whose values are lists of words. A hash map finds a key in about one step however many keys it holds. Walk the words once, compute each signature, and append the word to that key's list:</p>
+<div class="table-wrap"><table>
+<tr><th>Word</th><th>Signature</th><th>Map afterwards</th></tr>
+<tr><td>eat</td><td>aet</td><td>{aet: [eat]}</td></tr>
+<tr><td>tea</td><td>aet</td><td>{aet: [eat, tea]}</td></tr>
+<tr><td>tan</td><td>ant</td><td>{aet: [eat, tea], ant: [tan]}</td></tr>
+<tr><td>ate</td><td>aet</td><td>{aet: [eat, tea, ate], ant: [tan]}</td></tr>
+<tr><td>nat</td><td>ant</td><td>{aet: [eat, tea, ate], ant: [tan, nat]}</td></tr>
+<tr><td>bat</td><td>abt</td><td>{aet: [eat, tea, ate], ant: [tan, nat], abt: [bat]}</td></tr>
+</table></div>
+<p>The lists in the map are the answer. The same machine answers many other questions. Count how often each value appears and the map becomes a <strong>counter</strong>: the key is the value, the entry is how many times it was seen. "Which element appears more than half the time", "which character appears only once", "which <var>k</var> elements are most frequent" are all one pass to build the counter, then one question asked of it.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant is simple: <em>after processing the first <var>i</var> items, the counter is exact for those <var>i</var> items</em>. Each step updates exactly one entry by exactly one, so if the counts were right before the step they are right after it.</p>
+<p>For grouping, correctness rests on the signature being a true fingerprint: two words get the same signature if and only if they have the same letter counts. Sorting letters gives that, because a sorted string is determined by the counts and determines them. So every anagram lands in the same bucket and no non-anagram does.</p>
+
+<h3>Why it is fast</h3>
+<p>Building the counter is one update per item, about one step each, so O(<var>n</var>). Grouping anagrams costs one signature per word; sorting a word of <var>k</var> letters is O(<var>k</var> log <var>k</var>), or O(<var>k</var>) if you build a 26-entry count table instead, so the total is about O(<var>n</var> · <var>k</var>). Each word's letters are counted once, not once per partner. For a hundred thousand words of five letters that is roughly half a million letter operations instead of five billion pair checks. Memory is one entry per distinct key, O(<var>k</var>) for <var>k</var> distinct keys.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "anagram", "appears more than", "most frequent", "first unique", "can string A be built from the letters of B". Whenever the answer depends only on <em>how many</em> of each thing there is and not on where they are, count first.</p>
+<p>Say: "I will count in one pass with a hash map, then answer from the counts." <strong>Valid Anagram</strong> is two counters compared. <strong>Majority Element</strong> is a counter followed by "which key has count greater than <var>n</var>/2". <strong>Top K Frequent Elements</strong> is a counter followed by picking the <var>k</var> largest counts, usually with a heap or bucket sort.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Count first; the answer is a question about the counts.</p>
     <p><strong>Reach for it when:</strong> Anagrams, majority, &#x27;first unique&#x27;, top-k, &#x27;can be formed from&#x27;.</p>
     <p><strong>Cost:</strong> O(n) time, O(k) space for k distinct keys.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Group Anagrams by sorted-key signature</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Equal letter counts ⇔ equal <em>sorted key</em>; bucket by the key</li><li>&#x27;eat&#x27; sorts to <em>&#x27;aet&#x27;</em>: new bucket</li><li>&#x27;tea&#x27; sorts to <em>&#x27;aet&#x27;</em>: join its bucket</li><li>&#x27;tan&#x27; sorts to <em>&#x27;ant&#x27;</em>: new bucket</li><li>&#x27;ate&#x27; sorts to <em>&#x27;aet&#x27;</em>: join its bucket</li><li>&#x27;nat&#x27; sorts to <em>&#x27;ant&#x27;</em>: join its bucket</li><li>&#x27;bat&#x27; sorts to <em>&#x27;abt&#x27;</em>: new bucket</li><li>Three buckets: [eat tea ate] [tan nat] [bat]</li><li>Sorting each word costs k log k: <em>O(n · k log k)</em>; counting letters makes it O(n·k)</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>13 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/majority-element">Majority Element</a></td><td><span class="diff easy">Easy</span></td><td class="num">67</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/top-k-frequent-elements">Top K Frequent Elements</a></td><td><span class="diff medium">Medium</span></td><td class="num">59</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/group-anagrams">Group Anagrams</a></td><td><span class="diff medium">Medium</span></td><td class="num">58</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/valid-anagram">Valid Anagram</a></td><td><span class="diff easy">Easy</span></td><td class="num">58</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/contains-duplicate">Contains Duplicate</a></td><td><span class="diff easy">Easy</span></td><td class="num">55</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/first-unique-character-in-a-string">First Unique Character in a String</a></td><td><span class="diff easy">Easy</span></td><td class="num">44</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-the-difference">Find the Difference</a></td><td><span class="diff easy">Easy</span></td><td class="num">41</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/majority-element-ii">Majority Element II</a></td><td><span class="diff medium">Medium</span></td><td class="num">40</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/ransom-note">Ransom Note</a></td><td><span class="diff easy">Easy</span></td><td class="num">40</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/unique-number-of-occurrences">Unique Number of Occurrences</a></td><td><span class="diff easy">Easy</span></td><td class="num">40</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-all-duplicates-in-an-array">Find All Duplicates in an Array</a></td><td><span class="diff medium">Medium</span></td><td class="num">38</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/sort-characters-by-frequency">Sort Characters By Frequency</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/top-k-frequent-words">Top K Frequent Words</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-arrays-hashing">Arrays &amp; Hashing</a>: <a href="/dsa/hash-complement/">Hash the complement</a>, <a href="/dsa/canonical-key/">Canonical key hashing</a>, <a href="/dsa/index-as-hash/">In-place index hashing</a>, <a href="/dsa/longest-consecutive/">Set-start expansion</a>, <a href="/dsa/hash-set-cycle/">Seen-set cycle detection</a>.</p>
   </article>
 
@@ -428,7 +459,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

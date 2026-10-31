@@ -394,22 +394,52 @@
       <p>Two items are &#x27;the same&#x27; iff their keys are equal.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Look at the strings abc, bcd, ace, xyz, az. Some of them are "shifts" of each other: bcd is abc with every letter moved one step forward, and xyz is abc moved 23 steps forward. The task is to group strings that are shifts of each other.</p>
+<p>By hand you might try to shift one string until it matches another: shift abc by 1, compare with bcd, match. Shift abc by 2, compare with ace, no. Shift by 3, no, and so on for 25 shifts against every other string. For <var>n</var> strings of length <var>k</var> that is about 25 · <var>n</var><sup>2</sup> · <var>k</var> letter comparisons. For 10,000 strings of 10 letters it is 25 billion. Nearly all of that work is re-deriving the same fact: how far apart the letters are.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Step one: find what does <em>not</em> change when you shift. In abc the gap from a to b is 1 and from b to c is 1. In bcd the gaps are also 1 and 1. In xyz they are 1 and 1 again. Shifting adds the same amount to every letter, so differences between neighbouring letters stay the same. That list of gaps is a <strong>canonical form</strong>: the one fixed description that every member of the group shares.</p>
+<p>Step two: compute that form for each string. Take letters as numbers (a = 0, b = 1, …) and write down the gaps, wrapping around at 26 so that "az" and "ba" are handled: gap = (next − current + 26) mod 26.</p>
+<p>Step three: put the forms in a hash map from form to list of strings, the same bucketing machine as frequency counting.</p>
+<div class="table-wrap"><table>
+<tr><th>String</th><th>Letters as numbers</th><th>Gaps (the key)</th><th>Map afterwards</th></tr>
+<tr><td>abc</td><td>0, 1, 2</td><td>(1, 1)</td><td>{(1,1): [abc]}</td></tr>
+<tr><td>bcd</td><td>1, 2, 3</td><td>(1, 1)</td><td>{(1,1): [abc, bcd]}</td></tr>
+<tr><td>ace</td><td>0, 2, 4</td><td>(2, 2)</td><td>{(1,1): [abc, bcd], (2,2): [ace]}</td></tr>
+<tr><td>xyz</td><td>23, 24, 25</td><td>(1, 1)</td><td>{(1,1): [abc, bcd, xyz], (2,2): [ace]}</td></tr>
+<tr><td>az</td><td>0, 25</td><td>(25)</td><td>…, (25): [az]</td></tr>
+</table></div>
+<p>The same recipe works whenever "the same" means "the same after some transformation". Anagrams: the canonical form is the sorted letters. Isomorphic strings (paper and title have the same shape): replace each letter by the position where it first appeared, so both become 0 1 0 2 3. Duplicate subtrees: write each subtree as a bracketed string like (4) or (2(4)()). In every case you ask one question: what stays fixed under the transformation, and how do I write it down so that equal things give equal strings?</p>
+
+<h3>Why it is correct</h3>
+<p>The key must be a true fingerprint: two items get the same key <em>if and only if</em> they belong together. Both directions matter. For shifts: if <var>t</var> is <var>s</var> shifted by <var>d</var>, every letter of <var>t</var> is <var>s</var>'s letter plus <var>d</var>, so each gap is</p>
+<p class="formula">(<var>s</var><sub><var>i</var>+1</sub> + <var>d</var>) − (<var>s</var><sub><var>i</var></sub> + <var>d</var>) = <var>s</var><sub><var>i</var>+1</sub> − <var>s</var><sub><var>i</var></sub></p>
+<p>which is unchanged, so same key. Conversely, if two strings have the same gaps and the same length, choose <var>d</var> as the difference of their first letters; then every later letter also differs by <var>d</var>, because the letters are the first letter plus the running sum of the gaps. So same key means they are shifts. A key that satisfied only one direction would either split a group or merge two groups.</p>
+
+<h3>Why it is fast</h3>
+<p>Each string's key is computed once, in O(<var>k</var>) for a string of <var>k</var> letters, and inserted into the map in about one step. That is O(<var>n</var> · <var>k</var>) overall, a few hundred thousand operations for the 10,000-string example instead of 25 billion. The repeated work of the by-hand method, re-shifting and re-comparing, is gone because the comparison became an equality test on a short key.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "group the strings that are …", "are these two structures the same up to …", "find duplicate sub-structures". The first thing to say: "I will define a canonical key that is identical for everything in a group and different otherwise, then bucket by that key in a hash map." Then spend your effort on the key, because that is where the bugs live: the wrap-around in <strong>Group Shifted Strings</strong>, mapping both directions in <strong>Isomorphic Strings</strong> so that "ab" and "aa" are not confused, and including empty children in the string for <strong>Find Duplicate Subtrees</strong> so that different shapes do not collide.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Map each item to a canonical form; equal forms share a bucket.</p>
     <p><strong>Reach for it when:</strong> Grouping by structure: anagrams, shifted strings, isomorphism, duplicate subtrees.</p>
     <p><strong>Cost:</strong> O(n·k) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Group Shifted Strings: &#x27;abc&#x27;,&#x27;bcd&#x27;,&#x27;xyz&#x27; share the key (1,1)</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Shifting every letter keeps the <em>gaps</em> between letters: hash the gaps</li><li>&#x27;abc&#x27; → gaps <em>(1,1)</em>: new group</li><li>&#x27;bcd&#x27; → gaps <em>(1,1)</em>: same group as abc</li><li>&#x27;ace&#x27; → gaps <em>(2,2)</em>: new group</li><li>&#x27;xyz&#x27; → gaps <em>(1,1)</em>: same group as abc</li><li>&#x27;az&#x27; → gaps <em>(25)</em>: new group</li><li>&#x27;ba&#x27; → gaps <em>(25)</em>: same group as az</li><li>&#x27;a&#x27; → gaps <em>(·)</em>: new group</li><li>&#x27;z&#x27; → gaps <em>(·)</em>: same group as a</li><li>Equal keys ⇔ same shifted family: four groups</li><li>Build each key in O(k): <em>O(n · k)</em> total</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>7 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/group-anagrams">Group Anagrams</a></td><td><span class="diff medium">Medium</span></td><td class="num">58</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/isomorphic-strings">Isomorphic Strings</a></td><td><span class="diff easy">Easy</span></td><td class="num">45</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/group-shifted-strings">Group Shifted Strings</a></td><td><span class="diff medium">Medium</span></td><td class="num">35</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-duplicate-subtrees">Find Duplicate Subtrees</a></td><td><span class="diff medium">Medium</span></td><td class="num">28</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/word-pattern">Word Pattern</a></td><td><span class="diff easy">Easy</span></td><td class="num">26</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-and-replace-pattern">Find and Replace Pattern</a></td><td><span class="diff medium">Medium</span></td><td class="num">13</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/equal-row-and-column-pairs">Equal Row and Column Pairs</a></td><td><span class="diff medium">Medium</span></td><td class="num">8</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-arrays-hashing">Arrays &amp; Hashing</a>: <a href="/dsa/hash-complement/">Hash the complement</a>, <a href="/dsa/frequency-count/">Frequency counting</a>, <a href="/dsa/index-as-hash/">In-place index hashing</a>, <a href="/dsa/longest-consecutive/">Set-start expansion</a>, <a href="/dsa/hash-set-cycle/">Seen-set cycle detection</a>.</p>
   </article>
 
@@ -428,7 +458,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

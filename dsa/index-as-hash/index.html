@@ -394,22 +394,51 @@
       <p>After pass one, index v-1 is marked iff value v was seen.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>You are given 3, 4, −1, 1 and asked for the smallest positive whole number that is missing. By hand: is 1 there? Yes. Is 2 there? No, so the answer is 2. Each "is it there?" is a scan of the whole list, and in the worst case you ask about 1, 2, 3, … up to <var>n</var> + 1, which is about <var>n</var><sup>2</sup> looks.</p>
+<p>A hash set would make each look one step, but the problem adds a twist: you are not allowed extra memory beyond a few variables. So the question becomes: where can we keep the "seen" marks without a new array?</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The key fact: the answer is always between 1 and <var>n</var> + 1 for a list of <var>n</var> numbers, because <var>n</var> numbers can cover at most the values 1 … <var>n</var>. So only the values 1 … <var>n</var> matter, and there are exactly <var>n</var> slots in the array. That is a perfect fit: let <strong>slot <var>v</var> − 1 be the home of value <var>v</var></strong>. The array becomes its own hash table, where the index is the key.</p>
+<p>The operation: walk the array, and whenever the value in your hand is in range 1 … <var>n</var> and is not already sitting at home, swap it into its home. Do not move on until the value in your hand is out of range or already home, because the swap brings a new value into the current slot. On 3, 4, −1, 1 with <var>n</var> = 4:</p>
+<ol>
+<li>Index 0 holds 3; its home is index 2. Swap: −1, 4, 3, 1.</li>
+<li>Index 0 now holds −1, out of range. Move on.</li>
+<li>Index 1 holds 4; its home is index 3. Swap: −1, 1, 3, 4.</li>
+<li>Index 1 now holds 1; its home is index 0. Swap: 1, −1, 3, 4.</li>
+<li>Index 1 holds −1, out of range. Move on. Indices 2 and 3 hold 3 and 4, already home.</li>
+</ol>
+<p>Second pass: read the array left to right and find the first slot whose value is not its index plus one. Slot 1 holds −1 instead of 2, so the answer is 2. If every slot is home, the answer is <var>n</var> + 1.</p>
+<p>A sibling of this trick uses a sign instead of a swap: when you see value <var>v</var>, make the number at index <var>v</var> − 1 negative. A negative at index <var>i</var> then means "value <var>i</var> + 1 was seen", and the number's size is untouched so you can still read it. That version is for lists where every value is already in 1 … <var>n</var>.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant after the placing pass: <em>for every value <var>v</var> in 1 … <var>n</var> that occurs in the array, slot <var>v</var> − 1 holds <var>v</var></em>. A swap only ever moves a value into its own home, and a value sitting in its home is never moved out, because we only swap when the value in hand is not home. So once <var>v</var> reaches slot <var>v</var> − 1 it stays. Every in-range value is picked up by the walk at some point and sent home, unless its home already holds another copy of <var>v</var>, in which case a copy is home anyway. So the invariant holds.</p>
+<p>Then the first slot <var>i</var> with a wrong value means <var>i</var> + 1 is missing, and every smaller value is present, so <var>i</var> + 1 is the smallest missing positive.</p>
+
+<h3>Why it is fast</h3>
+<p>Count the swaps. Every swap puts at least one value into its final home, and values never leave their home, so there are at most <var>n</var> swaps in total, even though a single slot may trigger several in a row. Add the <var>n</var> steps of walking and the <var>n</var> steps of the second pass: at most about 3<var>n</var> operations, O(<var>n</var>) time. Extra memory is the one variable holding the value in hand, O(1). The by-hand method was O(<var>n</var><sup>2</sup>); a hash set would be O(<var>n</var>) time but O(<var>n</var>) extra space.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: the values are promised to lie in 1 … <var>n</var> (or 0 … <var>n</var> − 1), the question is about missing or duplicated values, and the problem says "constant extra space" or "without modifying" is not required. The matching of value range to index range is the giveaway.</p>
+<p>Say: "The values fit the indices, so I will use the array as its own hash table and park each value at index value − 1." <strong>First Missing Positive</strong> is the swap version above. <strong>Find All Numbers Disappeared in an Array</strong> is the sign version: negate slot <var>v</var> − 1 for each <var>v</var>, then report indices that stayed positive. <strong>Find the Duplicate Number</strong> is the same idea run until a value tries to go home and finds its twin already there.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Values 1..n: mark presence by negating or swapping into slot value-1.</p>
     <p><strong>Reach for it when:</strong> Find missing/duplicate numbers in 1..n with O(1) extra space.</p>
     <p><strong>Cost:</strong> O(n) time, O(1) space.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>First Missing Positive on [3,4,-1,1] via cyclic swaps</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>The array itself is the hash: slot <em>v−1</em> should hold <em>v</em></li><li>nums[0] = 3 belongs at index 2: <em>swap</em> it home</li><li>nums[0] = -1: out of range, <em>move on</em></li><li>nums[1] = 4 belongs at index 3: <em>swap</em> it home</li><li>nums[1] = 1 belongs at index 0: <em>swap</em> it home</li><li>nums[1] = -1: out of range, <em>move on</em></li><li>nums[2] = 3: already home, <em>move on</em></li><li>nums[3] = 4: already home, <em>move on</em></li><li>Scan: index 0 holds 1 ✓</li><li>Scan: index 1 holds -1, not 2. Missing = <em>2</em></li><li>Each swap parks one value for good: <em>O(n)</em> time, <em>O(1)</em> extra space</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>7 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/first-missing-positive">First Missing Positive</a></td><td><span class="diff hard">Hard</span></td><td class="num">48</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-all-numbers-disappeared-in-an-array">Find All Numbers Disappeared in an Array</a></td><td><span class="diff easy">Easy</span></td><td class="num">47</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-the-duplicate-number">Find the Duplicate Number</a></td><td><span class="diff medium">Medium</span></td><td class="num">46</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/missing-number">Missing Number</a></td><td><span class="diff easy">Easy</span></td><td class="num">46</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-missing-and-repeated-values">Find Missing and Repeated Values</a></td><td><span class="diff easy">Easy</span></td><td class="num">39</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-all-duplicates-in-an-array">Find All Duplicates in an Array</a></td><td><span class="diff medium">Medium</span></td><td class="num">38</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/set-mismatch">Set Mismatch</a></td><td><span class="diff easy">Easy</span></td><td class="num">37</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-arrays-hashing">Arrays &amp; Hashing</a>: <a href="/dsa/hash-complement/">Hash the complement</a>, <a href="/dsa/frequency-count/">Frequency counting</a>, <a href="/dsa/canonical-key/">Canonical key hashing</a>, <a href="/dsa/longest-consecutive/">Set-start expansion</a>, <a href="/dsa/hash-set-cycle/">Seen-set cycle detection</a>.</p>
   </article>
 
@@ -428,7 +457,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

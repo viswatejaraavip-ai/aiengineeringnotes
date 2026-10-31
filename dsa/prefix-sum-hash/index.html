@@ -394,22 +394,53 @@
       <p>The map holds the count of every prefix sum seen before j.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Given 1, 2, 3, −2, 2 and the target <var>k</var> = 3, count how many contiguous stretches of the list add up to 3. By hand you try every start and every end: 1+2 = 3 yes; 3 alone yes; 3 + (−2) + 2 = 3 yes; 1+2+3−2−1 … and so on. The answer is 3 stretches.</p>
+<p>There are about <var>n</var><sup>2</sup> ÷ 2 start–end pairs, and adding up each stretch from scratch costs up to <var>n</var> more, so the plain method is O(<var>n</var><sup>3</sup>); keeping a running total as the end moves brings it to O(<var>n</var><sup>2</sup>). For a list of 100,000 numbers that is still five billion additions.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: <strong>prefix sums</strong>. Let <var>P</var>[<var>j</var>] be the sum of the first <var>j</var> numbers, with <var>P</var>[0] = 0. For our list: <var>P</var> = 0, 1, 3, 6, 4, 6. Now any stretch is a subtraction:</p>
+<p class="formula">sum of positions <var>i</var> … <var>j</var> − 1 = <var>P</var>[<var>j</var>] − <var>P</var>[<var>i</var>]</p>
+<p>Piece two: turn the question around. A stretch ending just before <var>j</var> sums to <var>k</var> exactly when <var>P</var>[<var>i</var>] = <var>P</var>[<var>j</var>] − <var>k</var> for some earlier <var>i</var>. So at each <var>j</var> we need to know: <em>how many earlier prefix sums equal <var>P</var>[<var>j</var>] − <var>k</var></em>? That is a counting question, and a hash map from prefix value to count answers it in one step.</p>
+<p>Walk once, keeping the running prefix and the map. Seed the map with {0: 1}, which stands for the empty prefix before the first element. At each number: update the prefix, look up prefix − <var>k</var> and add its count to the answer, then record the prefix in the map.</p>
+<div class="table-wrap"><table>
+<tr><th>Number</th><th>Prefix <var>P</var></th><th>Need <var>P</var> − 3</th><th>Count in map</th><th>Answer</th><th>Map afterwards</th></tr>
+<tr><td></td><td>0</td><td></td><td></td><td>0</td><td>{0:1}</td></tr>
+<tr><td>1</td><td>1</td><td>−2</td><td>0</td><td>0</td><td>{0:1, 1:1}</td></tr>
+<tr><td>2</td><td>3</td><td>0</td><td>1</td><td>1</td><td>{0:1, 1:1, 3:1}</td></tr>
+<tr><td>3</td><td>6</td><td>3</td><td>1</td><td>2</td><td>{…, 6:1}</td></tr>
+<tr><td>−2</td><td>4</td><td>1</td><td>1</td><td>3</td><td>{…, 4:1}</td></tr>
+<tr><td>2</td><td>6</td><td>3</td><td>1</td><td>4</td><td>{…, 6:2}</td></tr>
+</table></div>
+<p>The final answer is 4: the stretches 1+2, 3, 3−2+2, and 2+3−2 (positions 1 … 3). The by-hand count missed one, which is exactly why the method is worth having.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: <em>when we are at position <var>j</var>, the map holds the count of every prefix <var>P</var>[0] … <var>P</var>[<var>j</var> − 1]</em>. We record each prefix after using it, so this holds. Then the number we add at step <var>j</var> is exactly the number of <var>i</var> &lt; <var>j</var> with <var>P</var>[<var>i</var>] = <var>P</var>[<var>j</var>] − <var>k</var>, which by the subtraction formula is exactly the number of stretches ending at position <var>j</var> − 1 that sum to <var>k</var>. Summing over all <var>j</var> counts every stretch once, grouped by where it ends. Looking up before recording matters: an empty stretch (<var>i</var> = <var>j</var>) sums to 0 and must only count when <var>k</var> = 0, and the seed {0: 1} handles the stretches that start at position 0.</p>
+
+<h3>Why it is fast</h3>
+<p>One pass of <var>n</var> steps, each doing one addition, one lookup and one insert, all about one step: O(<var>n</var>) time, O(<var>n</var>) memory for the map. Five billion additions became a few hundred thousand operations. The gain comes from never re-adding a stretch: the prefix sums store every partial total once, and the map turns "find a matching earlier total" from a scan into a lookup.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "count subarrays whose sum is", "subarray sum divisible by", "equal numbers of 0s and 1s" (map 0 to −1 and look for sum 0), "longest subarray with sum <var>k</var>" (store the first index instead of a count). The first thing to say: "A subarray sum is a difference of two prefix sums, so I will count earlier prefixes equal to current minus <var>k</var> with a hash map."</p>
+<p><strong>Subarray Sum Equals K</strong> is the example. <strong>Subarray Sums Divisible by K</strong> keeps prefixes modulo <var>k</var>, because two prefixes with the same remainder differ by a multiple of <var>k</var>. <strong>Path Sum III</strong> is the same pattern walking down a tree, where the "prefix" is the sum from the root and you remove it from the map when you backtrack.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Subarray sum = prefix[j] − prefix[i]; count earlier prefixes worth prefix[j] − k.</p>
     <p><strong>Reach for it when:</strong> Count/find subarrays with a given sum, divisible sum, or balanced 0/1.</p>
     <p><strong>Cost:</strong> O(n) time, O(n) space.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Subarray Sum Equals K on [1,2,3,-2,2], k=3</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>sum(i..j) = prefix[j] − prefix[i]: count earlier prefixes equal to <em>prefix[j] − k</em></li><li>Seed the map with prefix 0 seen once</li><li>prefix = 1; need 1 − 3 = <em>-2</em>, seen 0 times</li><li>Record prefix 1 in the map</li><li>prefix = 3; need 3 − 3 = <em>0</em>, seen 1 time</li><li>Each such prefix is one subarray ending here: count = <em>1</em></li><li>Record prefix 3 in the map</li><li>prefix = 6; need 6 − 3 = <em>3</em>, seen 1 time</li><li>Each such prefix is one subarray ending here: count = <em>2</em></li><li>Record prefix 6 in the map</li><li>prefix = 4; need 4 − 3 = <em>1</em>, seen 1 time</li><li>Each such prefix is one subarray ending here: count = <em>3</em></li><li>Record prefix 4 in the map</li><li>prefix = 6; need 6 − 3 = <em>3</em>, seen 1 time</li><li>Each such prefix is one subarray ending here: count = <em>4</em></li><li>Record prefix 6 in the map</li><li>Subarrays summing to 3: [1,2], [3], [3,−2,2] → <em>3</em></li><li>One pass with a hash map: <em>O(n)</em> time, <em>O(n)</em> space</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>9 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/subarray-sum-equals-k">Subarray Sum Equals K</a></td><td><span class="diff medium">Medium</span></td><td class="num">66</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/contiguous-array">Contiguous Array</a></td><td><span class="diff medium">Medium</span></td><td class="num">38</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/binary-subarrays-with-sum">Binary Subarrays With Sum</a></td><td><span class="diff medium">Medium</span></td><td class="num">37</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/subarray-sums-divisible-by-k">Subarray Sums Divisible by K</a></td><td><span class="diff medium">Medium</span></td><td class="num">34</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/path-sum-iii">Path Sum III</a></td><td><span class="diff medium">Medium</span></td><td class="num">31</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/continuous-subarray-sum">Continuous Subarray Sum</a></td><td><span class="diff medium">Medium</span></td><td class="num">27</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/count-number-of-nice-subarrays">Count Number of Nice Subarrays</a></td><td><span class="diff medium">Medium</span></td><td class="num">24</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/make-sum-divisible-by-p">Make Sum Divisible by P</a></td><td><span class="diff medium">Medium</span></td><td class="num">18</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/maximum-size-subarray-sum-equals-k">Maximum Size Subarray Sum Equals k</a></td><td><span class="diff medium">Medium</span></td><td class="num">5</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-prefix-sums">Prefix Sums</a>: <a href="/dsa/prefix-product-both-sides/">Prefix and suffix products</a>, <a href="/dsa/difference-array/">Difference array (range add)</a>, <a href="/dsa/prefix-sum-2d/">2D prefix sums</a>.</p>
   </article>
 
@@ -428,7 +459,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

@@ -394,22 +394,56 @@
       <p>The answer, if it exists, lies within [l, r].</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>The list 1, 2, 4, 7, 11, 15, 18 is already sorted, and you want two numbers that add to 18. By hand you could try every pair, about <var>n</var><sup>2</sup> ÷ 2 of them, which is 21 for 7 numbers and about 500 billion for a million. That ignores the one thing you were given for free: the order.</p>
+<p>Think about what order tells you. If you try 1 + 18 = 19 and it is too big, you know something stronger than "that pair failed": any pair that uses 18 with a number bigger than 1 is <em>also</em> too big, because 1 is the smallest. So 18 can be thrown away entirely. That single observation is the whole pattern.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The structure is just two indices, <var>l</var> at the left end and <var>r</var> at the right end. The stretch between them is the set of numbers still "alive" as possible pair members. Each step looks at one sum and kills one end:</p>
+<ul>
+<li>If nums[<var>l</var>] + nums[<var>r</var>] is too big, nothing paired with nums[<var>r</var>] can work, so move <var>r</var> one step left.</li>
+<li>If it is too small, nothing paired with nums[<var>l</var>] can work, so move <var>l</var> one step right.</li>
+<li>If it is exactly right, done.</li>
+</ul>
+<div class="table-wrap"><table>
+<tr><th><var>l</var></th><th><var>r</var></th><th>Sum</th><th>Compared with 18</th><th>Move</th></tr>
+<tr><td>1</td><td>18</td><td>19</td><td>too big</td><td><var>r</var> left</td></tr>
+<tr><td>1</td><td>15</td><td>16</td><td>too small</td><td><var>l</var> right</td></tr>
+<tr><td>2</td><td>15</td><td>17</td><td>too small</td><td><var>l</var> right</td></tr>
+<tr><td>4</td><td>15</td><td>19</td><td>too big</td><td><var>r</var> left</td></tr>
+<tr><td>4</td><td>11</td><td>15</td><td>too small</td><td><var>l</var> right</td></tr>
+<tr><td>7</td><td>11</td><td>18</td><td>found</td><td></td></tr>
+</table></div>
+<p>Six sums instead of twenty-one. The same two indices, walking inward, solve "is this string a palindrome" (compare the letters at <var>l</var> and <var>r</var>, move both inward), "reverse in place" (swap, move both), and "container with most water" (the shorter wall limits the area, so move the shorter side).</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: <em>if a valid pair exists, both of its members lie in the range [<var>l</var>, <var>r</var>]</em>. At the start the range is everything, so it holds. Suppose it holds and the sum is too big, so we drop nums[<var>r</var>]. Could the answer have used nums[<var>r</var>]? Its partner would have to be in [<var>l</var>, <var>r</var> − 1], all of which are at least nums[<var>l</var>] because the list is sorted, so that pair's sum is at least nums[<var>l</var>] + nums[<var>r</var>] &gt; 18. Impossible. The mirror argument covers "too small". So dropping an end never drops a member of the answer, and the invariant survives every step. When the range shrinks to a single element with no pair found, no pair exists.</p>
+<p class="formula">sorted ⇒ nums[<var>l</var>] ≤ nums[<var>i</var>] for all <var>i</var> in [<var>l</var>, <var>r</var>] ⇒ nums[<var>i</var>] + nums[<var>r</var>] ≥ nums[<var>l</var>] + nums[<var>r</var>]</p>
+
+<h3>Why it is fast</h3>
+<p>Every step moves <var>l</var> right or <var>r</var> left by one, and they start <var>n</var> − 1 apart and stop when they meet. So there are at most <var>n</var> − 1 steps, each a single addition and comparison: O(<var>n</var>) time, O(1) extra memory. The quadratic pair search did about <var>n</var><sup>2</sup> ÷ 2 steps; sortedness let us discard a whole row of candidates per comparison instead of one.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: the input is sorted (or can be sorted cheaply), you need a pair or a pair of positions, and the test is monotone: moving one end only ever makes the sum bigger or smaller. Also any "from both ends" shape: palindromes, reversing, pairing the smallest with the largest.</p>
+<p>Say: "The array is sorted, so I will put a pointer at each end and move the one that must move, discarding a candidate per step." <strong>Two Sum II - Input Array Is Sorted</strong> is the example. <strong>Container With Most Water</strong> uses the same loop with "move the shorter wall", because the shorter wall caps the area of every container it could form with a nearer partner. <strong>Valid Palindrome</strong> compares the two ends and moves both inward, skipping non-letters.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Sorted: too small → move left up, too big → move right down.</p>
     <p><strong>Reach for it when:</strong> Pair sums in sorted arrays, container with most water, palindromes.</p>
     <p><strong>Cost:</strong> O(n) time, O(1) space.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Two Sum II on [2,7,11,15] target 18</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Sorted input: start at <em>both ends</em> and squeeze inward</li><li>l on the smallest, r on the largest</li><li>1 + 18 = 19 &gt; 18: too big, move <em>r</em> left</li><li>1 + 15 = 16 &lt; 18: too small, move <em>l</em> right</li><li>2 + 15 = 17 &lt; 18: too small, move <em>l</em> right</li><li>4 + 15 = 19 &gt; 18: too big, move <em>r</em> left</li><li>4 + 11 = 15 &lt; 18: too small, move <em>l</em> right</li><li>7 + 11 = 18 = target: <em>found</em> [4, 5]</li><li>Each step discards one end for good: <em>O(n)</em> time, <em>O(1)</em> space</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>11 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/3sum">3Sum</a></td><td><span class="diff medium">Medium</span></td><td class="num">73</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/container-with-most-water">Container With Most Water</a></td><td><span class="diff medium">Medium</span></td><td class="num">68</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/4sum">4Sum</a></td><td><span class="diff medium">Medium</span></td><td class="num">56</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/valid-palindrome">Valid Palindrome</a></td><td><span class="diff easy">Easy</span></td><td class="num">52</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/3sum-closest">3Sum Closest</a></td><td><span class="diff medium">Medium</span></td><td class="num">51</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/two-sum-ii-input-array-is-sorted">Two Sum II - Input Array Is Sorted</a></td><td><span class="diff medium">Medium</span></td><td class="num">50</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/reverse-string">Reverse String</a></td><td><span class="diff easy">Easy</span></td><td class="num">47</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/reverse-vowels-of-a-string">Reverse Vowels of a String</a></td><td><span class="diff easy">Easy</span></td><td class="num">45</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/squares-of-a-sorted-array">Squares of a Sorted Array</a></td><td><span class="diff easy">Easy</span></td><td class="num">44</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/valid-palindrome-ii">Valid Palindrome II</a></td><td><span class="diff easy">Easy</span></td><td class="num">38</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/boats-to-save-people">Boats to Save People</a></td><td><span class="diff medium">Medium</span></td><td class="num">29</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-two-pointers">Two Pointers</a>: <a href="/dsa/three-sum-fix-one/">Fix one, two-pointer the rest</a>, <a href="/dsa/fast-slow-writer/">Reader / writer pointers</a>, <a href="/dsa/dutch-flag/">Dutch national flag partition</a>, <a href="/dsa/merge-two-sorted/">Merge two sorted sequences</a>, <a href="/dsa/trapping-water-pointers/">Two-sided max walls</a>.</p>
   </article>
 
@@ -428,7 +462,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

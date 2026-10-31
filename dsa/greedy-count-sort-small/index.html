@@ -394,22 +394,48 @@
       <p>The construction only needs the multiset, never the order.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>From the letters of <code>abccccdd</code>, using each letter at most as many times as it appears, build the longest palindrome you can. By hand you would start arranging letters: <code>dccaccd</code> reads the same backwards and uses 7 letters. Is 8 possible? You would try moving letters around, and it is not obvious when to stop. For a string of 2,000 letters, arranging by trial is hopeless: there are more arrangements than atoms in the universe.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The key realisation is that the order of the input letters does not matter at all, only <strong>how many</strong> of each there are. So the first and only structure is a count table, 26 slots for lowercase and 26 for uppercase, filled by one pass over the string: <code>a</code> → 1, <code>b</code> → 1, <code>c</code> → 4, <code>d</code> → 2.</p>
+<p>Now build the answer from the counts, not from the string. A palindrome pairs every letter with its mirror image, except possibly one letter in the exact middle. So each letter contributes its count rounded down to an even number, and if any letter has a count left over, one single letter can sit in the middle.</p>
+<ol>
+<li><code>a</code> × 1: 0 pairs, contributes 0; one <code>a</code> left over.</li>
+<li><code>b</code> × 1: 0 pairs, contributes 0; one <code>b</code> left over.</li>
+<li><code>c</code> × 4: 2 pairs, contributes 4.</li>
+<li><code>d</code> × 2: 1 pair, contributes 2.</li>
+<li>Leftovers exist, so add 1 for the middle. Total 0 + 0 + 4 + 2 + 1 = 7.</li>
+</ol>
+<p>The length is 7, and one such palindrome is <code>dccaccd</code>. The algorithm never wrote the palindrome down; it only counted.</p>
+
+<h3>Why it is correct</h3>
+<p>A palindrome of length <var>m</var> has positions <var>k</var> and <var>m</var> − 1 − <var>k</var> holding the same letter, so every letter except the centre (when <var>m</var> is odd) appears an even number of times. Therefore no palindrome can use more than an even number of copies of each letter, plus at most one extra letter in total. That gives an upper bound: the sum of the counts rounded down to even, plus 1 if any count is odd. The construction above reaches that bound: place each pair symmetrically and one leftover in the middle. Upper bound met, so it is the maximum.</p>
+<p class="formula">length = Σ<sub>letters</sub> 2·⌊count/2⌋ + [some count is odd]</p>
+
+<h3>Why it is fast</h3>
+<p>One pass to count is O(<var>n</var>), and the construction loops over at most 52 slots, which is constant: O(<var>n</var>) time, O(1) memory. For 2,000 letters that is about 2,050 steps. Every trial-and-arrangement method is exponential, because it treats the order as information when the order is irrelevant.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: a small fixed alphabet (letters, digits, task types), and a question that would be unchanged if the input were shuffled. Say: the order does not matter, so I will count first and reason about the counts. <em>Longest Palindrome</em> is the example. <em>Reorganize String</em> checks that the most frequent letter is at most half the length (rounded up) and then interleaves from the counts. <em>Task Scheduler</em> has the closed form (<var>f</var> − 1)(<var>n</var> + 1) + (number of tasks with the top count), where <var>f</var> is the highest count, again purely from the count table.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Count letters/values, then construct the best answer from the counts.</p>
     <p><strong>Reach for it when:</strong> Longest palindrome, reorganise string, task scheduler math form, string balancing.</p>
     <p><strong>Cost:</strong> O(n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Longest Palindrome from &#x27;abccccdd&#x27;</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Count letters; the answer only depends on the <em>multiset</em> of counts</li><li>&#x27;a&#x27; × 1: 0 pair(s) add <em>0</em>, one left over</li><li>&#x27;b&#x27; × 1: 0 pair(s) add <em>0</em>, one left over</li><li>&#x27;c&#x27; × 4: 2 pair(s) add <em>4</em></li><li>&#x27;d&#x27; × 2: 1 pair(s) add <em>2</em></li><li>Any one leftover letter can sit in the <em>middle</em>: +1</li><li>Longest palindrome = <em>7</em>, e.g. dccaccd</li><li>One counting pass over a 52-letter alphabet: <em>O(n)</em> time, <em>O(1)</em> space</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>5 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/task-scheduler">Task Scheduler</a></td><td><span class="diff medium">Medium</span></td><td class="num">41</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/reorganize-string">Reorganize String</a></td><td><span class="diff medium">Medium</span></td><td class="num">34</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/longest-palindrome">Longest Palindrome</a></td><td><span class="diff easy">Easy</span></td><td class="num">31</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/maximum-number-of-balloons">Maximum Number of Balloons</a></td><td><span class="diff easy">Easy</span></td><td class="num">5</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/split-a-string-in-balanced-strings">Split a String in Balanced Strings</a></td><td><span class="diff easy">Easy</span></td><td class="num">5</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-greedy">Greedy</a>: <a href="/dsa/greedy-jump-reach/">Furthest reach (jump game)</a>, <a href="/dsa/greedy-exchange-argument/">Sort, then take greedily</a>, <a href="/dsa/greedy-gas-station/">Reset-on-negative sweep</a>, <a href="/dsa/greedy-partition-labels/">Last-occurrence partition</a>, <a href="/dsa/greedy-candy-two-pass/">Two-pass neighbour constraints</a>, <a href="/dsa/greedy-two-pointer-assign/">Two-pointer assignment after sorting</a>.</p>
   </article>
 
@@ -428,7 +454,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

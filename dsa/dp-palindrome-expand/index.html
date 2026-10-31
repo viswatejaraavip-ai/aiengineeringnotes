@@ -394,22 +394,50 @@
       <p>dp[i][j] is true iff s[i..j] is a palindrome.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Take the word <code>babad</code>. A palindrome reads the same forwards and backwards, like <code>bab</code> or <code>aba</code>. Asked for the longest palindrome inside <code>babad</code>, a person would probably list every piece of the word and read each one backwards: <code>b</code>, <code>ba</code>, <code>bab</code>, <code>baba</code>, <code>babad</code>, then <code>a</code>, <code>ab</code>, and so on.</p>
+<p>Count that work. A word of length <var>n</var> has about <var>n</var><sup>2</sup>/2 pieces, and reading one backwards costs up to <var>n</var> comparisons. For <code>babad</code> that is 15 pieces and roughly 40 comparisons, which is fine. For a string of 1,000 characters it is about 500,000 pieces and 500 million comparisons. The waste is obvious once you notice it: when you check <code>babad</code> you compare <code>a</code> with <code>a</code> in the middle again, even though you already learned that <code>aba</code> is a palindrome.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The structure here is not a stack or a tree. It is a way of growing an answer from the middle. Every palindrome has a centre. <code>bab</code> is centred on the <code>a</code>; <code>abba</code> is centred on the gap between the two <code>b</code>s. So there are two kinds of centre: a letter, or a gap between two letters. A string of length <var>n</var> has <var>n</var> letter centres and <var>n</var> − 1 gap centres, 2<var>n</var> − 1 in all. For <code>babad</code> that is 9 centres.</p>
+<p>From a centre, grow outwards one step at a time. Keep two fingers, <var>l</var> on the left and <var>r</var> on the right. While the letters under the fingers match, move both fingers one step further apart. The moment they differ, or a finger falls off the end, stop: the last matching stretch is the longest palindrome with that centre.</p>
+<ol>
+<li>Centre at index 1 (<code>a</code>): <var>l</var> = <var>r</var> = 1. One letter is always a palindrome, length 1.</li>
+<li>Step out: <var>l</var> = 0, <var>r</var> = 2. <code>s[0]</code> = <code>b</code>, <code>s[2]</code> = <code>b</code>. They match, so <code>bab</code> is a palindrome, length 3.</li>
+<li>Step out again: <var>l</var> = −1. Off the edge, stop. Best from this centre: <code>bab</code>.</li>
+<li>Centre at index 2 (<code>b</code>): grows to <code>aba</code>, then meets <code>b</code> against <code>d</code> and stops.</li>
+<li>Gap centres, such as between indices 0 and 1: <code>b</code> against <code>a</code>, no match, length 0.</li>
+</ol>
+<p>The longest stretch found anywhere is the answer: <code>bab</code> (or <code>aba</code>, both length 3).</p>
+<p>There is a second, table-based way to say the same thing. Keep a grid <var>dp</var>[<var>i</var>][<var>j</var>] that is true when <code>s[i..j]</code> is a palindrome. A single letter is true. A two-letter piece is true when the letters are equal. Anything longer is true exactly when its two end letters match and the inside piece <var>dp</var>[<var>i</var>+1][<var>j</var>−1] is already true. Fill the grid by length, short pieces first, so the inside is always known before you need it.</p>
+
+<h3>Why it is correct</h3>
+<p>Every palindrome has exactly one centre, so checking all 2<var>n</var> − 1 centres cannot miss one. Growing from a centre is safe because of one fact: if <code>s[l..r]</code> is a palindrome and <code>s[l−1]</code> = <code>s[r+1]</code>, then <code>s[l−1..r+1]</code> is a palindrome too. Reading it backwards, the new outer letters match each other and the inside already reads the same both ways. The moment the outer letters differ, no wider piece with this centre can be a palindrome, because that mismatched pair stays inside every wider piece.</p>
+<p class="formula"><var>dp</var>[<var>i</var>][<var>j</var>] = (<code>s[i]</code> = <code>s[j]</code>) and <var>dp</var>[<var>i</var>+1][<var>j</var>−1]</p>
+
+<h3>Why it is fast</h3>
+<p>There are 2<var>n</var> − 1 centres. From one centre the fingers can take at most <var>n</var>/2 steps before falling off an end, so one centre costs O(<var>n</var>). Altogether that is at most (2<var>n</var> − 1) × <var>n</var>/2, which is O(<var>n</var><sup>2</sup>) comparisons, with no extra memory beyond two indices. The by-hand method was O(<var>n</var><sup>3</sup>): a factor of <var>n</var> slower, because it kept re-reading the middle. The table method is also O(<var>n</var><sup>2</sup>) in time but needs an <var>n</var> × <var>n</var> grid of booleans; it earns that memory when a problem asks the palindrome question many times, such as cutting a string into the fewest palindromic pieces.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Listen for the words palindrome, substring and longest or count. Say out loud: every palindrome has a centre, so I will expand from each of the 2<var>n</var> − 1 centres. In <em>Longest Palindromic Substring</em> that sentence is the whole solution. In <em>Palindromic Substrings</em>, count one for every successful expansion step instead of keeping the longest. In <em>Palindrome Partitioning</em> the grid version pays off: build <var>dp</var>[<var>i</var>][<var>j</var>] once, then a second search only asks the grid, never re-reads the string.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Expand around each centre, or dp[i][j] = s[i]==s[j] and dp[i+1][j−1].</p>
     <p><strong>Reach for it when:</strong> Longest palindromic substring/subsequence, count palindromic substrings, partitioning.</p>
     <p><strong>Cost:</strong> O(n²) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Longest Palindromic Substring on &#x27;babad&#x27;</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Every palindrome has a <em>centre</em>: expand outward while the ends match</li><li>Centre 0 (&#x27;b&#x27;): a single letter is a palindrome</li><li>Hit the edge: stop</li><li>Centre 1 (&#x27;a&#x27;): a single letter is a palindrome</li><li>s[0] = s[2] = &#x27;b&#x27;: <em>expand</em> to &#x27;bab&#x27;</li><li>Centre 2 (&#x27;b&#x27;): a single letter is a palindrome</li><li>s[1] = s[3] = &#x27;a&#x27;: <em>expand</em> to &#x27;aba&#x27;</li><li>s[0] = &#x27;b&#x27; ≠ s[4] = &#x27;d&#x27;: stop</li><li>Centre 3 (&#x27;a&#x27;): a single letter is a palindrome</li><li>s[2] = &#x27;b&#x27; ≠ s[4] = &#x27;d&#x27;: stop</li><li>Centre 4 (&#x27;d&#x27;): a single letter is a palindrome</li><li>Hit the edge: stop</li><li>Even centres (between letters) found nothing; answer <em>&#x27;bab&#x27;</em> (or &#x27;aba&#x27;)</li><li>2n−1 centres, each expands O(n): <em>O(n²)</em>, O(1) space</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>7 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/longest-palindromic-substring">Longest Palindromic Substring</a></td><td><span class="diff medium">Medium</span></td><td class="num">69</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/palindrome-partitioning">Palindrome Partitioning</a></td><td><span class="diff medium">Medium</span></td><td class="num">46</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/shortest-palindrome">Shortest Palindrome</a></td><td><span class="diff hard">Hard</span></td><td class="num">36</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/palindromic-substrings">Palindromic Substrings</a></td><td><span class="diff medium">Medium</span></td><td class="num">31</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/longest-palindromic-subsequence">Longest Palindromic Subsequence</a></td><td><span class="diff medium">Medium</span></td><td class="num">31</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/palindrome-partitioning-ii">Palindrome Partitioning II</a></td><td><span class="diff hard">Hard</span></td><td class="num">24</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/minimum-insertion-steps-to-make-a-string-palindrome">Minimum Insertion Steps to Make a String Palindrome</a></td><td><span class="diff hard">Hard</span></td><td class="num">13</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-dynamic-programming">Dynamic Programming</a>: <a href="/dsa/dp-1d-linear/">1-D linear DP</a>, <a href="/dsa/dp-kadane/">Kadane (best ending here)</a>, <a href="/dsa/dp-lis/">Longest increasing subsequence</a>, <a href="/dsa/dp-grid-paths/">Grid path DP</a>, <a href="/dsa/dp-knapsack-01/">0/1 knapsack (subset sum)</a>, <a href="/dsa/dp-unbounded-coin/">Unbounded knapsack (coin change)</a>, <a href="/dsa/dp-lcs-edit/">Two-sequence DP (LCS / edit distance)</a>, <a href="/dsa/dp-pattern-matching/">Wildcard / regex matching DP</a>, <a href="/dsa/dp-word-break/">Prefix segmentation DP</a>, <a href="/dsa/dp-interval/">Interval DP (last operation)</a>, <a href="/dsa/dp-state-machine-stock/">State-machine DP (stocks)</a>, <a href="/dsa/dp-bitmask/">Bitmask DP over subsets</a>, <a href="/dsa/dp-memo-dfs/">Memoised DFS (top-down)</a>, <a href="/dsa/dp-digit/">Digit DP</a>, <a href="/dsa/dp-game-minimax/">Game DP (minimax on a range)</a>, <a href="/dsa/dp-count-ways-mod/">Counting ways with modulo</a>, <a href="/dsa/dp-longest-string-chain/">DP over sorted keys (chains)</a>.</p>
   </article>
 
@@ -428,7 +456,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

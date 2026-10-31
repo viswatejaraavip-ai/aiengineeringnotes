@@ -394,22 +394,46 @@
       <p>Grey nodes form exactly the current DFS path.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Four courses have prerequisites: course 0 must be done before 1, 1 before 2, 2 before 3, and 3 before 1. Can you finish them all? Try to plan it: 0 first, then 1, then 2, then 3, but 3 must come before 1, which you already did. No order works. The rule 1 → 2 → 3 → 1 is a loop, and a loop of prerequisites can never be satisfied.</p>
+<p>By hand you spot the loop by staring. With 4 courses that is easy. With 2,000 courses and 10,000 prerequisites you cannot stare, and trying every order is hopeless: 2,000 courses have more orders than there are atoms in the universe. We need a walk through the graph that notices a loop the moment it closes.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>First, a graph: each course is a node, each prerequisite "a before b" is an arrow a → b. Store it as a list of outgoing arrows per node: 0: [1], 1: [2], 2: [3], 3: [1].</p>
+<p>Second, depth-first search: from a node, follow one arrow as far as it goes before trying the next. A plain visited mark (yes or no) is not enough, because reaching a node you have seen before could mean two different things: it finished long ago, or it is still being explored on the path you are walking right now. Only the second case is a loop.</p>
+<p>So give every node one of three colours instead of two:</p>
+<ol>
+<li><strong>white</strong>: never entered;</li>
+<li><strong>grey</strong>: entered, and we are still inside its exploration (it is on the current path);</li>
+<li><strong>black</strong>: fully finished.</li>
+</ol>
+<p>Walk the example. Enter 0: grey = {0}. Follow 0 → 1, enter 1: grey = {0, 1}. Follow 1 → 2: grey = {0, 1, 2}. Follow 2 → 3: grey = {0, 1, 2, 3}. Now 3 → 1, and 1 is grey. The path we are standing on already contains 1, so walking to it closes a loop: 1 → 2 → 3 → 1. Cycle found. Had 1 been black, the arrow would be harmless: 1 finished without ever reaching us.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: the grey nodes are exactly the nodes on the current path from the starting node. It holds because a node turns grey when we step onto it and black when we step off it, and depth-first search steps off nodes in the reverse order it stepped on, like a stack.</p>
+<p>So an arrow into a grey node is an arrow from the end of the current path back into the middle of it, which is a cycle by definition. Conversely, if there is a cycle, consider the first node of that cycle the search enters; before that node turns black, the search must follow the cycle round and arrive at it while it is still grey. So a cycle is always caught, and only cycles are reported.</p>
+<h3>Why it is fast</h3>
+<p>Each node is coloured grey once and black once, and each arrow is looked at once, when its source is being explored. With <var>V</var> nodes and <var>E</var> arrows:</p>
+<p class="formula">work = <var>V</var> + <var>E</var></p>
+<p>For 2,000 courses and 10,000 prerequisites that is about 12,000 steps, against the astronomically many orders a brute-force attempt would try.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "prerequisites", "depends on", "can all tasks be finished", "detect a cycle in a directed graph", "which nodes always end in a dead end". The first thing to say: "I will DFS with three colours; an arrow into a grey node is a cycle." Course Schedule asks exactly whether the prerequisite graph is cycle-free. Find Eventual Safe States is the same walk with a different reading of the colours: a node is safe if every path from it ends in black without ever meeting grey.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>White unvisited, grey on the current path, black done; a grey neighbour means a cycle.</p>
     <p><strong>Reach for it when:</strong> Course schedule, eventual safe states, detect cycle in directed graph.</p>
     <p><strong>Cost:</strong> O(V + E) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Course Schedule with a 1→2→3→1 cycle</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Can every course be taken? Only if the prerequisite graph has <em>no cycle</em></li><li>Three colours: <em>grey</em> means &#x27;still on the recursion stack&#x27;</li><li>Enter 0: mark it <em>grey</em></li><li>Enter 1: mark it <em>grey</em></li><li>Enter 2: mark it <em>grey</em></li><li>Enter 3: mark it <em>grey</em></li><li>3→1 but 1 is <em>grey</em>: it is on the current path, cycle found</li><li>A <em>black</em> neighbour would be fine: it finished without reaching us</li><li>1→2→3→1 is a cycle, so the courses <em>cannot</em> all be finished</li><li>Each node coloured once, each edge checked once: <em>O(V + E)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>6 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/course-schedule">Course Schedule</a></td><td><span class="diff medium">Medium</span></td><td class="num">51</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/course-schedule-ii">Course Schedule II</a></td><td><span class="diff medium">Medium</span></td><td class="num">37</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-eventual-safe-states">Find Eventual Safe States</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/redundant-connection-ii">Redundant Connection II</a></td><td><span class="diff hard">Hard</span></td><td class="num">21</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/all-paths-from-source-lead-to-destination">All Paths from Source Lead to Destination</a></td><td><span class="diff medium">Medium</span></td><td class="num">18</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/detect-cycles-in-2d-grid">Detect Cycles in 2D Grid</a></td><td><span class="diff medium">Medium</span></td><td class="num">15</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-graphs">Graphs</a>: <a href="/dsa/grid-dfs-islands/">Grid flood fill (components)</a>, <a href="/dsa/bfs-multi-source/">Multi-source BFS</a>, <a href="/dsa/bfs-shortest-unweighted/">BFS shortest path (unweighted)</a>, <a href="/dsa/bfs-state-space/">BFS over an augmented state</a>, <a href="/dsa/bfs-0-1/">0-1 BFS (deque)</a>, <a href="/dsa/topo-kahn/">Topological sort (Kahn&#x27;s)</a>, <a href="/dsa/union-find/">Union–Find (disjoint sets)</a>, <a href="/dsa/dijkstra/">Dijkstra (weighted shortest path)</a>, <a href="/dsa/bellman-ford-k-stops/">Bellman–Ford with k rounds</a>, <a href="/dsa/mst-kruskal-prim/">Minimum spanning tree</a>, <a href="/dsa/graph-bipartite/">Bipartite colouring</a>, <a href="/dsa/eulerian-path/">Eulerian path (Hierholzer)</a>, <a href="/dsa/tarjan-bridges/">Bridges / articulation (low-link)</a>, <a href="/dsa/graph-clone-traverse/">Clone / traverse with a visited map</a>, <a href="/dsa/implicit-graph-search/">Implicit graph (states as nodes)</a>.</p>
   </article>
 
@@ -428,7 +452,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

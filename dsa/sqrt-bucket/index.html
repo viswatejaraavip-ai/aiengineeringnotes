@@ -394,22 +394,52 @@
       <p>Two values within t are at most one bucket apart.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Six numbers: 3, 6, 9, 1, 14, 20. What is the largest gap between two of them when they are sorted? Sort: 1, 3, 6, 9, 14, 20; the gaps are 2, 3, 3, 5, 6; the largest is 6. Sorting is the obvious route and it costs about <var>n</var> log <var>n</var> comparisons. The problem asks for a linear-time answer, which means we may not sort. That sounds impossible until you notice that most of the sorting was wasted: we never needed the exact order inside small clusters of values, only the distances between clusters.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a width. The numbers range from 1 to 20, a span of 19, and there are 6 of them, so 5 gaps. The gaps cannot all be small: if every gap were below 19/5, the sorted numbers would not reach from 1 to 20. So some gap is at least ⌈19/5⌉ = 4. Call <var>w</var> = 4 the bucket width.</p>
+<p class="formula">largest gap ≥ (max − min) / (<var>n</var> − 1)</p>
+<p>Piece two: buckets of that width. Number <var>v</var> goes to bucket ⌊(<var>v</var> − min) / <var>w</var>⌋. Each bucket remembers only two things, its smallest and largest value; it does not store the values themselves:</p>
+<div class="table-wrap"><table>
+<tr><th>bucket</th><th>value range</th><th>min</th><th>max</th></tr>
+<tr><td>0</td><td>1..4</td><td>1</td><td>3</td></tr>
+<tr><td>1</td><td>5..8</td><td>6</td><td>6</td></tr>
+<tr><td>2</td><td>9..12</td><td>9</td><td>9</td></tr>
+<tr><td>3</td><td>13..16</td><td>14</td><td>14</td></tr>
+<tr><td>4</td><td>17..20</td><td>20</td><td>20</td></tr>
+</table></div>
+<p>Piece three: the answer. Any two values in the same bucket are less than <var>w</var> apart, and we know the answer is at least <var>w</var>, so the largest gap must be between buckets. Walk the buckets left to right and take each bucket's min minus the previous non-empty bucket's max: 6 − 3 = 3, 9 − 6 = 3, 14 − 9 = 5, 20 − 14 = 6. The largest is 6.</p>
+<p>The same bucketing answers "is any earlier value within <var>t</var> of this one?" in Contains Duplicate III: use width <var>t</var> + 1, and two values within <var>t</var> must be in the same bucket or in adjacent buckets, so each arrival checks three buckets.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant is that each bucket's min and max are the true smallest and largest values that fell into it. Two facts make the gap answer right. First, the largest gap is at least <var>w</var>, shown above by the pigeonhole argument. Second, any gap inside one bucket is at most <var>w</var> − 1, because the bucket's value range has width <var>w</var>. So the largest gap lies between two consecutive non-empty buckets, and between those two buckets the largest possible gap is exactly the next bucket's min minus this bucket's max, since those two values are the sorted neighbours across the boundary.</p>
+<p>For the "within <var>t</var>" question, if |<var>x</var> − <var>y</var>| ≤ <var>t</var> then their bucket numbers differ by at most 1, because moving by at most <var>t</var> cannot cross two boundaries that are <var>t</var> + 1 apart.</p>
+
+<h3>Why it is fast</h3>
+<p>Finding the min and max is one pass. Placing each value is one division and two comparisons, another pass. Walking the buckets is one pass over at most <var>n</var> buckets. Everything is O(<var>n</var>) time and O(<var>n</var>) memory, against O(<var>n</var> log <var>n</var>) for sorting. The trade is that we learn nothing about the order within a bucket, which this question never needed.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "in linear time", "maximum gap", "any two elements within <var>t</var>", "difference at most <var>k</var>", values that are integers in a known range. Say: "the answer only depends on which values are close, so I will bucket by value with a width chosen so that close values share a bucket or a neighbour".</p>
+<p>Maximum Gap is the walk-through above. Contains Duplicate III uses width <var>t</var> + 1 and a dictionary of buckets for the sliding window, checking the same and adjacent buckets on each arrival and deleting the bucket of the value that leaves. K-diff Pairs in an Array needs only a hash map of counts, which is bucketing with width 1.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Bucket id = value // (t+1); near values land in the same or neighbouring bucket.</p>
     <p><strong>Reach for it when:</strong> Contains duplicate III, maximum gap, k-diff pairs.</p>
     <p><strong>Cost:</strong> O(n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Maximum Gap on [3,6,9,1] with buckets</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>n numbers in range [1,20]: some gap is at least ⌈19/5⌉ = <em>4</em>, the bucket width</li><li>3 → bucket 0: update its min/max</li><li>6 → bucket 1: update its min/max</li><li>9 → bucket 2: update its min/max</li><li>1 → bucket 0: update its min/max</li><li>14 → bucket 3: update its min/max</li><li>20 → bucket 4: update its min/max</li><li>Gaps <em>inside</em> a bucket are &lt; width, so only gaps <em>between</em> buckets matter</li><li>gap = min of bucket 1 − max of bucket 0 = 6 − 3 = <em>3</em></li><li>gap = min of bucket 2 − max of bucket 1 = 9 − 6 = <em>3</em></li><li>gap = min of bucket 3 − max of bucket 2 = 14 − 9 = <em>5</em></li><li>gap = min of bucket 4 − max of bucket 3 = 20 − 14 = <em>6</em></li><li>Maximum gap = <em>6</em> (between 9 and 14)</li><li>Linear buckets instead of sorting: <em>O(n)</em> time and space</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>4 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/minimum-absolute-difference">Minimum Absolute Difference</a></td><td><span class="diff easy">Easy</span></td><td class="num">20</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/maximum-gap">Maximum Gap</a></td><td><span class="diff medium">Medium</span></td><td class="num">18</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/k-diff-pairs-in-an-array">K-diff Pairs in an Array</a></td><td><span class="diff medium">Medium</span></td><td class="num">17</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/contains-duplicate-iii">Contains Duplicate III</a></td><td><span class="diff hard">Hard</span></td><td class="num">13</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-advanced-structures">Advanced Structures</a>: <a href="/dsa/segment-tree/">Segment tree (range query + point update)</a>, <a href="/dsa/fenwick-tree/">Fenwick tree (binary indexed tree)</a>, <a href="/dsa/ordered-set-sliding/">Ordered set / sorted container</a>, <a href="/dsa/matrix-exponentiation/">Matrix exponentiation for recurrences</a>, <a href="/dsa/meet-in-the-middle/">Meet in the middle</a>.</p>
   </article>
 
@@ -428,7 +458,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

@@ -394,22 +394,45 @@
       <p>Every element in low ≤ every element in high, and |low| − |high| ∈ {0,1}.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Numbers arrive one at a time: 5, 15, 1, 3. After each one you must report the median, the middle value when sorted (or the average of the two middle values when the count is even). By hand you keep a sorted list and look at the middle: [5] → 5; [5, 15] → 10; [1, 5, 15] → 5; [1, 3, 5, 15] → 4. Keeping a list sorted costs a shift of about half the list per arrival, so after a million numbers each new number costs hundreds of thousands of moves.</p>
+<p>Notice what the median actually needs: the largest value of the lower half and the smallest value of the upper half. Nothing else in either half is ever read. So we do not need the halves sorted, we only need each half to expose one end.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a max-heap called low, which can always show its largest element at once. It will hold the smaller half of the numbers.</p>
+<p>Piece two: a min-heap called high, which always shows its smallest element. It holds the larger half. The two visible elements are the two middle values.</p>
+<p>Piece three: the rules that keep the halves honest. Insert a newcomer into low if it is at most low's top, else into high. Then rebalance: if one heap has two more elements than the other, move its top to the other heap. Keep low allowed to be larger by one, so that with an odd count the median is simply low's top.</p>
+<div class="table-wrap"><table><tr><th>Arrives</th><th>low (max-heap)</th><th>high (min-heap)</th><th>Rebalance</th><th>Median</th></tr><tr><td>5</td><td>{5}</td><td>{}</td><td></td><td>5</td></tr><tr><td>15</td><td>{5}</td><td>{15}</td><td></td><td>(5 + 15)/2 = 10</td></tr><tr><td>1</td><td>{5, 1}</td><td>{15}</td><td></td><td>5</td></tr><tr><td>3</td><td>{5, 3, 1}</td><td>{15}</td><td>low too big: move 5 to high</td><td>(3 + 5)/2 = 4</td></tr></table></div>
+<p>After the move: low = {3, 1} with top 3, high = {5, 15} with top 5. The medians match the by-hand list.</p>
+
+<h3>Why it is correct</h3>
+<p>Two invariants. First, every element in low is at most every element in high. Inserting keeps it: a newcomer goes to low only if it is ≤ low's top, which is low's maximum, so it is ≤ everything in high; otherwise it is &gt; low's maximum, so it belongs above all of low. Moving a top across keeps it too, because the moved element is at the boundary. Second, the sizes differ by at most one, which the rebalance step restores immediately.</p>
+<p class="formula">median = top(low) if |low| = |high| + 1, else (top(low) + top(high)) / 2</p>
+<p>With both invariants, low is exactly the smaller half (by count) and high the larger half, so the two tops are exactly the middle values.</p>
+
+<h3>Why it is fast</h3>
+<p>Each arrival does one heap push, at most one pop and one push for rebalancing, each O(log <var>n</var>). Reading the median is O(1), two lookups. Compared with the sorted list, O(<var>n</var>) per arrival, that is 20 steps instead of 500,000 for a million numbers. Memory is all <var>n</var> numbers, as it must be, since any of them can become the median later.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>"Median of a stream", "running median", or any task that needs the boundary between the lower and upper parts of a growing set, including "sliding window median" (with lazy deletion for elements leaving the window). Say: "I will keep the lower half in a max-heap and the upper half in a min-heap, balanced to within one element; the tops are the median." Find Median from Data Stream is this exactly. IPO uses the same two-pool idea differently: projects you can afford move from a min-heap by cost into a max-heap by profit.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>A max-heap for the lower half, a min-heap for the upper; keep sizes balanced.</p>
     <p><strong>Reach for it when:</strong> Median from data stream, sliding window median, IPO-style two-pool problems.</p>
     <p><strong>Cost:</strong> O(log n) per insert.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Median stream: 5, 15, 1, 3</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Split the numbers: <em>low</em> half in a max-heap, <em>high</em> half in a min-heap</li><li>5 goes to <em>low</em> (≤ low&#x27;s top)</li><li>Median = low top = <em>5</em></li><li>15 goes to <em>high</em> (&gt; low&#x27;s top)</li><li>Median = average of both tops = <em>10</em></li><li>1 goes to <em>low</em> (≤ low&#x27;s top)</li><li>Median = low top = <em>5</em></li><li>3 goes to <em>low</em> (≤ low&#x27;s top)</li><li>low is 2 bigger: move its top to high to <em>rebalance</em></li><li>Median = average of both tops = <em>4</em></li><li>8 goes to <em>high</em> (&gt; low&#x27;s top)</li><li>high is bigger: move its top to low to <em>rebalance</em></li><li>Median = low top = <em>5</em></li><li>Every element in low ≤ every element in high; sizes differ by at most 1</li><li>Each insert is one or two heap ops: <em>O(log n)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>4 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/find-median-from-data-stream">Find Median from Data Stream</a></td><td><span class="diff hard">Hard</span></td><td class="num">50</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/finding-mk-average">Finding MK Average</a></td><td><span class="diff hard">Hard</span></td><td class="num">37</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/sliding-window-median">Sliding Window Median</a></td><td><span class="diff hard">Hard</span></td><td class="num">30</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/ipo">IPO</a></td><td><span class="diff hard">Hard</span></td><td class="num">21</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-heap">Heap</a>: <a href="/dsa/heap-top-k/">Top-k with a size-k heap</a>, <a href="/dsa/heap-k-way-merge/">K-way merge</a>, <a href="/dsa/heap-scheduling-greedy/">Greedy scheduling with a heap</a>, <a href="/dsa/heap-lazy-deletion/">Lazy deletion heap</a>, <a href="/dsa/heap-frequency-rebuild/">Pop-k-then-rebuild (frequency greedy)</a>.</p>
   </article>
 
@@ -428,7 +451,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

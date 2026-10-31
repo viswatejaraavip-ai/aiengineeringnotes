@@ -394,22 +394,51 @@
       <p>dp[x] is the longest chain ending at x, and all shorter items are already final.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Words: <code>a, b, ba, bca, bda, bdca</code>. Word X is a predecessor of word Y if adding exactly one letter somewhere in X gives Y. A chain is a sequence where each word is a predecessor of the next, such as <code>a → ba → bda → bdca</code>. How long is the longest chain?</p>
+<p>By hand you would pick a word and try to extend it forwards and backwards, then pick another word, and so on. With six words it is manageable. With 1,000 words every word has to be compared with every other to see which pairs are predecessor and successor, 500,000 pairs, and then you still have to search for the longest route through those pairs, which is a longest-path search and branches badly.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>First observation: a predecessor is always exactly one letter shorter. So if you sort the words by length, every predecessor of a word comes before it in the sorted order. Second observation: instead of asking "which words are one letter longer than me", ask each word "which words are one letter shorter than me", by deleting each of its letters in turn and looking the result up in a set. A word of length <var>L</var> has only <var>L</var> such candidates.</p>
+<p>Now keep one number per word: <var>chain</var>[<var>w</var>] = the longest chain that ends at <var>w</var>. Walk the sorted list:</p>
+<div class="table-wrap"><table>
+<tr><th>word</th><th>delete one letter → words that exist</th><th><var>chain</var></th></tr>
+<tr><td><code>a</code></td><td>none</td><td>1</td></tr>
+<tr><td><code>b</code></td><td>none</td><td>1</td></tr>
+<tr><td><code>ba</code></td><td><code>a</code> (1), <code>b</code> (1)</td><td>1 + 1 = 2</td></tr>
+<tr><td><code>bca</code></td><td><code>ba</code> (2)</td><td>3</td></tr>
+<tr><td><code>bda</code></td><td><code>ba</code> (2)</td><td>3</td></tr>
+<tr><td><code>bdca</code></td><td><code>bca</code> (3), <code>bda</code> (3)</td><td>4</td></tr>
+</table></div>
+<p>The longest value is 4: <code>a → ba → bda → bdca</code>. The structure is a dictionary from word to best chain length, filled in length order so every lookup already has its final value.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: when word <var>w</var> is processed, every shorter word already holds its true longest chain. The longest chain ending at <var>w</var> is either <var>w</var> alone, or some chain ending at a predecessor <var>p</var> followed by <var>w</var>. The best such chain is 1 + the best chain ending at the best predecessor, and every predecessor of <var>w</var> is one of the <var>L</var> deletions, all shorter and therefore final. So <var>chain</var>[<var>w</var>] = 1 + max over existing deletions of <var>chain</var>[deletion] is exact, and the invariant extends to <var>w</var>. Words of equal length never affect each other, so their order among themselves does not matter.</p>
+<p class="formula"><var>chain</var>[<var>w</var>] = 1 + max( 0, max over <var>p</var> = <var>w</var> with one letter removed, <var>p</var> in the set, of <var>chain</var>[<var>p</var>] )</p>
+
+<h3>Why it is fast</h3>
+<p>Sorting <var>n</var> words costs O(<var>n</var> log <var>n</var>). Each word of length <var>L</var> tries <var>L</var> deletions, and building each deletion string costs O(<var>L</var>), so a word costs O(<var>L</var><sup>2</sup>) and all words cost O(<var>n</var> · <var>L</var><sup>2</sup>), with <var>L</var> at most 16 in the usual problem. For 1,000 words that is about 250,000 cheap steps, against 500,000 pairwise comparisons plus a longest-path search. The win comes from looking downwards (deletions) rather than comparing every pair.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: a "comes before" relation that only runs from smaller to larger (shorter string, smaller number, smaller envelope), and "longest chain" or "largest subset where every pair is related". Say: I will sort by the size key so predecessors are already solved, then each item extends the best predecessor it can find. <em>Longest String Chain</em> is this example. <em>Largest Divisible Subset</em> sorts numbers and extends from the largest earlier divisor. <em>Longest Arithmetic Subsequence</em> keys the table by (index, difference).</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Sort by size; dp[item] extends from the best smaller item it can follow.</p>
     <p><strong>Reach for it when:</strong> Longest string chain, largest divisible subset, longest arithmetic subsequence.</p>
     <p><strong>Cost:</strong> O(n · k) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Longest String Chain on [a, b, ba, bca, bda, bdca]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Sort by length: every predecessor of a word is already <em>final</em> when we reach it</li><li>&#x27;a&#x27;: no shorter word by deleting one char, chain = <em>1</em></li><li>&#x27;b&#x27;: no shorter word by deleting one char, chain = <em>1</em></li><li>&#x27;ba&#x27; → drop a char → a, b; chain = 1 + best of them = <em>2</em></li><li>&#x27;bca&#x27; → drop a char → ba; chain = 1 + best of them = <em>3</em></li><li>&#x27;bda&#x27; → drop a char → ba; chain = 1 + best of them = <em>3</em></li><li>&#x27;bdca&#x27; → drop a char → bca, bda; chain = 1 + best of them = <em>4</em></li><li>Longest chain = <em>4</em>: a → ba → bda → bdca</li><li>Sort once, then n words × L deletions: <em>O(n log n + n·L²)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>6 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/russian-doll-envelopes">Russian Doll Envelopes</a></td><td><span class="diff hard">Hard</span></td><td class="num">53</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/largest-divisible-subset">Largest Divisible Subset</a></td><td><span class="diff medium">Medium</span></td><td class="num">38</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/longest-arithmetic-subsequence-of-given-difference">Longest Arithmetic Subsequence of Given Difference</a></td><td><span class="diff medium">Medium</span></td><td class="num">31</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/longest-arithmetic-subsequence">Longest Arithmetic Subsequence</a></td><td><span class="diff medium">Medium</span></td><td class="num">26</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/longest-string-chain">Longest String Chain</a></td><td><span class="diff medium">Medium</span></td><td class="num">24</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/maximum-length-of-pair-chain">Maximum Length of Pair Chain</a></td><td><span class="diff medium">Medium</span></td><td class="num">8</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-dynamic-programming">Dynamic Programming</a>: <a href="/dsa/dp-1d-linear/">1-D linear DP</a>, <a href="/dsa/dp-kadane/">Kadane (best ending here)</a>, <a href="/dsa/dp-lis/">Longest increasing subsequence</a>, <a href="/dsa/dp-grid-paths/">Grid path DP</a>, <a href="/dsa/dp-knapsack-01/">0/1 knapsack (subset sum)</a>, <a href="/dsa/dp-unbounded-coin/">Unbounded knapsack (coin change)</a>, <a href="/dsa/dp-lcs-edit/">Two-sequence DP (LCS / edit distance)</a>, <a href="/dsa/dp-pattern-matching/">Wildcard / regex matching DP</a>, <a href="/dsa/dp-palindrome-expand/">Palindromes: expand or table</a>, <a href="/dsa/dp-word-break/">Prefix segmentation DP</a>, <a href="/dsa/dp-interval/">Interval DP (last operation)</a>, <a href="/dsa/dp-state-machine-stock/">State-machine DP (stocks)</a>, <a href="/dsa/dp-bitmask/">Bitmask DP over subsets</a>, <a href="/dsa/dp-memo-dfs/">Memoised DFS (top-down)</a>, <a href="/dsa/dp-digit/">Digit DP</a>, <a href="/dsa/dp-game-minimax/">Game DP (minimax on a range)</a>, <a href="/dsa/dp-count-ways-mod/">Counting ways with modulo</a>.</p>
   </article>
 
@@ -428,7 +457,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

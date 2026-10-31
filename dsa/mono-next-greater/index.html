@@ -394,22 +394,61 @@
       <p>The stack holds indices whose next-greater is not yet seen, values decreasing.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Here are eight days of temperatures: 73, 74, 75, 71, 69, 72, 76, 73. For each day, how many days do you wait until a warmer one? Day 1 (73) waits 1 day for 74. Day 4 (71) waits 2 days for 72. Day 7 (76) never gets a warmer day, so the answer is 0.</p>
+<p>By hand you would take each day and scan forward until you find something bigger. For day 1 that is one look, but for day 3 (75) it is four looks, and in the worst case, a list that keeps falling, every day scans all the way to the end and finds nothing. For <var>n</var> days that is up to 1 + 2 + &hellip; + (<var>n</var> &minus; 1) looks.</p>
+<p class="formula">1 + 2 + &hellip; + (<var>n</var> &minus; 1) = <var>n</var>(<var>n</var> &minus; 1) / 2</p>
+<p>For 8 days that is 28 looks. For a million days it is about 500 billion. The waste is obvious: when day 3 scans past 71, 69 and 72, nobody remembers that those days are also still waiting, so each of them will scan the same stretch again.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Turn the problem around. Instead of each day looking forward, let each new day look <em>back</em> at the days that are still waiting, and answer them. So we need a waiting list.</p>
+<p><strong>Piece 1: a pile.</strong> A stack is a pile of index cards. You can put a card on top (push) or take the top card off (pop), nothing else. We will put each day's index on the pile when it arrives.</p>
+<p><strong>Piece 2: a rule for the pile.</strong> When a new day arrives, compare it with the card on top. If the new day is warmer, the top day has just found its answer: pop it, and its answer is (today &minus; that day). Keep popping while the new day beats the top. Then push today, because today is now waiting too.</p>
+<p>Watch the pile on the example (we store indices, shown here with their temperatures):</p>
+<div class="table-wrap"><table>
+<tr><th>Day arrives</th><th>Pops (answers found)</th><th>Pile after, bottom &rarr; top</th></tr>
+<tr><td>0 (73)</td><td>none</td><td>0(73)</td></tr>
+<tr><td>1 (74)</td><td>0: answer 1</td><td>1(74)</td></tr>
+<tr><td>2 (75)</td><td>1: answer 1</td><td>2(75)</td></tr>
+<tr><td>3 (71)</td><td>none</td><td>2(75) 3(71)</td></tr>
+<tr><td>4 (69)</td><td>none</td><td>2(75) 3(71) 4(69)</td></tr>
+<tr><td>5 (72)</td><td>4: answer 1, then 3: answer 2</td><td>2(75) 5(72)</td></tr>
+<tr><td>6 (76)</td><td>5: answer 1, then 2: answer 4</td><td>6(76)</td></tr>
+<tr><td>7 (73)</td><td>none</td><td>6(76) 7(73)</td></tr>
+</table></div>
+<p>Notice what the pile always looks like: 75, 71, 69 and later 75, 72. Reading from bottom to top the temperatures only go down. That is why it is called a <em>monotonic</em> (one-direction) stack, and it is not an accident.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant, in plain words: the pile holds exactly the days that are still waiting for a warmer day, and from bottom to top their temperatures decrease.</p>
+<p>Why does it stay true? A day only leaves the pile when a warmer day arrives, so everything on the pile is still waiting. And a new day is pushed only after every smaller day above it has been popped, so the card under it is always warmer. Decreasing from bottom to top is preserved.</p>
+<p>Now the key consequence. Suppose day <var>j</var> arrives and day <var>i</var> is on top of the pile with a smaller temperature. Could some day between <var>i</var> and <var>j</var> have been warmer than day <var>i</var>? No, because that day would have popped <var>i</var> when it arrived. So <var>j</var> really is the <em>first</em> warmer day after <var>i</var>, and the answer <var>j</var> &minus; <var>i</var> is exact. Days left on the pile at the end never met a warmer day, so their answer is 0.</p>
+
+<h3>Why it is fast</h3>
+<p>Count the pile operations instead of the loop iterations. Each day is pushed exactly once. A day can be popped at most once, because once it is gone it never comes back. So the total number of pushes and pops is at most 2<var>n</var>.</p>
+<p class="formula">pushes + pops &le; <var>n</var> + <var>n</var> = 2<var>n</var>, so the running time is O(<var>n</var>)</p>
+<p>The inner while loop looks like it could be expensive, but it only runs when it pops something, and the pops are already counted. For a million days that is at most two million pile moves instead of 500 billion comparisons.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Listen for "next greater", "next warmer", "how many days until", "first element to the right that is bigger", or the mirror image "previous smaller". Any question that asks, for every position, about the nearest position in one direction that beats it is this pattern. Say out loud: "Each element waits on a stack until something bigger arrives, so every element is pushed once and popped once."</p>
+<p>Daily Temperatures is the pattern exactly as above. Online Stock Span asks how many days back the price was lower or equal, which is the same stack scanned for previous greater instead of next greater. Number of Visible People in a Queue is the same pile walked from the right, counting how many pops each new person causes.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Keep a decreasing stack; a bigger newcomer resolves everything smaller on top.</p>
     <p><strong>Reach for it when:</strong> Next greater/warmer day, stock span, &#x27;how many until bigger&#x27;.</p>
     <p><strong>Cost:</strong> O(n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Daily Temperatures on [73,74,75,71,69,72,76,73]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>A <em>decreasing</em> stack of indices still waiting for a warmer day</li><li>Push index 0 (73): it is now waiting for a warmer day</li><li>74 &gt; 73: pop index 0, answer[0] = 1 − 0 = <em>1</em></li><li>Then push index 1 (74)</li><li>75 &gt; 74: pop index 1, answer[1] = 2 − 1 = <em>1</em></li><li>Then push index 2 (75)</li><li>Push index 3 (71): it is now waiting for a warmer day</li><li>Push index 4 (69): it is now waiting for a warmer day</li><li>72 &gt; 69: pop index 4, answer[4] = 5 − 4 = <em>1</em></li><li>72 &gt; 71: pop index 3, answer[3] = 5 − 3 = <em>2</em></li><li>Then push index 5 (72)</li><li>76 &gt; 72: pop index 5, answer[5] = 6 − 5 = <em>1</em></li><li>76 &gt; 75: pop index 2, answer[2] = 6 − 2 = <em>4</em></li><li>Then push index 6 (76)</li><li>Push index 7 (73): it is now waiting for a warmer day</li><li>End: indices left on the stack never see a warmer day, answer stays <em>0</em></li><li>Each index is pushed once and popped at most once: <em>O(n)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>8 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/number-of-visible-people-in-a-queue">Number of Visible People in a Queue</a></td><td><span class="diff hard">Hard</span></td><td class="num">54</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/daily-temperatures">Daily Temperatures</a></td><td><span class="diff medium">Medium</span></td><td class="num">48</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/next-greater-element-i">Next Greater Element I</a></td><td><span class="diff easy">Easy</span></td><td class="num">45</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/next-greater-element-ii">Next Greater Element II</a></td><td><span class="diff medium">Medium</span></td><td class="num">45</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/online-stock-span">Online Stock Span</a></td><td><span class="diff medium">Medium</span></td><td class="num">38</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/next-greater-element-iii">Next Greater Element III</a></td><td><span class="diff medium">Medium</span></td><td class="num">21</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/final-prices-with-a-special-discount-in-a-shop">Final Prices With a Special Discount in a Shop</a></td><td><span class="diff easy">Easy</span></td><td class="num">20</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/buildings-with-an-ocean-view">Buildings With an Ocean View</a></td><td><span class="diff medium">Medium</span></td><td class="num">5</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-monotonic-stack">Monotonic Stack</a>: <a href="/dsa/mono-histogram/">Largest rectangle (bounds by pops)</a>, <a href="/dsa/mono-remove-k/">Greedy removal with a stack</a>, <a href="/dsa/mono-two-sided/">Previous and next smaller (both sides)</a>.</p>
   </article>
 
@@ -428,7 +467,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

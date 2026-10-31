@@ -394,22 +394,43 @@
       <p>prev &lt; current at every step iff the tree is a BST.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>A binary search tree: 5 at the top; 3 and 6 below; 2 and 4 under 3; 1 under 2. What is the third smallest value? By hand you might collect all the values, sort them, and read the third: 1, 2, 3, 4, 5, 6, so 3. Sorting <var>n</var> numbers costs about <var>n</var> log <var>n</var>, and it ignores the fact that the tree is already arranged by size. A BST stores its values in sorted order; it is just hidden in the shape.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: the inorder walk. At any node, first walk the whole left subtree, then look at the node itself, then walk the right subtree. In a BST everything on the left is smaller and everything on the right is larger, so this walk visits the values in increasing order with no sorting at all. Try it: left from 5 to 3, left to 2, left to 1; 1 has no left, visit 1; 1 has no right; back to 2, visit 2; back to 3, visit 3; then 4, then 5, then 6.</p>
+<p>Piece two: a counter, or more generally a memory of the previous visited value. Each visit is one event in sorted order, so a counter that increments on each visit tells you the rank of the value you are looking at. Stop when it reaches <var>k</var>.</p>
+<div class="table-wrap"><table><tr><th>Visit</th><th>Value</th><th>Counter</th></tr><tr><td>1st</td><td>1</td><td>1</td></tr><tr><td>2nd</td><td>2</td><td>2</td></tr><tr><td>3rd</td><td>3</td><td>3 = <var>k</var>, stop</td></tr></table></div>
+<p>Piece three: variations of the memory. Keep the previous value and the current one, and you get the smallest gap between any two values (they must be neighbours in sorted order). Keep the previous value and a run length, and you get the most frequent value. Keep the previous value and check it is smaller than the current, and you have validated the BST. Collect the values into a list and run two pointers from both ends, and you have two-sum in a BST.</p>
+
+<h3>Why it is correct</h3>
+<p>The claim: inorder on a BST visits values in increasing order. Argue by the structure of the tree. For a node <var>v</var>, every value in its left subtree is less than <var>v</var>, and all of those are visited before <var>v</var>; every value in its right subtree is greater and visited after. Apply the same statement inside each subtree. Any two values are then visited in the correct order: either one is an ancestor of the other, handled by the rule above, or they sit in different subtrees of some common ancestor, where the left one is smaller and visited first.</p>
+<p class="formula">the <var>k</var>-th node visited by inorder = the <var>k</var>-th smallest value</p>
+<p>So the counter reading <var>k</var> at a visit identifies exactly the <var>k</var>-th smallest, and "previous &lt; current at every visit" is equivalent to the whole tree being a BST.</p>
+
+<h3>Why it is fast</h3>
+<p>A full walk touches every node once: O(<var>n</var>), with no sorting. For the <var>k</var>-th smallest you walk down the left spine (<var>h</var> steps) and then do <var>k</var> visits, O(<var>h</var> + <var>k</var>). The memory is just the recursion stack or an explicit stack, O(<var>h</var>), plus one or two remembered values. Compared with collecting and sorting, this is both faster and needs no extra array.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Any question on a BST that mentions order: "kth smallest", "smallest difference between any two nodes", "the mode", "two nodes were swapped, fix the tree", "convert to a sorted list". Say: "Inorder on a BST is sorted order, so I will walk inorder and keep whatever running state the question needs." Kth Smallest Element in a BST keeps a counter and stops early. Minimum Absolute Difference in BST keeps the previous value and the smallest gap seen. Recover Binary Search Tree keeps the previous value and notes the one or two places where the order drops, which are the swapped nodes.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>An inorder walk visits keys ascending; remember the previous key.</p>
     <p><strong>Reach for it when:</strong> kth smallest, min absolute diff, mode, recover swapped nodes, two sum in BST.</p>
     <p><strong>Cost:</strong> O(n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Kth smallest (k=3) in [5,3,6,2,4,null,null,1]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Go left as deep as possible: the smallest key is at the <em>leftmost</em> node</li><li>At 5: left subtree first</li><li>At 3: left subtree first</li><li>At 2: left subtree first</li><li>At 1: no left child, so it is next in order</li><li>Visit 1: count = <em>1</em></li><li>Visit 2: count = <em>2</em></li><li>Visit 3: count = <em>3</em></li><li>count = k: the 3rd smallest is <em>3</em>, stop early</li><li>Stopped after k visits: <em>O(h + k)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>8 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/kth-smallest-element-in-a-bst">Kth Smallest Element in a BST</a></td><td><span class="diff medium">Medium</span></td><td class="num">41</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/recover-binary-search-tree">Recover Binary Search Tree</a></td><td><span class="diff medium">Medium</span></td><td class="num">31</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/two-sum-iv-input-is-a-bst">Two Sum IV - Input is a BST</a></td><td><span class="diff easy">Easy</span></td><td class="num">29</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/minimum-absolute-difference-in-bst">Minimum Absolute Difference in BST</a></td><td><span class="diff easy">Easy</span></td><td class="num">28</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-mode-in-binary-search-tree">Find Mode in Binary Search Tree</a></td><td><span class="diff easy">Easy</span></td><td class="num">26</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/increasing-order-search-tree">Increasing Order Search Tree</a></td><td><span class="diff easy">Easy</span></td><td class="num">13</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/convert-bst-to-greater-tree">Convert BST to Greater Tree</a></td><td><span class="diff medium">Medium</span></td><td class="num">8</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/binary-search-tree-to-greater-sum-tree">Binary Search Tree to Greater Sum Tree</a></td><td><span class="diff medium">Medium</span></td><td class="num">6</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-binary-search-tree">Binary Search Tree</a>: <a href="/dsa/bst-bounds-validate/">BST range bounds</a>, <a href="/dsa/bst-insert-delete/">BST insert / delete / search</a>, <a href="/dsa/bst-build-balanced/">Build a balanced BST from sorted input</a>.</p>
   </article>
 
@@ -428,7 +449,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

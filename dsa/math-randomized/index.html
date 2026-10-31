@@ -394,22 +394,51 @@
       <p>After i items, each has probability 1/i (reservoir) or weight/total (weighted).</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>You have four raffle tickets with weights 1, 3, 2 and 4, and you want to draw one so that the ticket with weight 4 is four times as likely as the ticket with weight 1. By hand you would write the first ticket on 1 slip of paper, the second on 3 slips, the third on 2 and the fourth on 4, put all 10 slips in a hat, and draw one. That is correct. It is also wasteful: if the weights were 1 and 999,999 you would be writing a million slips.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Instead of slips, lay the weights end to end on a number line. Ticket 0 owns the range 1, ticket 1 owns 2 to 4, ticket 2 owns 5 to 6, ticket 3 owns 7 to 10. The right edges of those ranges are the running totals, called prefix sums:</p>
+<div class="table-wrap"><table>
+<tr><th>ticket</th><th>weight</th><th>prefix (running total)</th><th>owns the numbers</th></tr>
+<tr><td>0</td><td>1</td><td>1</td><td>1</td></tr>
+<tr><td>1</td><td>3</td><td>4</td><td>2, 3, 4</td></tr>
+<tr><td>2</td><td>2</td><td>6</td><td>5, 6</td></tr>
+<tr><td>3</td><td>4</td><td>10</td><td>7, 8, 9, 10</td></tr>
+</table></div>
+<p>Now draw a single random integer <var>r</var> from 1 to 10 and find which ticket owns it: the first ticket whose prefix is at least <var>r</var>. Because the prefix column is sorted, that lookup is a binary search. Draw <var>r</var> = 7: the middle prefix 4 is below 7, so look right; prefix 6 is below 7, look right; prefix 10 is the first one at or above 7, so ticket 3 wins. Draw <var>r</var> = 4: prefix 4 is the first one at or above 4, ticket 1 wins.</p>
+<p>The second tool in this family handles the opposite situation, where you do not know how many items there are because they arrive one at a time and cannot be stored. Reservoir sampling keeps one chosen item. When item number <var>i</var> arrives, replace the chosen item with it with probability 1/<var>i</var>. One variable and a coin flip per item.</p>
+
+<h3>Why it is correct</h3>
+<p>For the weighted pick, ticket <var>k</var> owns exactly <var>w</var><sub><var>k</var></sub> of the integers 1 … <var>W</var>, where <var>W</var> is the total, and each integer is equally likely, so</p>
+<p class="formula">P(ticket <var>k</var>) = <var>w</var><sub><var>k</var></sub> / <var>W</var></p>
+<p>which is the definition of a weighted draw. The binary search is correct because prefixes are non-decreasing, so "first prefix ≥ <var>r</var>" is a boundary with everything false on the left and true on the right.</p>
+<p>For the reservoir, the invariant is that after <var>i</var> items each of them is the chosen one with probability 1/<var>i</var>. It is true for <var>i</var> = 1. When item <var>i</var> + 1 arrives it is chosen with probability 1/(<var>i</var> + 1). Any earlier item was chosen with probability 1/<var>i</var> and survives the new coin flip with probability <var>i</var>/(<var>i</var> + 1), so its chance is (1/<var>i</var>) · (<var>i</var>/(<var>i</var> + 1)) = 1/(<var>i</var> + 1), the same as the newcomer's. The invariant holds for every <var>i</var>, including the final count.</p>
+
+<h3>Why it is fast</h3>
+<p>Building the prefix table is one pass, O(<var>n</var>), done once. Each pick is a binary search over <var>n</var> prefixes, O(log <var>n</var>), and uses O(1) random numbers. The slips-in-a-hat method needed O(<var>W</var>) memory, and <var>W</var> can be astronomically larger than <var>n</var>. Reservoir sampling is O(1) memory and O(1) work per item, which is the best possible when the items cannot be stored.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "pick an index with probability proportional to", "random node of a linked list in one pass", "shuffle", "random point inside these rectangles", or "the stream is too large to store". Say: "weighted means prefix sums plus a binary search; unknown length means reservoir sampling".</p>
+<p>Random Pick with Weight is the table above exactly. Linked List Random Node is the reservoir: walk the list once, keeping each node with probability 1/<var>i</var>. Random Point in Non-overlapping Rectangles is the weighted pick where each rectangle's weight is its number of integer points, followed by a uniform point inside the chosen rectangle.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Prefix sums + binary search for weighted pick; reservoir keeps each item with prob 1/i.</p>
     <p><strong>Reach for it when:</strong> Random pick with weight, reservoir sampling on lists, shuffle, random pick index.</p>
     <p><strong>Cost:</strong> O(log n) per weighted pick.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Random Pick with Weight w=[1,3]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Heavier items deserve a <em>bigger</em> slice of the random range</li><li>prefix[0] = 0 + 1 = <em>1</em></li><li>prefix[1] = 1 + 3 = <em>4</em></li><li>prefix[2] = 4 + 2 = <em>6</em></li><li>prefix[3] = 6 + 4 = <em>10</em></li><li>Draw r = <em>7</em> uniformly from 1..10</li><li>mid prefix 4 &lt; 7: range becomes [2,3]</li><li>mid prefix 6 &lt; 7: range becomes [3,3]</li><li>r = 7 lands on index <em>3</em> (weight 4, chance 4/10)</li><li>Draw r = <em>1</em> uniformly from 1..10</li><li>mid prefix 4 ≥ 1: range becomes [0,1]</li><li>mid prefix 1 ≥ 1: range becomes [0,0]</li><li>r = 1 lands on index <em>0</em> (weight 1, chance 1/10)</li><li>Draw r = <em>4</em> uniformly from 1..10</li><li>mid prefix 4 ≥ 4: range becomes [0,1]</li><li>mid prefix 1 &lt; 4: range becomes [1,1]</li><li>r = 4 lands on index <em>1</em> (weight 3, chance 3/10)</li><li>Prefix once <em>O(n)</em>; each pick is a binary search <em>O(log n)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>7 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/insert-delete-getrandom-o1">Insert Delete GetRandom O(1)</a></td><td><span class="diff medium">Medium</span></td><td class="num">46</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/random-pick-with-weight">Random Pick with Weight</a></td><td><span class="diff medium">Medium</span></td><td class="num">44</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/linked-list-random-node">Linked List Random Node</a></td><td><span class="diff medium">Medium</span></td><td class="num">29</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/random-point-in-non-overlapping-rectangles">Random Point in Non-overlapping Rectangles</a></td><td><span class="diff medium">Medium</span></td><td class="num">21</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/shuffle-an-array">Shuffle an Array</a></td><td><span class="diff medium">Medium</span></td><td class="num">17</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/implement-rand10-using-rand7">Implement Rand10() Using Rand7()</a></td><td><span class="diff medium">Medium</span></td><td class="num">15</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/random-pick-index">Random Pick Index</a></td><td><span class="diff medium">Medium</span></td><td class="num">5</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-math">Math</a>: <a href="/dsa/math-fast-power/">Fast exponentiation</a>, <a href="/dsa/math-gcd-number-theory/">GCD and number theory</a>, <a href="/dsa/math-digit-manipulation/">Digit-by-digit arithmetic</a>, <a href="/dsa/geometry-points/">Coordinate geometry with hashing</a>.</p>
   </article>
 
@@ -428,7 +457,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

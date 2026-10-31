@@ -394,22 +394,53 @@
       <p>The side being moved has the lower max, so its water is already decided.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Bars of heights 0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1 stand side by side and it rains. How much water sits in the dips? Over a single bar the water rises until it would spill over the tallest wall on its left or the tallest wall on its right, whichever is lower. So the water above bar <var>i</var> is</p>
+<p class="formula">water[<var>i</var>] = min(tallest on the left, tallest on the right) − height[<var>i</var>], or 0 if that is negative</p>
+<p>By hand you would, for each bar, scan left for the tallest and scan right for the tallest. That is two scans of up to <var>n</var> per bar, O(<var>n</var><sup>2</sup>). The two-sweep version (store leftMax and rightMax arrays first) brings it to O(<var>n</var>) time with O(<var>n</var>) extra memory. The question is whether we can drop the arrays.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: two pointers, <var>l</var> at the left end and <var>r</var> at the right end, and two running numbers, <var>leftMax</var> and <var>rightMax</var>, the tallest bar seen so far from each side. These replace the two arrays.</p>
+<p>Piece two, the key idea: we do not need both maxima exactly, only the <em>smaller</em> one, and we can know which side is smaller without seeing the whole array. If <var>leftMax</var> &lt; <var>rightMax</var>, the water at bar <var>l</var> is decided: its true right wall is at least <var>rightMax</var>, which is already bigger than <var>leftMax</var>, so the minimum is <var>leftMax</var> no matter what lies between. Settle bar <var>l</var> and move <var>l</var> right. Otherwise settle bar <var>r</var> and move <var>r</var> left.</p>
+<div class="table-wrap"><table>
+<tr><th><var>l</var></th><th><var>r</var></th><th><var>leftMax</var></th><th><var>rightMax</var></th><th>Smaller side</th><th>Water added</th><th>Total</th></tr>
+<tr><td>0 (h 0)</td><td>11 (h 1)</td><td>0</td><td>1</td><td>left</td><td>0 − 0 = 0</td><td>0</td></tr>
+<tr><td>1 (h 1)</td><td>11</td><td>1</td><td>1</td><td>right</td><td>1 − 1 = 0</td><td>0</td></tr>
+<tr><td>1</td><td>10 (h 2)</td><td>1</td><td>2</td><td>left</td><td>1 − 1 = 0</td><td>0</td></tr>
+<tr><td>2 (h 0)</td><td>10</td><td>1</td><td>2</td><td>left</td><td>1 − 0 = 1</td><td>1</td></tr>
+<tr><td>3 (h 2)</td><td>10</td><td>2</td><td>2</td><td>right</td><td>2 − 2 = 0</td><td>1</td></tr>
+</table></div>
+<p>The walk continues until the pointers meet; the total for this example is 6. Each step settles exactly one bar, updating that side's running max first (so a bar that is itself the new tallest gets 0 water).</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: <em>every bar outside [<var>l</var>, <var>r</var>] has had its water computed correctly, and <var>leftMax</var>, <var>rightMax</var> are the true maxima of the bars left of <var>l</var> and right of <var>r</var> (inclusive of the ends we have processed)</em>. The claim that needs proof is that settling bar <var>l</var> with water <var>leftMax</var> − height[<var>l</var>] is exact when <var>leftMax</var> &lt; <var>rightMax</var>. The true right wall of bar <var>l</var> is the maximum over everything to its right, which includes the bars at and beyond <var>r</var>, so</p>
+<p class="formula">trueRight[<var>l</var>] ≥ <var>rightMax</var> &gt; <var>leftMax</var> = trueLeft[<var>l</var>]</p>
+<p>and therefore min(trueLeft, trueRight) = <var>leftMax</var>. The mirror holds for the right side when <var>rightMax</var> ≤ <var>leftMax</var>. So each settled bar gets exactly the by-hand formula's value.</p>
+
+<h3>Why it is fast</h3>
+<p>Each step moves one pointer inward by one, so there are at most <var>n</var> steps, each a comparison, a max update and a subtraction: O(<var>n</var>) time. Memory is four numbers, O(1), where the two-array version needed 2<var>n</var> extra cells. The original by-hand method was O(<var>n</var><sup>2</sup>).</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "water trapped", "bounded by the smaller of the two sides", or any per-position value of the form min(best on the left, best on the right). If the question is a maximum over pairs instead of a sum over positions, it is the Container With Most Water variant of the same walk.</p>
+<p>Say: "The water at a bar depends on the smaller side's maximum, so I will move the pointer on the smaller side; that bar's answer is already decided." <strong>Trapping Rain Water</strong> is the example. <strong>Container With Most Water</strong> moves the shorter wall for the same reason: the shorter wall caps every container it could form. <strong>Trapping Rain Water II</strong> is the 2-D version, where "the smaller side" becomes "the lowest point on the boundary" and the pointers become a min-heap.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Water at i is bounded by the smaller side&#x27;s running max; advance the smaller side.</p>
     <p><strong>Reach for it when:</strong> Trapping rain water, container variants, two-sided bounds.</p>
     <p><strong>Cost:</strong> O(n) time, O(1) space.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Trapping Rain Water on [0,1,0,2,1,0,1,3,2,1,2,1]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Water at i = min(max to the left, max to the right) − h[i]</li><li>Two pointers from the ends; each side remembers its <em>max wall</em> so far</li><li>h[l]=0 &lt; h[r]=1: left side is the bound. water += 0 − 0 = <em>0</em></li><li>h[r]=1 ≤ h[l]=1: right side is the bound. water += 1 − 1 = <em>0</em></li><li>h[l]=1 &lt; h[r]=2: left side is the bound. water += 1 − 1 = <em>0</em></li><li>h[l]=0 &lt; h[r]=2: left side is the bound. water += 1 − 0 = <em>1</em></li><li>h[r]=2 ≤ h[l]=2: right side is the bound. water += 2 − 2 = <em>0</em></li><li>h[r]=1 ≤ h[l]=2: right side is the bound. water += 2 − 1 = <em>1</em></li><li>h[r]=2 ≤ h[l]=2: right side is the bound. water += 2 − 2 = <em>0</em></li><li>h[l]=2 &lt; h[r]=3: left side is the bound. water += 2 − 2 = <em>0</em></li><li>h[l]=1 &lt; h[r]=3: left side is the bound. water += 2 − 1 = <em>1</em></li><li>h[l]=0 &lt; h[r]=3: left side is the bound. water += 2 − 0 = <em>2</em></li><li>h[l]=1 &lt; h[r]=3: left side is the bound. water += 2 − 1 = <em>1</em></li><li>Pointers meet: total water <em>6</em></li><li>The smaller side&#x27;s max is already final, so one pass suffices: <em>O(n)</em>, <em>O(1)</em> space</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>3 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/trapping-rain-water">Trapping Rain Water</a></td><td><span class="diff hard">Hard</span></td><td class="num">74</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/container-with-most-water">Container With Most Water</a></td><td><span class="diff medium">Medium</span></td><td class="num">68</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/trapping-rain-water-ii">Trapping Rain Water II</a></td><td><span class="diff hard">Hard</span></td><td class="num">38</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-two-pointers">Two Pointers</a>: <a href="/dsa/two-pointers-converge/">Opposite ends converge</a>, <a href="/dsa/three-sum-fix-one/">Fix one, two-pointer the rest</a>, <a href="/dsa/fast-slow-writer/">Reader / writer pointers</a>, <a href="/dsa/dutch-flag/">Dutch national flag partition</a>, <a href="/dsa/merge-two-sorted/">Merge two sorted sequences</a>.</p>
   </article>
 
@@ -428,7 +459,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

@@ -394,22 +394,56 @@
       <p>At each step the target is inside the half you keep.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>A sorted list was cut somewhere and the two pieces swapped: 4, 5, 6, 7, 0, 1, 2. It was 0, 1, 2, 4, 5, 6, 7 before. Find 0.</p>
+<p>By hand you scan: 4, 5, 6, 7, 0, five looks. For a million numbers rotated, up to a million looks. Plain binary search seems broken: the middle is 7, the target 0 is smaller, so we would go left to 4, 5, 6 and miss it.</p>
+<p>Look more carefully at the list around the middle. The left half 4, 5, 6, 7 is perfectly sorted. The right half 0, 1, 2 is also sorted. The rotation point, where 7 drops to 0, lies in exactly one of the two halves, so the other half is sorted normally. And in a sorted half we can tell with two comparisons whether the target belongs inside it.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p><strong>Piece 1: the range.</strong> lo = 0, hi = 6, mid = 3. nums[mid] = 7.</p>
+<p><strong>Piece 2: which half is sorted?</strong> Compare the ends. If nums[lo] &le; nums[mid], the left half is sorted (4 &le; 7, yes). Otherwise the right half is sorted.</p>
+<p><strong>Piece 3: is the target inside the sorted half?</strong> For a sorted left half, the target is inside it when nums[lo] &le; target &lt; nums[mid]. Is 4 &le; 0 &lt; 7? No. So the target must be in the other half: lo = mid + 1 = 4.</p>
+<p><strong>Piece 4: repeat.</strong></p>
+<div class="table-wrap"><table>
+<tr><th>lo</th><th>hi</th><th>mid</th><th>nums[mid]</th><th>sorted half</th><th>target in it?</th><th>Move</th></tr>
+<tr><td>0</td><td>6</td><td>3</td><td>7</td><td>left [4..7]</td><td>no</td><td>lo = 4</td></tr>
+<tr><td>4</td><td>6</td><td>5</td><td>1</td><td>left [0..1]</td><td>0 in [0, 1): yes</td><td>hi = 4</td></tr>
+<tr><td>4</td><td>4</td><td>4</td><td>0</td><td colspan="3">found at index 4</td></tr>
+</table></div>
+<p>Three looks instead of five, and about twenty for a million numbers.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: the target, if present, is inside [lo, hi].</p>
+<p>The key claim is that one of the two halves is sorted. A rotated sorted list has exactly one "drop", where a value is followed by a smaller one. The drop is either in the left half or in the right half, not both, so the other half has no drop and is sorted. The test nums[lo] &le; nums[mid] detects a sorted left half: if the drop were inside the left half, the values would go up, drop, and come back up below nums[lo], so nums[mid] &lt; nums[lo].</p>
+<p>Once we know a half is sorted, deciding membership is exact: a value is inside a sorted range of numbers between nums[lo] and nums[mid] if and only if nums[lo] &le; target &lt; nums[mid]. If the target is not in the sorted half, it must be in the other half, and we keep that. Either way the half we discard cannot contain the target, so the invariant survives.</p>
+<p>The same idea solves "find the minimum of a rotated array": compare nums[mid] with nums[hi]; if nums[mid] &gt; nums[hi] the drop is to the right, else it is at mid or to the left. And "find a peak element" is the mountain version: if nums[mid] &lt; nums[mid + 1] the slope goes up, so a peak exists to the right; otherwise a peak exists at mid or to the left.</p>
+
+<h3>Why it is fast</h3>
+<p>Every step still discards half of the range, with at most three comparisons instead of one.</p>
+<p class="formula">steps &le; &lceil;log<sub>2</sub> <var>n</var>&rceil;, so O(log <var>n</var>) time</p>
+<p>When duplicates are allowed, nums[lo] = nums[mid] = nums[hi] can hide which half is sorted; then you shrink both ends by one and continue, which can degrade to O(<var>n</var>) on a list of equal values but is still correct.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The cues are "rotated sorted array", "pivot", "mountain array" (goes up then down), "find peak", "minimum in rotated array". The input is <em>almost</em> sorted in a way that preserves one sorted side at every split. Say: "At any midpoint one half is sorted, so I check whether the target lies in the sorted half and discard the other."</p>
+<p>Search in Rotated Sorted Array is the example above. Find Minimum in Rotated Sorted Array compares mid with hi to locate the drop. Find Peak Element uses the slope at mid to decide which side must hold a peak.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>One half is always sorted: decide which, then whether the target lives there.</p>
     <p><strong>Reach for it when:</strong> Rotated sorted array search, minimum in rotated array, peak finding.</p>
     <p><strong>Cost:</strong> O(log n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Search 0 in [4,5,6,7,0,1,2]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>One half of [lo, hi] is always <em>sorted</em>; decide which, then where the target is</li><li>mid = 3, nums[mid] = <em>7</em></li><li>nums[0]=4 ≤ nums[3]=7: the <em>left half is sorted</em></li><li>0 is not in the sorted left half: go <em>right</em>, lo = 4</li><li>mid = 5, nums[mid] = <em>1</em></li><li>nums[4]=0 ≤ nums[5]=1: the <em>left half is sorted</em></li><li>0 lies in [0, 1): keep the left, hi = <em>4</em></li><li>mid = 4, nums[mid] = <em>0</em></li><li>Found <em>0</em> at index 4</li><li>Still halving every step: <em>O(log n)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>8 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/search-in-rotated-sorted-array">Search in Rotated Sorted Array</a></td><td><span class="diff medium">Medium</span></td><td class="num">57</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-peak-element">Find Peak Element</a></td><td><span class="diff medium">Medium</span></td><td class="num">56</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/single-element-in-a-sorted-array">Single Element in a Sorted Array</a></td><td><span class="diff medium">Medium</span></td><td class="num">53</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/peak-index-in-a-mountain-array">Peak Index in a Mountain Array</a></td><td><span class="diff medium">Medium</span></td><td class="num">44</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-minimum-in-rotated-sorted-array">Find Minimum in Rotated Sorted Array</a></td><td><span class="diff medium">Medium</span></td><td class="num">40</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/search-in-rotated-sorted-array-ii">Search in Rotated Sorted Array II</a></td><td><span class="diff medium">Medium</span></td><td class="num">38</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-in-mountain-array">Find in Mountain Array</a></td><td><span class="diff hard">Hard</span></td><td class="num">30</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/find-minimum-in-rotated-sorted-array-ii">Find Minimum in Rotated Sorted Array II</a></td><td><span class="diff hard">Hard</span></td><td class="num">23</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-binary-search">Binary Search</a>: <a href="/dsa/binary-search-exact/">Classic binary search</a>, <a href="/dsa/binary-search-boundary/">First true (predicate boundary)</a>, <a href="/dsa/binary-search-answer/">Binary search on the answer</a>, <a href="/dsa/binary-search-two-arrays/">Partition two sorted arrays</a>.</p>
   </article>
 
@@ -428,7 +462,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

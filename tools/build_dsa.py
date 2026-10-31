@@ -164,6 +164,13 @@ def pattern_page(p, prev_p, next_p):
     steps = "".join(f"<li>{accent(s)}</li>" for s in p["steps"])
     related = ", ".join(f'<a href="{page_path(s)}">{esc(s["name"])}</a>' for s in siblings) or "none in this topic"
     first = p["problems"][0]["title"] if p["problems"] else ""
+    frag = ROOT / "tools" / "intuition" / f"{p['id']}.html"
+    if frag.exists():
+        intuition = '    <h2 id="intuition"><span class="num">01</span>The intuition</h2>\n' + frag.read_text().strip()
+        n_idea, n_walk, n_google, n_related = "02", "03", "04", "05"
+    else:
+        intuition = ""
+        n_idea, n_walk, n_google, n_related = "01", "02", "03", "04"
     desc = f"{p['idea']} Pattern {p['number']} of {len(PATS)} behind Google's DSA interview questions, with a {dur(p['duration'])} walk-through video."
     body = f"""  <p class="crumbs"><!-- site:crumbs --><!-- /site:crumbs --></p>
 
@@ -186,22 +193,24 @@ def pattern_page(p, prev_p, next_p):
       <p>{accent(p["invariant"])}</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+{intuition}
+
+    <h2 id="idea"><span class="num">{n_idea}</span>The idea in one line</h2>
     <p>{accent(p["idea"])}</p>
     <p><strong>Reach for it when:</strong> {esc(p["cue"])}</p>
     <p><strong>Cost:</strong> {esc(p["complexity"])}.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">{n_walk}</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>{esc(p["example"])}</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       {steps}
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">{n_google}</span>Asked at Google</h2>
     <p>{len(p["problems"])} Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     {problems_table(p)}
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">{n_related}</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-{slug(p["group"])}">{esc(p["group"])}</a>: {related}.</p>
   </article>"""
     return SHELL.format(title=esc(p["name"]), desc=esc(desc), site=SITE, path=page_path(p), body=body)

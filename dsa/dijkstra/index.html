@@ -394,22 +394,42 @@
       <p>A popped node&#x27;s distance is final.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Four towns, with road times: 2 → 1 takes 1 hour, 2 → 3 takes 1, 3 → 4 takes 1, 1 → 3 takes 4, 1 → 4 takes 6. A message starts at town 2. How long until every town has it? By hand you list routes: to 4 you can go 2 → 1 → 4 (7 hours) or 2 → 3 → 4 (2 hours). The best is 2.</p>
+<p>Listing routes works for four towns. For a city map with 100,000 junctions the number of routes is astronomical. Plain breadth-first search does not help either, because it counts roads, not hours: it would think 2 → 1 → 4 and 2 → 3 → 4 are equally good since both use two roads.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a table dist[] holding the best time found so far to each town. Start with 0 for the source and ∞ (unknown) for the rest: dist = {1: ∞, 2: 0, 3: ∞, 4: ∞}.</p>
+<p>Piece two: the greedy rule. Among the towns not yet settled, the one with the smallest dist cannot be improved, because any other route to it would have to pass through a town that is already farther. So settle it and use its roads to improve its neighbours. This improving step is called <em>relaxing</em> an edge: if dist[u] + time(u, v) is smaller than dist[v], write the smaller value.</p>
+<p>Piece three: finding "the smallest unsettled dist" by scanning the table costs <var>V</var> per step. So keep the candidates in a <strong>min-heap</strong>, a bag that always hands you its smallest item in log time. Push (0, 2). Pop (0, 2): settle 2, relax 2 → 1 giving dist[1] = 1, relax 2 → 3 giving dist[3] = 1; push (1, 1), (1, 3). Pop (1, 1): settle 1; 1 → 3 offers 5, worse than 1, skip; 1 → 4 offers 7, push (7, 4). Pop (1, 3): settle 3; 3 → 4 offers 2, better than 7, push (2, 4). Pop (2, 4): settle 4 at 2.</p>
+<p>Piece four: the heap still contains the old (7, 4). When it surfaces, 4 is already settled, so it is <em>stale</em> and is simply skipped. Leaving stale entries in the heap is cheaper than deleting them.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: when a town is popped and settled, its dist is the true shortest time. Suppose not, and some shorter route exists. That route leaves the settled region at some first unsettled town <var>w</var>. Every edge has a non-negative time, so</p>
+<p class="formula">dist[<var>w</var>] ≤ length of the shorter route &lt; dist[popped town]</p>
+<p>But then <var>w</var> had a smaller dist and the heap would have popped <var>w</var> first. Contradiction. This argument needs non-negative times; with negative edges use Bellman–Ford instead.</p>
+<h3>Why it is fast</h3>
+<p>Each edge is relaxed once, when its source town is settled, and each successful relaxation pushes one heap entry. So at most <var>E</var> pushes and pops, each log <var>E</var> ≤ 2 log <var>V</var>:</p>
+<p class="formula">work ≈ <var>E</var> log <var>V</var></p>
+<p>For 100,000 junctions and 300,000 roads that is about 5 million steps.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "shortest time", "minimum cost path", "weights" or "costs" on edges that are all non-negative, a grid where entering a cell costs something. The first thing to say: "non-negative weights, so Dijkstra with a min-heap." Network Delay Time is the example above; the answer is the largest settled dist. Path With Minimum Effort replaces the sum of weights by the maximum weight along the path, and the same pop-the-smallest rule still works because the maximum never decreases as a path grows.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Pop the closest unsettled node; relax its edges; stale entries are skipped.</p>
     <p><strong>Reach for it when:</strong> Network delay, path with min effort, swim in rising water, max probability path.</p>
     <p><strong>Cost:</strong> O(E log V) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Network Delay Time on 4 nodes</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Start: dist[2] = 0, everything else ∞; push (0, 2)</li><li>Pop the closest: (0,2). Node 2 is now <em>settled</em> at 0</li><li>Relax 2→1: 0 + 1 = 1 &lt; ∞, update and push</li><li>Relax 2→3: 0 + 1 = 1 &lt; ∞, update and push</li><li>Pop the closest: (1,1). Node 1 is now <em>settled</em> at 1</li><li>Relax 1→3: 1 + 4 = 5 is not better than 1, keep</li><li>Relax 1→4: 1 + 6 = 7 &lt; ∞, update and push</li><li>Pop the closest: (1,3). Node 3 is now <em>settled</em> at 1</li><li>Relax 3→4: 1 + 1 = 2 &lt; 7, update and push</li><li>Pop the closest: (2,4). Node 4 is now <em>settled</em> at 2</li><li>Pop (7,4): node 4 is already settled, <em>stale</em>, skip</li><li>All settled: the farthest node is 4 at distance <em>2</em>, so the delay is 2</li><li>A popped node is final: <em>O(E log V)</em> with a binary heap</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>11 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/swim-in-rising-water">Swim in Rising Water</a></td><td><span class="diff hard">Hard</span></td><td class="num">41</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/path-with-minimum-effort">Path With Minimum Effort</a></td><td><span class="diff medium">Medium</span></td><td class="num">38</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/network-delay-time">Network Delay Time</a></td><td><span class="diff medium">Medium</span></td><td class="num">38</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/cheapest-flights-within-k-stops">Cheapest Flights Within K Stops</a></td><td><span class="diff medium">Medium</span></td><td class="num">36</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-the-safest-path-in-a-grid">Find the Safest Path in a Grid</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/minimum-weighted-subgraph-with-the-required-paths">Minimum Weighted Subgraph With the Required Paths</a></td><td><span class="diff hard">Hard</span></td><td class="num">32</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/path-with-maximum-probability">Path with Maximum Probability</a></td><td><span class="diff medium">Medium</span></td><td class="num">24</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/number-of-ways-to-arrive-at-destination">Number of Ways to Arrive at Destination</a></td><td><span class="diff medium">Medium</span></td><td class="num">23</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/the-maze-ii">The Maze II</a></td><td><span class="diff medium">Medium</span></td><td class="num">20</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/minimum-cost-to-reach-destination-in-time">Minimum Cost to Reach Destination in Time</a></td><td><span class="diff hard">Hard</span></td><td class="num">8</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/reachable-nodes-in-subdivided-graph">Reachable Nodes In Subdivided Graph</a></td><td><span class="diff hard">Hard</span></td><td class="num">5</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-graphs">Graphs</a>: <a href="/dsa/grid-dfs-islands/">Grid flood fill (components)</a>, <a href="/dsa/bfs-multi-source/">Multi-source BFS</a>, <a href="/dsa/bfs-shortest-unweighted/">BFS shortest path (unweighted)</a>, <a href="/dsa/bfs-state-space/">BFS over an augmented state</a>, <a href="/dsa/bfs-0-1/">0-1 BFS (deque)</a>, <a href="/dsa/dfs-cycle-coloring/">DFS three-colour cycle detection</a>, <a href="/dsa/topo-kahn/">Topological sort (Kahn&#x27;s)</a>, <a href="/dsa/union-find/">Union–Find (disjoint sets)</a>, <a href="/dsa/bellman-ford-k-stops/">Bellman–Ford with k rounds</a>, <a href="/dsa/mst-kruskal-prim/">Minimum spanning tree</a>, <a href="/dsa/graph-bipartite/">Bipartite colouring</a>, <a href="/dsa/eulerian-path/">Eulerian path (Hierholzer)</a>, <a href="/dsa/tarjan-bridges/">Bridges / articulation (low-link)</a>, <a href="/dsa/graph-clone-traverse/">Clone / traverse with a visited map</a>, <a href="/dsa/implicit-graph-search/">Implicit graph (states as nodes)</a>.</p>
   </article>
 
@@ -428,7 +448,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

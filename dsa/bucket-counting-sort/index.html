@@ -394,22 +394,58 @@
       <p>bucket[v] holds every item with key v.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>A researcher has five papers with citation counts 3, 0, 6, 1, 5. The h-index is the largest <var>h</var> such that at least <var>h</var> papers have at least <var>h</var> citations each. Try <var>h</var> = 3: the papers with 3 or more citations are 3, 6, 5, that is three papers, so <var>h</var> = 3 works. Try <var>h</var> = 4: only 6 and 5 have four or more, two papers, so it fails. The answer is 3.</p>
+<p>By hand you would sort the counts, 6, 5, 3, 1, 0, and walk down until the position number exceeds the count. Sorting costs about <var>n</var> log<sub>2</sub> <var>n</var> comparisons. Can we avoid comparing at all?</p>
+<p>Notice that the h-index can never exceed <var>n</var>, the number of papers. A paper with 1000 citations is no more useful than a paper with <var>n</var> citations. So the only values that matter are 0, 1, &hellip;, <var>n</var>: a small, known set. When the keys come from a small known range, we can count them instead of sorting them.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p><strong>Piece 1: buckets.</strong> Make <var>n</var> + 1 empty boxes labelled 0 to <var>n</var>. Here, six boxes labelled 0 to 5.</p>
+<p><strong>Piece 2: drop each item in its box.</strong> A paper with <var>c</var> citations goes into box min(<var>c</var>, <var>n</var>). Papers 3, 0, 6, 1, 5 go into boxes 3, 0, 5, 1, 5.</p>
+<div class="table-wrap"><table>
+<tr><th>Box</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>
+<tr><td>Papers</td><td>1</td><td>1</td><td>0</td><td>1</td><td>0</td><td>2</td></tr>
+</table></div>
+<p><strong>Piece 3: read the boxes from the top.</strong> Walk <var>h</var> downward from <var>n</var>, keeping a running total of papers in boxes &ge; <var>h</var>. Stop at the first <var>h</var> where the total is at least <var>h</var>.</p>
+<div class="table-wrap"><table>
+<tr><th><var>h</var></th><th>Papers with &ge; <var>h</var> citations</th><th>Total &ge; <var>h</var>?</th></tr>
+<tr><td>5</td><td>2</td><td>no</td></tr>
+<tr><td>4</td><td>2</td><td>no</td></tr>
+<tr><td>3</td><td>3</td><td>yes, answer 3</td></tr>
+</table></div>
+<p>Reading the boxes in order is also a sort: emptying boxes 0, 1, &hellip;, <var>n</var> in turn lists the counts in increasing order. That is counting sort, and it never compared two values.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: box <var>v</var> holds exactly the papers whose (capped) citation count is <var>v</var>, and the running total at step <var>h</var> is the number of papers with at least <var>h</var> citations.</p>
+<p>The first part is by construction. For the second, the total after adding boxes <var>n</var>, <var>n</var> &minus; 1, &hellip;, <var>h</var> is the number of papers with capped count &ge; <var>h</var>, and since <var>h</var> &le; <var>n</var>, capping at <var>n</var> does not change whether a count is &ge; <var>h</var>. The condition "at least <var>h</var> papers have at least <var>h</var> citations" is therefore tested exactly, and we stop at the largest <var>h</var> that passes because we walk downward.</p>
+<p class="formula">h-index = max { <var>h</var> : #{papers with citations &ge; <var>h</var>} &ge; <var>h</var> }, with <var>h</var> &le; <var>n</var> always</p>
+
+<h3>Why it is fast</h3>
+<p>Dropping <var>n</var> papers into boxes is <var>n</var> steps. Reading <var>n</var> + 1 boxes is <var>n</var> + 1 steps.</p>
+<p class="formula">time = O(<var>n</var> + range), here O(<var>n</var>), versus O(<var>n</var> log <var>n</var>) for sorting</p>
+<p>The trade is memory for the boxes. It pays off whenever the range of keys is about the size of the input or smaller: citation counts capped at <var>n</var>, frequencies (at most <var>n</var>), colours (3 of them), characters (26 or 256). It does not pay off when keys can be anything up to a billion, unless you bucket by ranges of values instead of exact values, which is the idea behind the maximum-gap trick.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The cues are a small key range stated or implied: "values are between 0 and 100", "frequencies", "letters", "colours 0, 1, 2", "at most <var>n</var>", plus a demand for linear time. Say: "The keys live in a small range, so I count into buckets instead of sorting."</p>
+<p>H-Index is the example above. Top K Frequent Elements puts each value into a bucket indexed by its frequency, then reads the buckets from the top until <var>k</var> values are collected, which is O(<var>n</var>). Sort Colors is counting sort with three buckets (or the Dutch flag one-pass version). Maximum Gap buckets a million values into about <var>n</var> ranges and shows the largest gap must be between buckets, not inside one.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Bounded keys: count into buckets instead of comparing.</p>
     <p><strong>Reach for it when:</strong> Top-k by frequency, H-index, maximum gap, sort colours.</p>
     <p><strong>Cost:</strong> O(n + range) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>H-Index on [3,0,6,1,5]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Citations above n = 5 count as 5: <em>bucket by count</em> instead of sorting</li><li>paper with 3 citations → bucket <em>3</em></li><li>paper with 0 citations → bucket <em>0</em></li><li>paper with 6 citations → bucket <em>5</em></li><li>paper with 1 citations → bucket <em>1</em></li><li>paper with 5 citations → bucket <em>5</em></li><li>Scan buckets from the top, accumulating papers with ≥ k citations</li><li>k = 5: 2 papers have ≥ 5 citations, 2 &lt; 5, keep going</li><li>k = 4: 2 papers have ≥ 4 citations, 2 &lt; 4, keep going</li><li>k = 3: 3 papers have ≥ 3 citations, 3 ≥ 3 → <em>h = 3</em></li><li>Buckets replace the sort: <em>O(n)</em> time</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>7 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/top-k-frequent-elements">Top K Frequent Elements</a></td><td><span class="diff medium">Medium</span></td><td class="num">59</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/sort-colors">Sort Colors</a></td><td><span class="diff medium">Medium</span></td><td class="num">54</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/h-index">H-Index</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/sort-characters-by-frequency">Sort Characters By Frequency</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/maximum-gap">Maximum Gap</a></td><td><span class="diff medium">Medium</span></td><td class="num">18</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/contains-duplicate-iii">Contains Duplicate III</a></td><td><span class="diff hard">Hard</span></td><td class="num">13</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/height-checker">Height Checker</a></td><td><span class="diff easy">Easy</span></td><td class="num">13</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-sorting">Sorting</a>: <a href="/dsa/custom-sort-comparator/">Custom comparator / key sort</a>, <a href="/dsa/cyclic-sort/">Cyclic sort (1..n placement)</a>, <a href="/dsa/quickselect/">Quickselect (kth element)</a>, <a href="/dsa/merge-sort-count/">Merge sort with counting</a>.</p>
   </article>
 
@@ -428,7 +464,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

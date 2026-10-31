@@ -394,22 +394,43 @@
       <p>A non-null return means &#x27;p or q is in this subtree&#x27;.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>In a family tree the lowest common ancestor (LCA) of two people is the nearest person who is an ancestor of both. Take the tree with 3 at the top; 5 and 1 below it; 6 and 2 under 5; 0 and 8 under 1. The LCA of 6 and 2 is 5, because both sit under 5 and 5 is lower than 3.</p>
+<p>By hand you would write the path from the root to 6 (3, 5, 6) and the path to 2 (3, 5, 2), then read the last node they share: 5. That needs two searches to find the paths, each possibly visiting the whole tree, and a comparison of the two lists. It works, and it is already linear, but it stores paths and makes two passes. The pattern below does it in one pass with nothing stored.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: give every node a question to answer about its own subtree: "do you contain <var>p</var> or <var>q</var>?" The answer is not yes or no; it is a node. A subtree that contains neither returns nothing (null). A subtree that contains exactly one of them returns that node. A subtree that contains both returns their LCA.</p>
+<p>Piece two: the shortcut. If a node is itself <var>p</var> or <var>q</var>, return the node at once without looking below it. Either the other target is below it, in which case this node is the LCA anyway, or it is elsewhere, in which case this node is the one thing to report upward.</p>
+<p>Piece three: a node that is neither asks its left child and its right child. If both come back with something, the two targets are on different sides, so this node is the LCA: return it. If only one side reports, pass that report up unchanged. If neither does, pass up null.</p>
+<div class="table-wrap"><table><tr><th>Node</th><th>Left report</th><th>Right report</th><th>Returns</th></tr><tr><td>6</td><td>skipped</td><td>skipped</td><td>6 (is a target)</td></tr><tr><td>2</td><td>skipped</td><td>skipped</td><td>2 (is a target)</td></tr><tr><td>5</td><td>6</td><td>2</td><td>5, both sides reported: LCA</td></tr><tr><td>0</td><td>null</td><td>null</td><td>null</td></tr><tr><td>8</td><td>null</td><td>null</td><td>null</td></tr><tr><td>1</td><td>null</td><td>null</td><td>null</td></tr><tr><td>3</td><td>5</td><td>null</td><td>5, passed up</td></tr></table></div>
+
+<h3>Why it is correct</h3>
+<p>The invariant: a non-null return from a subtree means that subtree contains at least one of the targets, and if it contains both, the returned node is their LCA. Check the three cases. A target node returns itself, which is correct for both readings. A node with reports from both sides contains both targets, on different sides, so nothing lower can be an ancestor of both, and this node is: it returns itself, the LCA. A node with one report contains exactly what that side contains, so forwarding the report keeps the statement true.</p>
+<p>At the root the subtree is the whole tree, which contains both targets, so the root's return is the LCA. If a problem guarantees both exist, the first node to hear from both sides is the answer.</p>
+
+<h3>Why it is fast</h3>
+<p>Each node is visited at most once and does two comparisons, so O(<var>n</var>) time, and the shortcut stops below targets. Nothing is stored except the recursion stack, O(<var>h</var>). In a binary search tree you can do better: compare the two targets with the node's value and walk down one side, O(<var>h</var>) time with no recursion at all.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>"Lowest common ancestor", "nearest shared parent", "the node where the paths to <var>p</var> and <var>q</var> split", also "the smallest subtree containing all the deepest leaves". Say: "Each subtree reports whether it holds p or q; the first node hearing from both sides is the LCA." Lowest Common Ancestor of a Binary Tree is the direct form. Lowest Common Ancestor of a Binary Search Tree replaces the reports with value comparisons. Lowest Common Ancestor of a Binary Tree III gives parent pointers, which turns it into walking two chains upward to their meeting point.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Return the found node upward; the first node that hears from both sides is the LCA.</p>
     <p><strong>Reach for it when:</strong> LCA of binary tree, LCA with parent pointers, LCA of deepest leaves.</p>
     <p><strong>Cost:</strong> O(n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>LCA of 5 and 1 in [3,5,1,6,2,0,8]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Ask each subtree: do you contain <em>p</em> or <em>q</em>?</li><li>Node 3: ask left and right</li><li>Node 5: ask left and right</li><li>Node 6 is one of the targets: return <em>itself</em> without going deeper</li><li>Node 2 is one of the targets: return <em>itself</em> without going deeper</li><li>Node 5 hears from <em>both</em> sides: it is the LCA</li><li>Node 1: ask left and right</li><li>Node 0: ask left and right</li><li>Node 0 hears nothing: pass <em>null</em> up</li><li>Node 8: ask left and right</li><li>Node 8 hears nothing: pass <em>null</em> up</li><li>Node 1 hears nothing: pass <em>null</em> up</li><li>Node 3 hears from one side: pass <em>5</em> up</li><li>LCA of 6 and 2 is <em>5</em>; one post-order pass: <em>O(n)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>6 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-tree">Lowest Common Ancestor of a Binary Tree</a></td><td><span class="diff medium">Medium</span></td><td class="num">42</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-search-tree">Lowest Common Ancestor of a Binary Search Tree</a></td><td><span class="diff medium">Medium</span></td><td class="num">28</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/kth-ancestor-of-a-tree-node">Kth Ancestor of a Tree Node</a></td><td><span class="diff hard">Hard</span></td><td class="num">28</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/lowest-common-ancestor-of-deepest-leaves">Lowest Common Ancestor of Deepest Leaves</a></td><td><span class="diff medium">Medium</span></td><td class="num">15</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-tree-iii">Lowest Common Ancestor of a Binary Tree III</a></td><td><span class="diff medium">Medium</span></td><td class="num">15</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/smallest-subtree-with-all-the-deepest-nodes">Smallest Subtree with all the Deepest Nodes</a></td><td><span class="diff medium">Medium</span></td><td class="num">8</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-trees">Trees</a>: <a href="/dsa/tree-dfs-recursive/">Recursive DFS (post-order fold)</a>, <a href="/dsa/tree-path-through-node/">Best path through each node</a>, <a href="/dsa/tree-bfs-levels/">Level-order BFS</a>, <a href="/dsa/tree-root-to-leaf/">Root-to-leaf path carry</a>, <a href="/dsa/tree-build-from-traversals/">Build from traversals</a>, <a href="/dsa/tree-iterative-inorder/">Iterative traversal with a stack</a>, <a href="/dsa/tree-vertical-coords/">Column / coordinate traversal</a>, <a href="/dsa/tree-rerooting/">Rerooting DP (sum over all roots)</a>, <a href="/dsa/tree-delete-forest/">Post-order deletion / pruning</a>, <a href="/dsa/tree-distance-k/">Tree as a graph (parent pointers)</a>, <a href="/dsa/tree-dp-choose-skip/">Tree DP: take or skip this node</a>, <a href="/dsa/bfs-tree-serialization/">Serialize / deserialize by BFS</a>.</p>
   </article>
 
@@ -428,7 +449,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

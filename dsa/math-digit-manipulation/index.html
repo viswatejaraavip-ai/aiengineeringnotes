@@ -394,22 +394,49 @@
       <p>The partial result holds exactly the digits consumed so far.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Reverse the number 123 to get 321. On paper you would write the digits down and read them backwards. A computer does not hold a number as digits; it holds a single value, so "read the digits backwards" has to be built from arithmetic. The two operations that expose digits are remainder and integer division: 123 mod 10 is 3, the last digit, and 123 divided by 10 with the fraction thrown away is 12, the number with that digit removed.</p>
+<p>The by-hand alternative is converting to a string, reversing it, and converting back. That works, but it allocates memory, it hides what is happening, and interviewers want to see that you can handle overflow and signs, which strings do not help with.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>There are two variables. <code>x</code> is the number still to be read, and <code>rev</code> is the number built so far. Each step peels the last digit off <code>x</code> and pushes it onto the right end of <code>rev</code>; pushing a digit onto the right end means multiplying by 10 and adding:</p>
+<div class="table-wrap"><table>
+<tr><th>step</th><th>x</th><th>digit = x mod 10</th><th>rev = rev · 10 + digit</th><th>x after x ÷ 10</th></tr>
+<tr><td>1</td><td>123</td><td>3</td><td>0 · 10 + 3 = 3</td><td>12</td></tr>
+<tr><td>2</td><td>12</td><td>2</td><td>3 · 10 + 2 = 32</td><td>1</td></tr>
+<tr><td>3</td><td>1</td><td>1</td><td>32 · 10 + 1 = 321</td><td>0</td></tr>
+</table></div>
+<p>When <code>x</code> becomes 0 there is nothing left to read and <code>rev</code> is the answer. Every digit problem is a variation on this loop. Adding digits (Add Digits) replaces "rev · 10 + digit" with "sum + digit". Checking a palindrome reverses only half the digits and compares the halves. Plus One walks from the right, adding and carrying. Square root by hand is the same idea with the decimal places found one at a time, though binary search is the usual code.</p>
+<p>The one new piece is the overflow guard. If the answer must fit in a 32-bit signed integer, the largest value is 2,147,483,647. Before computing rev · 10 + digit, check that rev is below 214,748,364, or equal to it with the digit at most 7; otherwise the next step would exceed the limit and you must return 0.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant is that <code>rev</code> holds, in reverse, exactly the digits that have been removed from <code>x</code>. Write the original number as <var>d</var><sub><var>k</var></sub> … <var>d</var><sub>2</sub> <var>d</var><sub>1</sub>. Before any step rev is 0 and nothing has been removed, so the claim holds trivially. Each step removes <var>d</var><sub><var>i</var></sub>, the current last digit, and appends it to rev. Appending a digit on the right of a decimal number is exactly rev · 10 + digit, because the old digits all move one place left. So after the step rev reads the removed digits in the order they were removed, which is right to left. When x is 0 all digits have been removed and rev reads all of them backwards.</p>
+<p>Negative numbers need one decision: strip the sign, run the loop, put the sign back. In most languages the remainder of a negative number is negative, which would quietly break the loop.</p>
+
+<h3>Why it is fast</h3>
+<p>Each step removes one decimal digit, and a number <var>x</var> has ⌊log<sub>10</sub> <var>x</var>⌋ + 1 digits, so the loop runs that many times: 10 steps for a 10-digit number. That is O(log <var>x</var>) time, with two integer variables of memory. The string approach is also linear in the digit count but costs an allocation and gives you no overflow check for free.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "digits", "reverse", "palindrome number", "sum of digits", "add one to the number represented by", "without converting to a string", and any mention of 32-bit overflow. Say: "I will peel digits with mod 10 and integer division by 10, and check overflow before each multiply".</p>
+<p>Reverse Integer is the loop above with the guard. Palindrome Number reverses the number (or just its lower half) and compares; negative numbers are never palindromes. Plus One is the carry version: add 1 to the last digit, and while a digit became 10 set it to 0 and carry into the next one, remembering to grow the array when the carry falls off the front.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Peel digits with % 10 and / 10; rebuild with ×10, guard overflow.</p>
     <p><strong>Reach for it when:</strong> Reverse integer, palindrome number, plus one, add digits, sqrt, nth digit.</p>
     <p><strong>Cost:</strong> O(digits) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Reverse Integer 123 → 321</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Peel the <em>last</em> digit with % 10, drop it with // 10</li><li>x % 10 = <em>3</em>: the last digit of 123</li><li>rev = 0 + 3 = <em>3</em>, x becomes 12</li><li>x % 10 = <em>2</em>: the last digit of 12</li><li>rev = 30 + 2 = <em>32</em>, x becomes 1</li><li>x % 10 = <em>1</em>: the last digit of 1</li><li>rev = 320 + 1 = <em>321</em>, x becomes 0</li><li>x is 0: stop. rev = <em>321</em></li><li>Guard overflow before each rev × 10 + digit step</li><li>One step per digit: <em>O(log₁₀ x)</em> time, O(1) space</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>10 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/palindrome-number">Palindrome Number</a></td><td><span class="diff easy">Easy</span></td><td class="num">74</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/reverse-integer">Reverse Integer</a></td><td><span class="diff medium">Medium</span></td><td class="num">66</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/plus-one">Plus One</a></td><td><span class="diff easy">Easy</span></td><td class="num">56</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/happy-number">Happy Number</a></td><td><span class="diff easy">Easy</span></td><td class="num">55</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/sqrtx">Sqrt(x)</a></td><td><span class="diff easy">Easy</span></td><td class="num">52</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/add-digits">Add Digits</a></td><td><span class="diff easy">Easy</span></td><td class="num">35</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/nth-digit">Nth Digit</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/maximum-swap">Maximum Swap</a></td><td><span class="diff medium">Medium</span></td><td class="num">31</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/self-dividing-numbers">Self Dividing Numbers</a></td><td><span class="diff easy">Easy</span></td><td class="num">21</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/excel-sheet-column-number">Excel Sheet Column Number</a></td><td><span class="diff easy">Easy</span></td><td class="num">21</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-math">Math</a>: <a href="/dsa/math-fast-power/">Fast exponentiation</a>, <a href="/dsa/math-gcd-number-theory/">GCD and number theory</a>, <a href="/dsa/math-randomized/">Random pick and reservoir sampling</a>, <a href="/dsa/geometry-points/">Coordinate geometry with hashing</a>.</p>
   </article>
 
@@ -428,7 +455,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

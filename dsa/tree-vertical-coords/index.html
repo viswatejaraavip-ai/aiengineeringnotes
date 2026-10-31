@@ -394,22 +394,45 @@
       <p>Column = parent column ± 1, so a map keyed by column collects each vertical line.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Draw the tree 3 at the top, 9 to its lower left, 20 to its lower right, and 15 and 7 under 20. Now imagine vertical lines through the drawing. The leftmost line passes through 9. The next passes through 3 and 15, because 15 is one step right of 20 which is one step right of 3, so it comes back to the middle. Then 20, then 7. The vertical order is [[9], [3, 15], [20], [7]].</p>
+<p>By hand you draw and look. The computer has no drawing, only parent-to-child links. We need to give each node a horizontal position without drawing.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a column number for every node. The root is at column 0. A left child is at its parent's column minus 1, a right child at plus 1. That is all a "drawing" is: 9 is at −1, 20 at +1, 15 at 1 − 1 = 0, 7 at 1 + 1 = 2.</p>
+<p>Piece two: a map from column number to a list of nodes. Walk the tree; each time you reach a node, append it to the list for its column. Any walk works for the grouping, but the order within a column matters.</p>
+<p>Piece three: breadth-first order. Walk level by level with a queue, pushing (node, column) pairs. Then nodes higher in the tree are appended to their column before nodes lower down, and within a level left before right, which is the order the problems want.</p>
+<div class="table-wrap"><table><tr><th>Popped</th><th>Column</th><th>Map after</th></tr><tr><td>3</td><td>0</td><td>{0: [3]}</td></tr><tr><td>9</td><td>−1</td><td>{−1: [9], 0: [3]}</td></tr><tr><td>20</td><td>1</td><td>{−1: [9], 0: [3], 1: [20]}</td></tr><tr><td>15</td><td>0</td><td>{−1: [9], 0: [3, 15], 1: [20]}</td></tr><tr><td>7</td><td>2</td><td>{−1: [9], 0: [3, 15], 1: [20], 2: [7]}</td></tr></table></div>
+<p>Finally read the map from the smallest column to the largest. Keeping the minimum and maximum column seen lets you read columns in order without sorting the keys; if you do sort them, that is the O(<var>n</var> log <var>n</var>) in the cost.</p>
+
+<h3>Why it is correct</h3>
+<p>The column rule is exactly how a drawing places nodes: each edge moves one unit left or right. So two nodes are on the same vertical line in the drawing if and only if their column numbers are equal, and the map groups exactly the nodes on each line.</p>
+<p class="formula">column(child) = column(parent) ± 1, so column(<var>v</var>) = (number of right steps) − (number of left steps) on the path from the root to <var>v</var></p>
+<p>Order inside a column: BFS pops nodes in non-decreasing depth, and left children before right children at the same depth, so appends happen top to bottom and left to right. One variant, Vertical Order Traversal of a Binary Tree, asks for ties at the same depth and column to be sorted by value; then store (row, value) with each node and sort inside the column.</p>
+
+<h3>Why it is fast</h3>
+<p>Each node is pushed and popped once and appended to one list: O(<var>n</var>). Reading the map by column from min to max is O(<var>n</var>) more. Sorting column keys costs O(<var>n</var> log <var>n</var>) in the worst case, and the tie-sorting variant can cost that too. Memory is the map plus the queue, O(<var>n</var>).</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>"Vertical order", "columns", "top view", "what you see from above", "diagonal traversal". Say: "I will tag each node with a column that changes by ±1 per step, BFS so each column fills top to bottom, and group by column in a map." Binary Tree Vertical Order Traversal is the plain version. Vertical Order Traversal of a Binary Tree adds the sort-by-value tie rule. Boundary of Binary Tree is a cousin where the tags are "on the left edge", "leaf", "on the right edge" instead of a column.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Tag each node with (column, row) while traversing, then group by column.</p>
     <p><strong>Reach for it when:</strong> Vertical order, top view, boundary traversal, diagonal traversal.</p>
     <p><strong>Cost:</strong> O(n log n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Vertical Order of [3,9,20,null,null,15,7]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Tag every node with a column; the root sits at column <em>0</em></li><li>Pop 3 at column 0: append it to <em>column 0</em></li><li>Child 9 gets column 0 − 1 = <em>-1</em>; enqueue it</li><li>Child 20 gets column 0 + 1 = <em>1</em>; enqueue it</li><li>Pop 9 at column -1: append it to <em>column -1</em></li><li>Pop 20 at column 1: append it to <em>column 1</em></li><li>Child 15 gets column 1 − 1 = <em>0</em>; enqueue it</li><li>Child 7 gets column 1 + 1 = <em>2</em>; enqueue it</li><li>Pop 15 at column 0: append it to <em>column 0</em></li><li>Pop 7 at column 2: append it to <em>column 2</em></li><li>Read the map by column: <em>[[9],[3,15],[20],[7]]</em></li><li>One BFS plus a map keyed by column: <em>O(n)</em>, sorted keys <em>O(n log n)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>5 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/vertical-order-traversal-of-a-binary-tree">Vertical Order Traversal of a Binary Tree</a></td><td><span class="diff hard">Hard</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/diagonal-traverse">Diagonal Traverse</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/binary-tree-vertical-order-traversal">Binary Tree Vertical Order Traversal</a></td><td><span class="diff medium">Medium</span></td><td class="num">28</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/boundary-of-binary-tree">Boundary of Binary Tree</a></td><td><span class="diff medium">Medium</span></td><td class="num">18</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/print-binary-tree">Print Binary Tree</a></td><td><span class="diff medium">Medium</span></td><td class="num">18</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-trees">Trees</a>: <a href="/dsa/tree-dfs-recursive/">Recursive DFS (post-order fold)</a>, <a href="/dsa/tree-path-through-node/">Best path through each node</a>, <a href="/dsa/tree-bfs-levels/">Level-order BFS</a>, <a href="/dsa/tree-root-to-leaf/">Root-to-leaf path carry</a>, <a href="/dsa/tree-lca/">Lowest common ancestor</a>, <a href="/dsa/tree-build-from-traversals/">Build from traversals</a>, <a href="/dsa/tree-iterative-inorder/">Iterative traversal with a stack</a>, <a href="/dsa/tree-rerooting/">Rerooting DP (sum over all roots)</a>, <a href="/dsa/tree-delete-forest/">Post-order deletion / pruning</a>, <a href="/dsa/tree-distance-k/">Tree as a graph (parent pointers)</a>, <a href="/dsa/tree-dp-choose-skip/">Tree DP: take or skip this node</a>, <a href="/dsa/bfs-tree-serialization/">Serialize / deserialize by BFS</a>.</p>
   </article>
 
@@ -428,7 +451,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

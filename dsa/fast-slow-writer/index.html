@@ -394,22 +394,51 @@
       <p>nums[0..w) is the compacted answer so far.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>The list 0, 1, 0, 3, 12 should become 1, 3, 12, 0, 0: all the zeros moved to the end, the other numbers keeping their order, and you must do it inside the same array without making a new one.</p>
+<p>By hand you might find a zero and shift everything after it one step left, then put the zero at the end. Each shift moves up to <var>n</var> elements, and there can be up to <var>n</var> zeros, so that is O(<var>n</var><sup>2</sup>) moves. For an array of 100,000 numbers that is billions of moves to do something that sounds trivial.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Two indices into the same array, with two different jobs.</p>
+<p>The <strong>reader</strong> <var>r</var> walks the array once, left to right, looking at every element. The <strong>writer</strong> <var>w</var> marks the next slot where a kept element belongs. The writer never overtakes the reader, so it only ever writes into slots the reader has already finished with.</p>
+<p>Rule: when the reader finds an element worth keeping (here: non-zero), place it at slot <var>w</var> and advance <var>w</var>. Otherwise just advance <var>r</var>. For "move zeroes" the placing is a swap, so the zero that was at <var>w</var> moves to <var>r</var>'s position and nothing is lost.</p>
+<div class="table-wrap"><table>
+<tr><th><var>r</var></th><th>Element</th><th>Action</th><th>Array afterwards</th><th><var>w</var></th></tr>
+<tr><td>0</td><td>0</td><td>skip</td><td>0, 1, 0, 3, 12</td><td>0</td></tr>
+<tr><td>1</td><td>1</td><td>swap into slot 0</td><td>1, 0, 0, 3, 12</td><td>1</td></tr>
+<tr><td>2</td><td>0</td><td>skip</td><td>1, 0, 0, 3, 12</td><td>1</td></tr>
+<tr><td>3</td><td>3</td><td>swap into slot 1</td><td>1, 3, 0, 0, 12</td><td>2</td></tr>
+<tr><td>4</td><td>12</td><td>swap into slot 2</td><td>1, 3, 12, 0, 0</td><td>3</td></tr>
+</table></div>
+<p>The structure to picture is three zones: slots 0 … <var>w</var> − 1 are the finished answer so far, slots <var>w</var> … <var>r</var> − 1 are rejected elements, and slots from <var>r</var> onward are not yet read. Changing the "worth keeping" test changes the problem: "not equal to the previous kept element" removes duplicates from a sorted list; "not equal to <var>x</var>" removes every <var>x</var>; in string compression the writer emits a letter and a count while the reader counts a run.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: <em>slots 0 … <var>w</var> − 1 hold exactly the kept elements among the first <var>r</var>, in their original order</em>. At the start <var>r</var> = <var>w</var> = 0 and the claim is about nothing. When the reader skips an element the prefix is unchanged and the claim still describes the first <var>r</var> + 1 elements. When it keeps one, it goes to slot <var>w</var>, which is the next free slot after all earlier kept elements, so order is preserved. Because <var>w</var> ≤ <var>r</var> always holds, writing at <var>w</var> never destroys an unread element. When <var>r</var> reaches the end, the prefix is the whole answer.</p>
+
+<h3>Why it is fast</h3>
+<p>The reader takes <var>n</var> steps and does at most one swap per step, so at most <var>n</var> swaps and <var>n</var> comparisons: O(<var>n</var>) time, with two integers of extra memory, O(1). Against the shift-everything method's O(<var>n</var><sup>2</sup>), the gain comes from never moving an element more than once: each kept element travels straight to its final slot.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "in place", "remove", "compact", "move all X to the end", "return the new length", "O(1) extra space", especially on arrays or strings. The first thing to say: "I will use a reader pointer that scans everything and a writer pointer that only advances on elements I keep; the prefix before the writer is the answer."</p>
+<p><strong>Move Zeroes</strong> is the example. <strong>Remove Duplicates from Sorted Array</strong> keeps an element when it differs from the last written one. <strong>String Compression</strong> is the same two pointers on characters, where the reader measures a run and the writer writes the letter followed by the run length's digits.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>The writer trails the reader and keeps only what qualifies.</p>
     <p><strong>Reach for it when:</strong> Remove duplicates/elements in place, move zeroes, string compression.</p>
     <p><strong>Cost:</strong> O(n) time, O(1) space.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Move Zeroes on [0,1,0,3,12]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li><em>r</em> reads every element; <em>w</em> is where the next non-zero belongs</li><li>nums[0] = 0: nothing to keep, only <em>r</em> moves</li><li>nums[1] = 1 is non-zero: swap into slot 0, w → 1</li><li>nums[2] = 0: nothing to keep, only <em>r</em> moves</li><li>nums[3] = 3 is non-zero: swap into slot 1, w → 2</li><li>nums[4] = 12 is non-zero: swap into slot 2, w → 3</li><li>Prefix [0, w) holds every non-zero in order; zeros fell to the end</li><li>One reader, one writer, no extra array: <em>O(n)</em> time, <em>O(1)</em> space</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>8 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/remove-duplicates-from-sorted-array">Remove Duplicates from Sorted Array</a></td><td><span class="diff easy">Easy</span></td><td class="num">66</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/move-zeroes">Move Zeroes</a></td><td><span class="diff easy">Easy</span></td><td class="num">60</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/remove-element">Remove Element</a></td><td><span class="diff easy">Easy</span></td><td class="num">58</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/string-compression">String Compression</a></td><td><span class="diff medium">Medium</span></td><td class="num">44</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/remove-duplicates-from-sorted-array-ii">Remove Duplicates from Sorted Array II</a></td><td><span class="diff medium">Medium</span></td><td class="num">41</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/backspace-string-compare">Backspace String Compare</a></td><td><span class="diff easy">Easy</span></td><td class="num">34</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/duplicate-zeros">Duplicate Zeros</a></td><td><span class="diff easy">Easy</span></td><td class="num">27</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/sort-array-by-parity">Sort Array By Parity</a></td><td><span class="diff easy">Easy</span></td><td class="num">26</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-two-pointers">Two Pointers</a>: <a href="/dsa/two-pointers-converge/">Opposite ends converge</a>, <a href="/dsa/three-sum-fix-one/">Fix one, two-pointer the rest</a>, <a href="/dsa/dutch-flag/">Dutch national flag partition</a>, <a href="/dsa/merge-two-sorted/">Merge two sorted sequences</a>, <a href="/dsa/trapping-water-pointers/">Two-sided max walls</a>.</p>
   </article>
 
@@ -428,7 +457,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

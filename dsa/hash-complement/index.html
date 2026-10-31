@@ -394,22 +394,55 @@
       <p>Every element before i is in the map, so the partner of nums[i] is a lookup.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>You are given the numbers 2, 7, 11, 15 and asked which two of them add up to 9. By hand you would pick the first number, 2, and ask "what would I need to go with it?" The answer is 9 − 2 = 7. Then you scan the rest of the list looking for a 7. It is there, so you are done.</p>
+<p>That works, but look at how much scanning it costs when the list is long. For every number you walk through the rest of the list. With <var>n</var> numbers that is roughly <var>n</var> × <var>n</var> ÷ 2 looks. For 8 numbers it is 28 looks, which is fine. For a million numbers it is about 500 billion looks, which is not fine. The slow part is the scan, not the subtraction.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The scan is slow because the list has no memory of what it contains. Give it one. A <strong>hash map</strong> is a notebook with two columns: on the left a value you have seen, on the right where you saw it. Looking something up in the notebook costs about one step no matter how many entries it holds, because the computer turns the value into a page number and jumps straight there.</p>
+<p>Now walk the list once, and at each number do exactly two things, in this order:</p>
+<ol>
+<li>Compute the partner you need: <var>target</var> − <var>nums</var>[<var>i</var>]. Ask the notebook whether that partner is already written down.</li>
+<li>If it is not, write the current number and its index into the notebook, and move on.</li>
+</ol>
+<p>Here is the notebook after each step, with target 9 and the list 2, 7, 11, 15:</p>
+<div class="table-wrap"><table>
+<tr><th>Index</th><th>Number</th><th>Partner needed</th><th>In the notebook?</th><th>Notebook afterwards</th></tr>
+<tr><td>0</td><td>2</td><td>7</td><td>no</td><td>{2 → 0}</td></tr>
+<tr><td>1</td><td>7</td><td>2</td><td>yes, at index 0</td><td>answer: indices 0 and 1</td></tr>
+</table></div>
+<p>The order of the two things matters. Looking up first and writing second means a number can never pair with itself: when you ask about 7's partner, the notebook holds only numbers from earlier positions.</p>
+
+<h3>Why it is correct</h3>
+<p>The rule the loop keeps true is: <em>when we are at position <var>i</var>, every number before position <var>i</var> is in the notebook</em>. It is true at the start because nothing is before position 0 and the notebook is empty. Each step writes the current number before moving on, so it stays true.</p>
+<p>Now suppose a correct pair exists at positions <var>a</var> and <var>b</var> with <var>a</var> &lt; <var>b</var>. When the loop reaches <var>b</var>, the number at <var>a</var> is already in the notebook by the rule above, and the partner we ask for is exactly</p>
+<p class="formula"><var>target</var> − <var>nums</var>[<var>b</var>] = <var>nums</var>[<var>a</var>]</p>
+<p>so the lookup finds it. If no pair exists, no lookup ever succeeds and we correctly report nothing. Duplicates are handled too: if the list were 3, 3 with target 6, the second 3 finds the first one in the notebook.</p>
+
+<h3>Why it is fast</h3>
+<p>Each of the <var>n</var> numbers causes one lookup and at most one write, and each of those is about one step. So the whole pass is about 2<var>n</var> steps, which is O(<var>n</var>). Compare that with the by-hand scan: for a million numbers, two million steps instead of 500 billion. The price is the notebook, which can hold up to <var>n</var> entries, so the memory is O(<var>n</var>). You traded space for time, and that trade is the whole pattern.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Listen for "find two elements whose sum (or difference) is <var>k</var>" on data that is <em>not sorted</em>, or "count pairs where <var>a</var> + <var>b</var>" satisfies something. If the data were sorted you would reach for two pointers instead; the hash map is for when sorting is not free.</p>
+<p>The first thing to say out loud: "I will do one pass, and at each element look up its complement in a hash map before inserting the element itself." In <strong>Two Sum</strong> that is the whole solution. In <strong>Number of Good Pairs</strong> the partner is the same value, so the notebook stores counts instead of indices and each new element adds the count already seen. In <strong>Pairs of Songs With Total Durations Divisible by 60</strong> the partner is (60 − <var>t</var> mod 60) mod 60, which is the same idea with a remainder instead of a difference.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>One pass: look up what you still need, then store what you have.</p>
     <p><strong>Reach for it when:</strong> Find a pair/triple with a target sum or difference in unsorted data.</p>
     <p><strong>Cost:</strong> O(n) time, O(n) space.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Two Sum on [2,7,11,15], target 9</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>One pass: <em>look up</em> what you need, then <em>store</em> what you have</li><li>nums[0] = 5: need <em>5</em>, is it in the map?</li><li>Not yet: store 5 → 0</li><li>nums[1] = 2: need <em>8</em>, is it in the map?</li><li>Not yet: store 2 → 1</li><li>nums[2] = 11: need <em>-1</em>, is it in the map?</li><li>Not yet: store 11 → 2</li><li>nums[3] = 7: need <em>3</em>, is it in the map?</li><li>Not yet: store 7 → 3</li><li>nums[4] = 3: need <em>7</em>, is it in the map?</li><li>Yes: 7 was stored at index 3. Answer <em>[3, 4]</em></li><li>Every earlier element is in the map, so each check is <em>O(1)</em>: total <em>O(n)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>7 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/two-sum">Two Sum</a></td><td><span class="diff easy">Easy</span></td><td class="num">100</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/two-sum-iv-input-is-a-bst">Two Sum IV - Input is a BST</a></td><td><span class="diff easy">Easy</span></td><td class="num">29</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/number-of-good-pairs">Number of Good Pairs</a></td><td><span class="diff easy">Easy</span></td><td class="num">28</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/count-number-of-bad-pairs">Count Number of Bad Pairs</a></td><td><span class="diff medium">Medium</span></td><td class="num">26</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/max-number-of-k-sum-pairs">Max Number of K-Sum Pairs</a></td><td><span class="diff medium">Medium</span></td><td class="num">21</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/pairs-of-songs-with-total-durations-divisible-by-60">Pairs of Songs With Total Durations Divisible by 60</a></td><td><span class="diff medium">Medium</span></td><td class="num">6</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/count-nice-pairs-in-an-array">Count Nice Pairs in an Array</a></td><td><span class="diff medium">Medium</span></td><td class="num">6</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-arrays-hashing">Arrays &amp; Hashing</a>: <a href="/dsa/frequency-count/">Frequency counting</a>, <a href="/dsa/canonical-key/">Canonical key hashing</a>, <a href="/dsa/index-as-hash/">In-place index hashing</a>, <a href="/dsa/longest-consecutive/">Set-start expansion</a>, <a href="/dsa/hash-set-cycle/">Seen-set cycle detection</a>.</p>
   </article>
 
@@ -428,7 +461,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

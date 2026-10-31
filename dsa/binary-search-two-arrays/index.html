@@ -394,22 +394,53 @@
       <p>Every left element ≤ every right element once the cut is right.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Two sorted lists: A = 1, 3, 8, 9, 15 and B = 7, 11, 18, 19, 21, 25. Eleven numbers in total; the median is the 6th smallest. By hand you merge them: 1, 3, 7, 8, 9, 11, &hellip; and the 6th is 11. Merging costs about 11 looks, and for two lists of a million each it costs a million looks, even though we only want one number.</p>
+<p>Think about what the median does. It splits the eleven numbers into a left group of 5 (the smaller ones) and a right group of 6. Every number in the left group is &le; every number in the right group. The left group takes some numbers from the front of A and the rest from the front of B. If it takes <var>i</var> from A it must take 5 &minus; <var>i</var> from B. So the whole question is: what is <var>i</var>?</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p><strong>Piece 1: a cut in each list.</strong> Choose <var>i</var>, the number of elements of A on the left. Then <var>j</var> = 5 &minus; <var>i</var> elements of B go on the left. Four numbers matter: A's last left element A[<var>i</var> &minus; 1], A's first right element A[<var>i</var>], and the same two for B.</p>
+<p><strong>Piece 2: a test for the cut.</strong> The cut is right when both left pieces are below both right pieces: A[<var>i</var> &minus; 1] &le; B[<var>j</var>] and B[<var>j</var> &minus; 1] &le; A[<var>i</var>]. (Within each list the order is automatic because the lists are sorted.)</p>
+<p><strong>Piece 3: which way to move.</strong> If B[<var>j</var> &minus; 1] &gt; A[<var>i</var>], B is giving too much to the left, so A should give more: increase <var>i</var>. If A[<var>i</var> &minus; 1] &gt; B[<var>j</var>], decrease <var>i</var>. Because moving <var>i</var> by one shifts exactly one number across the cut, this is a monotone condition, and we binary search <var>i</var> over 0 to 5.</p>
+<div class="table-wrap"><table>
+<tr><th>i</th><th>j</th><th>A left max</th><th>A right min</th><th>B left max</th><th>B right min</th><th>Verdict</th></tr>
+<tr><td>2</td><td>3</td><td>3</td><td>8</td><td>18</td><td>19</td><td>18 &gt; 8: move <var>i</var> right</td></tr>
+<tr><td>4</td><td>1</td><td>9</td><td>15</td><td>7</td><td>11</td><td>9 &le; 11 and 7 &le; 15: correct cut</td></tr>
+</table></div>
+<p>The left group is {1, 3, 8, 9} from A and {7} from B, five numbers, all &le; every right number. With an odd total the median is the smallest right number: min(15, 11) = 11. With an even total it is the average of the largest left and smallest right.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant of the search: the correct <var>i</var> lies in [lo, hi].</p>
+<p>Why is the test monotone? Define bad(<var>i</var>) as "B[<var>j</var> &minus; 1] &gt; A[<var>i</var>]", meaning <var>i</var> is too small. Increasing <var>i</var> by one raises A[<var>i</var>] (A is sorted) and lowers <var>j</var>, which lowers B[<var>j</var> &minus; 1]. So once bad(<var>i</var>) becomes false it stays false. The smallest <var>i</var> with bad false is the answer, and the standard boundary search finds it. At that <var>i</var>, the other inequality A[<var>i</var> &minus; 1] &le; B[<var>j</var>] also holds, otherwise <var>i</var> &minus; 1 would have been a valid cut too, contradicting minimality.</p>
+<p class="formula">left = {A[0..<var>i</var>&minus;1]} &cup; {B[0..<var>j</var>&minus;1]}, |left| = &lfloor;(<var>m</var> + <var>n</var> + 1) / 2&rfloor;, max(left) &le; min(right)</p>
+<p>Edge cases: when <var>i</var> = 0 there is no A-left element, treat it as &minus;&infin;; when <var>i</var> = <var>m</var> there is no A-right element, treat it as +&infin;. Same for B.</p>
+
+<h3>Why it is fast</h3>
+<p>The search runs over <var>i</var> from 0 to the length of the shorter list, and each probe does four lookups.</p>
+<p class="formula">time = O(log min(<var>m</var>, <var>n</var>)), versus O(<var>m</var> + <var>n</var>) for merging</p>
+<p>Two lists of a million each: about 20 probes instead of a million looks.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The cues are "median of two sorted arrays", "kth smallest across two sorted arrays", or the demand for logarithmic time on two sorted inputs. Say: "I binary search how many elements the first array contributes to the left half; the cut is correct when both left maxima are below both right minima."</p>
+<p>Median of Two Sorted Arrays is the example above. Kth Smallest Element in a Sorted Matrix is a cousin: binary search over the value and count how many entries are &le; it. Find K-th Smallest Pair Distance does the same over distances.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Binary search the cut in the shorter array so left halves hold exactly half the items.</p>
     <p><strong>Reach for it when:</strong> Median of two sorted arrays, kth element of two arrays.</p>
     <p><strong>Cost:</strong> O(log min(n,m)) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Median of [1,3,8,9,15] and [7,11,18,19,21,25]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Binary search the cut in A so the <em>left halves hold half the items</em></li><li>Try i = 2, j = 6 − 2 = 4: left maxes 3, 19 · right mins 8, 21</li><li>B&#x27;s left max 19 &gt; A&#x27;s right min 8: <em>move the cut right</em>, lo = 3</li><li>Try i = 4, j = 6 − 4 = 2: left maxes 9, 11 · right mins 15, 18</li><li>Every left ≤ every right: the cut is right, median = max(left) = <em>11</em></li><li>Only the shorter array is searched: <em>O(log min(m, n))</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>3 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/median-of-two-sorted-arrays">Median of Two Sorted Arrays</a></td><td><span class="diff hard">Hard</span></td><td class="num">74</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/kth-smallest-element-in-a-sorted-matrix">Kth Smallest Element in a Sorted Matrix</a></td><td><span class="diff medium">Medium</span></td><td class="num">26</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-k-th-smallest-pair-distance">Find K-th Smallest Pair Distance</a></td><td><span class="diff hard">Hard</span></td><td class="num">20</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-binary-search">Binary Search</a>: <a href="/dsa/binary-search-exact/">Classic binary search</a>, <a href="/dsa/binary-search-boundary/">First true (predicate boundary)</a>, <a href="/dsa/binary-search-answer/">Binary search on the answer</a>, <a href="/dsa/binary-search-rotated/">Rotated / mountain search</a>.</p>
   </article>
 
@@ -428,7 +459,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

@@ -394,22 +394,55 @@
       <p>Each node holds the aggregate of its whole range.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Six numbers on a line: 1, 3, 5, 7, 9, 11. Two kinds of request keep arriving: "what is the sum from position 1 to position 3?" and "change position 1 to 10". For a sum you add the numbers in the range, at most 6 additions. For a change you overwrite one number. Both are easy with six numbers.</p>
+<p>Now make it a million numbers and a million requests. Adding up a range costs up to a million steps, so the sums alone could be a trillion steps. The prefix-sum trick (store running totals) makes every sum two lookups, but then one change forces every later running total to be rewritten, up to a million steps per change. Each shortcut fixes one request and ruins the other. We want both in a few steps.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a node that knows the sum of a range. Write the six numbers as leaves. Above each pair, write the pair's sum; above each pair of those, their sum; and so on up to one root that holds the sum of everything. Levels from the top:</p>
+<div class="table-wrap"><table>
+<tr><th>level</th><th>nodes (range: sum)</th></tr>
+<tr><td>root</td><td>[0..5]: 36</td></tr>
+<tr><td>1</td><td>[0..2]: 9, [3..5]: 27</td></tr>
+<tr><td>2</td><td>[0..1]: 4, [2..2]: 5, [3..4]: 16, [5..5]: 11</td></tr>
+<tr><td>leaves</td><td>[0]: 1, [1]: 3, [2]: 5, [3]: 7, [4]: 9, [5]: 11</td></tr>
+</table></div>
+<p>Each node's range is split in the middle between its two children, so the tree has about log<sub>2</sub> <var>n</var> levels.</p>
+<p>Piece two: answering a sum. For the range [1..3], start at the root. A node whose range lies entirely inside [1..3] is taken whole and not opened. A node entirely outside is ignored. A node that straddles the boundary is opened and the question is passed to both children. [0..2] straddles, so open it: [0..1] straddles, open it: leaf [0] is outside, leaf [1] is inside, take 3; [2..2] is inside, take 5. [3..5] straddles: [3..4] straddles: leaf [3] inside, take 7; leaf [4] outside; [5..5] outside. Total 3 + 5 + 7 = 15.</p>
+<p>Piece three: a change. Set position 1 to 10. Overwrite the leaf, then walk up the single path of ancestors and recompute each from its two children: [0..1] becomes 10 + 5 is wrong, careful: [0..1] = 1 + 10 = 11, [0..2] = 11 + 5 = 16, root = 16 + 27 = 43. Only three nodes changed. Asking [1..3] again now takes 10 + 5 + 7 = 22.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant is that every node holds the sum of its whole range. Building it from the leaves up makes it true. A change rewrites one leaf and then every ancestor of that leaf, in order from the bottom; each ancestor is recomputed from children that are already correct, so it becomes correct, and no other node's range contains the changed position, so no other node needs to change.</p>
+<p>A query is correct because the nodes it takes whole are disjoint and together cover exactly the asked range: a straddling node is never taken, it is split, and the splitting continues until every piece is either fully inside or fully outside.</p>
+
+<h3>Why it is fast</h3>
+<p>A change touches one leaf and one node per level above it, so about log<sub>2</sub> <var>n</var> + 1 nodes: 21 for a million numbers, against a million for prefix sums.</p>
+<p>A query visits at most four nodes per level. At each level, the nodes still being opened are only those that straddle one of the two boundaries of the asked range, and a boundary can be straddled by at most one node per level, since nodes at a level are disjoint. Each straddling node opens two children. So the work is at most 4 log<sub>2</sub> <var>n</var> node visits:</p>
+<p class="formula">query ≤ 4 · log<sub>2</sub> <var>n</var>, update ≤ log<sub>2</sub> <var>n</var> + 1</p>
+<p>Both are O(log <var>n</var>). The tree needs about 2<var>n</var> nodes of memory.</p>
+<p>Sum is only one choice of what a node holds. Minimum, maximum, greatest common divisor, or a count all work, as long as a parent's value can be computed from its two children's values.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: a mix of "update one position" and "ask about a range" that repeats many times, or a range question asked over positions that are being filled in while you scan. Say: "updates and range queries both need to be fast, so I will use a segment tree with O(log <var>n</var>) for each".</p>
+<p>Count of Smaller Numbers After Self scans from the right, keeping a segment tree over values: for each number, query how many smaller values have been inserted, then insert it. Longest Increasing Subsequence II keeps, over values, the best subsequence length ending at each value, and a range maximum over [<var>v</var> − <var>k</var>, <var>v</var> − 1] gives the best predecessor. My Calendar III stores bookings as range additions and asks for the maximum overlap, the root of a max tree with lazy range updates.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>A binary tree of ranges; a query visits O(log n) nodes, an update climbs one path.</p>
     <p><strong>Reach for it when:</strong> Range sum query mutable, count of smaller after self, falling squares, my calendar III.</p>
     <p><strong>Cost:</strong> O(log n) per op.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Range sum on [1,3,5,7,9,11], update index 1, query [1,3]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Each node stores the <em>sum of its whole range</em>; the root covers [0,5]</li><li>query [1,3]: descend; a node fully inside is taken whole</li><li>Taken nodes 3 + 5 + 7 = <em>15</em></li><li>update index 1 → 10: change the leaf</li><li>Climb: node [0,1] = 1 + 10 = <em>11</em></li><li>Climb: node [0,2] = 11 + 5 = <em>16</em></li><li>Climb: node [0,5] = 16 + 27 = <em>43</em></li><li>query [1,3] again: 3 + 5 + 7 = <em>15</em></li><li>Query touches O(log n) nodes; update climbs one path: <em>O(log n)</em> each</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>6 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/count-of-smaller-numbers-after-self">Count of Smaller Numbers After Self</a></td><td><span class="diff hard">Hard</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/longest-increasing-subsequence-ii">Longest Increasing Subsequence II</a></td><td><span class="diff hard">Hard</span></td><td class="num">23</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/my-calendar-iii">My Calendar III</a></td><td><span class="diff hard">Hard</span></td><td class="num">20</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/number-of-longest-increasing-subsequence">Number of Longest Increasing Subsequence</a></td><td><span class="diff medium">Medium</span></td><td class="num">20</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/booking-concert-tickets-in-groups">Booking Concert Tickets in Groups</a></td><td><span class="diff hard">Hard</span></td><td class="num">17</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/range-sum-query-mutable">Range Sum Query - Mutable</a></td><td><span class="diff medium">Medium</span></td><td class="num">11</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-advanced-structures">Advanced Structures</a>: <a href="/dsa/fenwick-tree/">Fenwick tree (binary indexed tree)</a>, <a href="/dsa/ordered-set-sliding/">Ordered set / sorted container</a>, <a href="/dsa/sqrt-bucket/">Bucketing by value range</a>, <a href="/dsa/matrix-exponentiation/">Matrix exponentiation for recurrences</a>, <a href="/dsa/meet-in-the-middle/">Meet in the middle</a>.</p>
   </article>
 
@@ -428,7 +461,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

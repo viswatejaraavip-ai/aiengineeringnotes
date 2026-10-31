@@ -394,22 +394,49 @@
       <p>The greedy walk maximises the result from the most significant bit down.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>XOR (written ⊕) compares two numbers bit by bit and writes 1 where the bits differ. For example 5 ⊕ 2 is 101 ⊕ 010 = 111 = 7. Given the numbers <code>[5, 2, 7, 3]</code> (the video uses these four; the problem's full example has six), which pair has the largest XOR?</p>
+<p>By hand you would compute every pair: 5⊕2 = 7, 5⊕7 = 2, 5⊕3 = 6, 2⊕7 = 5, 2⊕3 = 1, 7⊕3 = 4. The best is 7. Four numbers give 6 pairs; 100,000 numbers give about 5 billion pairs, too many.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The insight is that XOR is decided from the top bit down. Among all partners, the one that gives the largest XOR is the one that differs from my number in the highest possible bit, then in the next highest, and so on. So you want to ask, bit by bit: "is there a number whose top bit is the opposite of mine? and among those, whose next bit is opposite?"</p>
+<p>A trie answers exactly that. Write each number with the same number of bits, say 3, and store it as a path of 0s and 1s from the root, high bit first. Each node has at most two children.</p>
+<ol>
+<li>Insert 5 = 101: root → 1 → 0 → 1.</li>
+<li>Insert 2 = 010: root → 0 → 1 → 0. The root now has both a 0-child and a 1-child.</li>
+<li>Insert 7 = 111: root → 1 (exists) → 1 (new) → 1 (new).</li>
+<li>Insert 3 = 011: root → 0 (exists) → 1 (exists) → 1 (new).</li>
+</ol>
+<p>Levels after all inserts: root → {0 → 1 → {0, 1}, 1 → {0 → 1, 1 → 1}}.</p>
+<p>Now query with 5 = 101. At the root, my bit is 1, so I want a 0-child: it exists, take it, and the result's top bit is 1. Next my bit is 0, I want a 1-child under that node: exists, take it. Next my bit is 1, I want a 0-child: exists. The path walked is 010 = 2, and 5 ⊕ 2 = 111 = 7. Query each number the same way and keep the best; the maximum is 7.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: after deciding the top <var>k</var> bits, the walk is inside the set of stored numbers that share those decisions, and the partial result is the largest achievable for the top <var>k</var> bits. The greedy step is safe because of place value: the bit at position <var>k</var> is worth 2<sup><var>k</var></sup>, more than all lower bits together, since 2<sup><var>k</var>−1</sup> + … + 1 = 2<sup><var>k</var></sup> − 1. So if a 1 can be obtained at this bit by going to the opposite child, no choice at lower bits could ever make up for giving it away. When the opposite child does not exist, every remaining candidate agrees with me at this bit, and the bit is 0 for all of them, so following the same child loses nothing.</p>
+<p class="formula">2<sup><var>k</var></sup> &gt; 2<sup><var>k</var>−1</sup> + 2<sup><var>k</var>−2</sup> + … + 1 = 2<sup><var>k</var></sup> − 1</p>
+
+<h3>Why it is fast</h3>
+<p>Numbers have at most 32 bits, so each insert walks 32 nodes and each query walks 32 nodes. For <var>n</var> numbers that is 32<var>n</var> inserts plus 32<var>n</var> query steps: O(32 · <var>n</var>), which is linear. For 100,000 numbers that is about 6.4 million steps against 5 billion pairs. Memory is at most 32<var>n</var> nodes.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: maximum XOR, "XOR with an element from the array", pairs whose XOR is in a range, anything bitwise with "choose a partner from a set". Say: XOR is decided from the top bit down, so I will store the numbers in a binary trie and walk the opposite bit greedily. <em>Maximum XOR of Two Numbers in an Array</em> is the example. <em>Maximum XOR With an Element From Array</em> adds a limit: sort the queries and insert numbers only up to the limit before answering each.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Insert numbers bit by bit; for a query walk the opposite bit whenever possible.</p>
     <p><strong>Reach for it when:</strong> Maximum XOR of two numbers, maximum XOR with an element, count pairs with XOR in range.</p>
     <p><strong>Cost:</strong> O(n · 32) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Max XOR of [3,10,5,25,2,8]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Insert every number bit by bit, high bit first</li><li>insert 5 = 101</li><li>insert 2 = 010</li><li>insert 7 = 111</li><li>insert 3 = 011</li><li>query 5 = 101: at each level take the <em>opposite</em> bit if it exists</li><li>walk gives partner 010 = 2: 5 ⊕ 2 = <em>7</em></li><li>query 2 = 010: at each level take the <em>opposite</em> bit if it exists</li><li>walk gives partner 101 = 5: 2 ⊕ 5 = <em>7</em></li><li>Repeat for every number; the maximum pair XOR is <em>7</em> (5 ⊕ 2)</li><li>n inserts and n queries of 32 steps each: <em>O(32·n)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>2 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/maximum-xor-of-two-numbers-in-an-array">Maximum XOR of Two Numbers in an Array</a></td><td><span class="diff medium">Medium</span></td><td class="num">36</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/maximum-xor-with-an-element-from-array">Maximum XOR With an Element From Array</a></td><td><span class="diff hard">Hard</span></td><td class="num">22</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-trie">Trie</a>: <a href="/dsa/trie-prefix/">Trie for prefix queries</a>, <a href="/dsa/trie-grid-search/">Trie-guided grid DFS</a>.</p>
   </article>
 
@@ -428,7 +455,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

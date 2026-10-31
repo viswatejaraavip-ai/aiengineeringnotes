@@ -394,22 +394,41 @@
       <p>Every prefix has at least as many &#x27;(&#x27; as &#x27;)&#x27;.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Write every correctly balanced string made of 2 pairs of brackets. By hand: (()) and ()(). For 3 pairs: ((())), (()()), (())(), ()(()), ()()(). Five of them. You could also list all strings of 3 opens and 3 closes, 20 of them, and throw away the unbalanced ones like ())(() . That works for 3 pairs. For 10 pairs there are 184,756 strings with 10 of each and only 16,796 balanced ones; most of the work would be generating junk.</p>
+<p>The better way is to never write a wrong character. A string is balanced if, reading left to right, the count of ( never falls below the count of ), and they end equal.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: the string being built, as a stack of characters.</p>
+<p>Piece two: two counters, <strong>opens</strong> and <strong>closes</strong>, how many of each are in the string so far.</p>
+<p>Piece three: the two rules that decide what may be appended. You may append ( while opens &lt; <var>n</var>. You may append ) only while closes &lt; opens. That second rule is the entire trick: a ) is allowed only if there is an unmatched ( waiting for it.</p>
+<p>Piece four: build(): if the string has length 2<var>n</var>, record it. Otherwise, if ( is allowed, push it, recurse, pop. Then, if ) is allowed, push it, recurse, pop.</p>
+<div class="table-wrap"><table><tr><th>string</th><th>opens</th><th>closes</th><th>allowed next</th></tr><tr><td>(empty)</td><td>0</td><td>0</td><td>( only</td></tr><tr><td>(</td><td>1</td><td>0</td><td>( or )</td></tr><tr><td>((</td><td>2</td><td>0</td><td>) only</td></tr><tr><td>(()</td><td>2</td><td>1</td><td>) only</td></tr><tr><td>(())</td><td>2</td><td>2</td><td>length 4: record</td></tr><tr><td>()</td><td>1</td><td>1</td><td>( only, since closes = opens</td></tr><tr><td>()()</td><td>2</td><td>2</td><td>record</td></tr></table></div>
+<h3>Why it is correct</h3>
+<p>The invariant: every prefix of the string has at least as many ( as ). Appending ( obviously keeps it. Appending ) is only done when closes &lt; opens, so after it closes ≤ opens still holds. A string of length 2<var>n</var> built this way has opens = <var>n</var> (we stop adding at <var>n</var>) and therefore closes = <var>n</var>, and every prefix is fine, which is exactly the definition of balanced. Conversely every balanced string can be built, because at each of its positions the character it has is one the rules allow. So the output is exactly the set of balanced strings, each once.</p>
+<h3>Why it is fast</h3>
+<p>The rules prune so hard that every path through the recursion ends in a valid string; there are no dead ends at all. The number of outputs is the Catalan number</p>
+<p class="formula"><var>C</var><sub><var>n</var></sub> = (2<var>n</var> choose <var>n</var>) / (<var>n</var> + 1), so <var>C</var><sub>2</sub> = 2, <var>C</var><sub>3</sub> = 5, <var>C</var><sub>10</sub> = 16,796</p>
+<p>and each costs 2<var>n</var> characters to write, so the work is about <var>n</var> · <var>C</var><sub><var>n</var></sub>, the size of the answer itself. Generate-and-filter would cost the much larger binomial count.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "generate all valid", "well-formed", "every prefix must satisfy", "build strings character by character under a rule". The first thing to say: "I will only append characters that keep the prefix valid, so every leaf is an answer." Generate Parentheses is the example above. Restore IP Addresses uses the same shape with "the next part must be 0 to 255 without leading zeros" as the rule. Remove Invalid Parentheses runs the same validity counter while deciding, for each character, whether to keep or drop it.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Add &#x27;(&#x27; while opens remain; add &#x27;)&#x27; only while closes &lt; opens.</p>
     <p><strong>Reach for it when:</strong> Generate parentheses, remove invalid parentheses, letter combinations.</p>
     <p><strong>Cost:</strong> Catalan(n) outputs.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Generate Parentheses n=2</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Add &#x27;(&#x27; while opens &lt; n; add &#x27;)&#x27; only while <em>closes &lt; opens</em></li><li>opens = 0 &lt; 2: add <em>&#x27;(&#x27;</em></li><li>opens = 1 &lt; 2: add <em>&#x27;(&#x27;</em></li><li>opens = 2: no more &#x27;(&#x27; allowed</li><li>closes = 0 &lt; opens = 2: add <em>&#x27;)&#x27;</em></li><li>opens = 2: no more &#x27;(&#x27; allowed</li><li>closes = 1 &lt; opens = 2: add <em>&#x27;)&#x27;</em></li><li>Length 4 reached: <em>(())</em> is valid by construction</li><li>closes = 0 &lt; opens = 1: add <em>&#x27;)&#x27;</em></li><li>opens = 1 &lt; 2: add <em>&#x27;(&#x27;</em></li><li>opens = 2: no more &#x27;(&#x27; allowed</li><li>closes = 1 &lt; opens = 2: add <em>&#x27;)&#x27;</em></li><li>Length 4 reached: <em>()()</em> is valid by construction</li><li>closes = opens = 1: a &#x27;)&#x27; here would be <em>invalid</em>, prune</li><li>closes = opens = 0: a &#x27;)&#x27; here would be <em>invalid</em>, prune</li><li>Exactly <em>2</em> strings: (()) and ()(), the Catalan number C₂</li><li>Output count is Catalan(n); each string costs O(n)</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>6 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/generate-parentheses">Generate Parentheses</a></td><td><span class="diff medium">Medium</span></td><td class="num">62</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/letter-combinations-of-a-phone-number">Letter Combinations of a Phone Number</a></td><td><span class="diff medium">Medium</span></td><td class="num">58</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/restore-ip-addresses">Restore IP Addresses</a></td><td><span class="diff medium">Medium</span></td><td class="num">22</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/remove-invalid-parentheses">Remove Invalid Parentheses</a></td><td><span class="diff hard">Hard</span></td><td class="num">17</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/generalized-abbreviation">Generalized Abbreviation</a></td><td><span class="diff medium">Medium</span></td><td class="num">17</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/different-ways-to-add-parentheses">Different Ways to Add Parentheses</a></td><td><span class="diff medium">Medium</span></td><td class="num">15</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-backtracking">Backtracking</a>: <a href="/dsa/bt-subsets/">Subsets (include / exclude)</a>, <a href="/dsa/bt-permutations/">Permutations with a used set</a>, <a href="/dsa/bt-combination-sum/">Combination sum with a start index</a>, <a href="/dsa/bt-grid-word-search/">Grid DFS with undo</a>, <a href="/dsa/bt-constraint-prune/">Constraint placement with pruning</a>.</p>
   </article>
 
@@ -428,7 +447,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

@@ -394,22 +394,57 @@
       <p>nums[..lo) are 0s, nums[hi+1..] are 2s, nums[lo..mid) are 1s.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>The array 2, 0, 2, 1, 1, 0 holds only the values 0, 1 and 2, and you must sort it in place, in one pass. By hand the easy way is to count: two 0s, two 1s, two 2s, then overwrite the array as 0, 0, 1, 1, 2, 2. That is two passes and it works only because the values are tiny labels; it does not generalise to "put everything smaller than a pivot on the left", where you cannot just rewrite the values.</p>
+<p>So the real question is: how do you arrange three categories in one sweep, swapping elements rather than counting them?</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Picture the array as four zones, left to right: the <strong>0s</strong>, the <strong>1s</strong>, the <strong>unknown</strong>, and the <strong>2s</strong>. Three indices mark the borders: <var>lo</var> is the first slot after the 0s, <var>mid</var> is the first unknown slot, <var>hi</var> is the last unknown slot. At the start everything is unknown: <var>lo</var> = <var>mid</var> = 0 and <var>hi</var> = <var>n</var> − 1.</p>
+<p>Each step looks at the one element at <var>mid</var> and files it:</p>
+<ul>
+<li>It is a 0: swap it with the slot at <var>lo</var>, which pushes it into the 0 zone and brings a 1 (or itself) to <var>mid</var>. Advance both <var>lo</var> and <var>mid</var>.</li>
+<li>It is a 1: it is already in place at the end of the 1 zone. Advance <var>mid</var>.</li>
+<li>It is a 2: swap it with the slot at <var>hi</var>, which pushes it into the 2 zone. Move <var>hi</var> left, but do <em>not</em> advance <var>mid</var>, because the element that just arrived from <var>hi</var> is still unknown.</li>
+</ul>
+<div class="table-wrap"><table>
+<tr><th>Array</th><th><var>lo</var></th><th><var>mid</var></th><th><var>hi</var></th><th>At <var>mid</var></th><th>Action</th></tr>
+<tr><td>2, 0, 2, 1, 1, 0</td><td>0</td><td>0</td><td>5</td><td>2</td><td>swap with <var>hi</var>, <var>hi</var> → 4</td></tr>
+<tr><td>0, 0, 2, 1, 1, 2</td><td>0</td><td>0</td><td>4</td><td>0</td><td>swap with <var>lo</var>, both → 1</td></tr>
+<tr><td>0, 0, 2, 1, 1, 2</td><td>1</td><td>1</td><td>4</td><td>0</td><td>swap with <var>lo</var>, both → 2</td></tr>
+<tr><td>0, 0, 2, 1, 1, 2</td><td>2</td><td>2</td><td>4</td><td>2</td><td>swap with <var>hi</var>, <var>hi</var> → 3</td></tr>
+<tr><td>0, 0, 1, 1, 2, 2</td><td>2</td><td>2</td><td>3</td><td>1</td><td><var>mid</var> → 3</td></tr>
+<tr><td>0, 0, 1, 1, 2, 2</td><td>2</td><td>3</td><td>3</td><td>1</td><td><var>mid</var> → 4, past <var>hi</var>: stop</td></tr>
+</table></div>
+
+<h3>Why it is correct</h3>
+<p>The invariant, kept true after every step: <em>slots 0 … <var>lo</var> − 1 are 0s, slots <var>lo</var> … <var>mid</var> − 1 are 1s, slots <var>hi</var> + 1 … <var>n</var> − 1 are 2s, and slots <var>mid</var> … <var>hi</var> are unknown</em>. At the start the three known zones are empty, so it holds. Check each case. A 0 at <var>mid</var> swaps with slot <var>lo</var>; that slot held a 1 if the 1 zone is non-empty (or the 0 itself if it is empty), so after the swap the 0 zone grows by one and the 1 zone shifts right by one, still all 1s. A 1 at <var>mid</var> extends the 1 zone by one. A 2 at <var>mid</var> swaps with slot <var>hi</var>, growing the 2 zone by one, and the unknown zone shrinks from the right. The loop ends when <var>mid</var> passes <var>hi</var>, so the unknown zone is empty and the array is 0s, then 1s, then 2s.</p>
+
+<h3>Why it is fast</h3>
+<p>Every step either advances <var>mid</var> or moves <var>hi</var> left, so the unknown zone, which starts at size <var>n</var>, shrinks by one each time. Hence at most <var>n</var> steps, each with at most one swap:</p>
+<p class="formula">≤ <var>n</var> comparisons and ≤ <var>n</var> swaps: O(<var>n</var>) time, O(1) space</p>
+<p>It is one pass, unlike counting, and it never looks at an element after it has been filed.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "three kinds of values", "sort colours", "put values less than, equal to, and greater than the pivot in order", "one pass, constant space". Two kinds of values is the simpler two-pointer partition; three is this.</p>
+<p>Say: "I will keep three zones with low, mid and high pointers and file the element at mid into the right zone with a swap." <strong>Sort Colors</strong> is the example. <strong>Partition Array According to Given Pivot</strong> is the same three zones with "less than", "equal to" and "greater than" the pivot, though that problem also asks to keep the relative order inside each zone, which needs a stable variant. <strong>Sort Array By Parity</strong> is the two-zone cousin.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Three regions: lows, unknown, highs; one pass with low/mid/high pointers.</p>
     <p><strong>Reach for it when:</strong> Sort three categories in place, partition around a pivot.</p>
     <p><strong>Cost:</strong> O(n) time, O(1) space.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Sort Colors on [2,0,2,1,1,0]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Three regions: <em>0s</em> before lo, <em>2s</em> after hi, unknown between mid and hi</li><li>lo and mid start at 0, hi at the last index</li><li>nums[mid] = 2: swap with hi, hi <em>shrinks</em>; mid stays (unknown came in)</li><li>nums[mid] = 0: swap with lo, both <em>advance</em></li><li>nums[mid] = 0: swap with lo, both <em>advance</em></li><li>nums[mid] = 2: swap with hi, hi <em>shrinks</em>; mid stays (unknown came in)</li><li>nums[mid] = 1: already in the middle region, mid <em>advances</em></li><li>nums[mid] = 1: already in the middle region, mid <em>advances</em></li><li>mid passed hi: no unknowns left, <em>[0,0,1,1,2,2]</em></li><li>One pass, three pointers: <em>O(n)</em> time, <em>O(1)</em> space</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>4 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/sort-colors">Sort Colors</a></td><td><span class="diff medium">Medium</span></td><td class="num">54</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/sort-array-by-parity">Sort Array By Parity</a></td><td><span class="diff easy">Easy</span></td><td class="num">26</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/partition-array-according-to-given-pivot">Partition Array According to Given Pivot</a></td><td><span class="diff medium">Medium</span></td><td class="num">20</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/wiggle-sort">Wiggle Sort</a></td><td><span class="diff medium">Medium</span></td><td class="num">20</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-two-pointers">Two Pointers</a>: <a href="/dsa/two-pointers-converge/">Opposite ends converge</a>, <a href="/dsa/three-sum-fix-one/">Fix one, two-pointer the rest</a>, <a href="/dsa/fast-slow-writer/">Reader / writer pointers</a>, <a href="/dsa/merge-two-sorted/">Merge two sorted sequences</a>, <a href="/dsa/trapping-water-pointers/">Two-sided max walls</a>.</p>
   </article>
 
@@ -428,7 +463,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

@@ -394,22 +394,44 @@
       <p>The queue holds exactly one level when a level begins.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Imagine standing to the right of a tree and asking which node you see on each row. The tree: 1 at the top; 2 and 3 below it; 5 under 2 on the right; 4 under 3 on the right. Row by row, the rightmost nodes are 1, then 3, then 4. By hand you would draw the tree with rows and read off the right edge. The problem for a computer is that nodes are not stored in rows. Each node only knows its children. So we must manufacture the rows ourselves.</p>
+<p>A naive way: for every row number <var>d</var>, search the whole tree for nodes at depth <var>d</var>. For a tree of height <var>h</var> that visits the tree <var>h</var> times, so a chain of 10,000 nodes costs about 10,000 × 10,000 / 2 = 50 million visits.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a queue. Think of a line at a counter: you join at the back, you are served from the front. Two operations, push to the back and pop from the front.</p>
+<p>Piece two: put the root in the queue. Then repeat: pop a node, and push its children to the back. Because children join at the back, every node of row 1 is served before any node of row 2, and so on. The queue naturally serves the tree row by row. This is breadth-first search.</p>
+<p>Piece three, the part that makes rows visible: at the start of each round, look at how many nodes are in the queue. That number is exactly the size of the current row. Pop exactly that many, pushing their children, and you have processed one row and the queue now holds exactly the next row.</p>
+<div class="table-wrap"><table><tr><th>Round</th><th>Queue at start</th><th>Row size</th><th>Popped</th><th>Pushed</th><th>Last popped</th></tr><tr><td>0</td><td>[1]</td><td>1</td><td>1</td><td>2, 3</td><td>1</td></tr><tr><td>1</td><td>[2, 3]</td><td>2</td><td>2, 3</td><td>5, 4</td><td>3</td></tr><tr><td>2</td><td>[5, 4]</td><td>2</td><td>5, 4</td><td>none</td><td>4</td></tr></table></div>
+<p>The right side view is the last node popped in each round: [1, 3, 4]. The level-order list is each round's popped nodes as a row. Zigzag reverses every other row. Level averages add each row and divide by its size.</p>
+
+<h3>Why it is correct</h3>
+<p>The claim to prove: when a round begins, the queue contains exactly one row, all of it and nothing else. At the start it holds only the root, row 0. Suppose at the start of some round it holds exactly row <var>d</var>. During the round we pop those nodes one by one and push only their children, which are exactly the nodes of row <var>d</var> + 1. We stop after popping the recorded count, so nothing from row <var>d</var> + 1 is popped early. At the end the queue holds exactly row <var>d</var> + 1. By this step-by-step argument it holds for every row.</p>
+<p>Because the children of a left node are pushed before the children of a right node, each row also comes out in left-to-right order, so "last popped" really is the rightmost node.</p>
+
+<h3>Why it is fast</h3>
+<p>Each node is pushed once and popped once, and each push and pop takes constant time. Total: 2<var>n</var> queue operations, O(<var>n</var>). Memory is the widest row, at most about <var>n</var>/2 for a full bottom row.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Any wording with "level", "row", "depth by depth", "left to right at each height", "the widest level", "connect each node to its neighbour on the right". Say: "I will do a BFS with a queue and read the queue size at the start of each round so I know where each level ends." Binary Tree Level Order Traversal is the direct form. Binary Tree Right Side View keeps the last node of each round. Maximum Width of Binary Tree pushes (node, position) pairs with positions 2<var>i</var> and 2<var>i</var> + 1 and takes last position minus first per row.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Process one level at a time: the queue length at loop start is the level size.</p>
     <p><strong>Reach for it when:</strong> Level order, zigzag, right side view, level averages, max width, connect next pointers.</p>
     <p><strong>Cost:</strong> O(n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Right Side View of [1,2,3,null,5,null,4]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Start with the root in the queue</li><li>Level 0 begins: the queue holds exactly <em>1</em> node</li><li>Pop the 1, push children; the last one, <em>1</em>, is seen from the right</li><li>Level 1 begins: the queue holds exactly <em>2</em> nodes</li><li>Pop all 2, push children; the last one, <em>3</em>, is seen from the right</li><li>Level 2 begins: the queue holds exactly <em>2</em> nodes</li><li>Pop all 2, push children; the last one, <em>4</em>, is seen from the right</li><li>Queue empty: right side view is <em>[1,3,4]</em></li><li>Each node enters and leaves the queue once: <em>O(n)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>10 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/binary-tree-level-order-traversal">Binary Tree Level Order Traversal</a></td><td><span class="diff medium">Medium</span></td><td class="num">44</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/binary-tree-zigzag-level-order-traversal">Binary Tree Zigzag Level Order Traversal</a></td><td><span class="diff medium">Medium</span></td><td class="num">38</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/binary-tree-right-side-view">Binary Tree Right Side View</a></td><td><span class="diff medium">Medium</span></td><td class="num">35</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/maximum-width-of-binary-tree">Maximum Width of Binary Tree</a></td><td><span class="diff medium">Medium</span></td><td class="num">31</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/maximum-level-sum-of-a-binary-tree">Maximum Level Sum of a Binary Tree</a></td><td><span class="diff medium">Medium</span></td><td class="num">28</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/populating-next-right-pointers-in-each-node">Populating Next Right Pointers in Each Node</a></td><td><span class="diff medium">Medium</span></td><td class="num">23</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/find-largest-value-in-each-tree-row">Find Largest Value in Each Tree Row</a></td><td><span class="diff medium">Medium</span></td><td class="num">13</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/average-of-levels-in-binary-tree">Average of Levels in Binary Tree</a></td><td><span class="diff easy">Easy</span></td><td class="num">11</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/cousins-in-binary-tree">Cousins in Binary Tree</a></td><td><span class="diff easy">Easy</span></td><td class="num">11</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/binary-tree-level-order-traversal-ii">Binary Tree Level Order Traversal II</a></td><td><span class="diff medium">Medium</span></td><td class="num">11</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-trees">Trees</a>: <a href="/dsa/tree-dfs-recursive/">Recursive DFS (post-order fold)</a>, <a href="/dsa/tree-path-through-node/">Best path through each node</a>, <a href="/dsa/tree-root-to-leaf/">Root-to-leaf path carry</a>, <a href="/dsa/tree-lca/">Lowest common ancestor</a>, <a href="/dsa/tree-build-from-traversals/">Build from traversals</a>, <a href="/dsa/tree-iterative-inorder/">Iterative traversal with a stack</a>, <a href="/dsa/tree-vertical-coords/">Column / coordinate traversal</a>, <a href="/dsa/tree-rerooting/">Rerooting DP (sum over all roots)</a>, <a href="/dsa/tree-delete-forest/">Post-order deletion / pruning</a>, <a href="/dsa/tree-distance-k/">Tree as a graph (parent pointers)</a>, <a href="/dsa/tree-dp-choose-skip/">Tree DP: take or skip this node</a>, <a href="/dsa/bfs-tree-serialization/">Serialize / deserialize by BFS</a>.</p>
   </article>
 
@@ -428,7 +450,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

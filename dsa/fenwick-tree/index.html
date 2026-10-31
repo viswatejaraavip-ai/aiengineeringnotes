@@ -394,22 +394,54 @@
       <p>tree[i] covers the range (i − lowbit(i), i].</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Six numbers: 1, 3, 5, 7, 9, 11. You need the sum of the first <var>k</var> of them, for various <var>k</var>, while the numbers keep changing. The sum of the first 5 is 1 + 3 + 5 + 7 + 9 = 25. With a table of running totals (1, 4, 9, 16, 25, 36) that is one lookup, but adding 2 to the fourth number forces you to rewrite the last three totals, and with a million numbers that is a million rewrites. Adding up from scratch each time is a million steps per question instead. We want both the question and the change to cost a few steps.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: number the positions from 1, not 0, and write each position in binary. The lowest set bit of a position, written lowbit(<var>i</var>), is the value of its rightmost 1: lowbit(6) = 2 because 6 is 110, lowbit(4) = 4 because 4 is 100, lowbit(5) = 1.</p>
+<p>Piece two: a second array, <code>tree</code>, where slot <var>i</var> stores the sum of a block ending at <var>i</var> whose length is lowbit(<var>i</var>). So slot 1 covers position 1 alone, slot 2 covers positions 1 to 2, slot 3 covers position 3 alone, slot 4 covers 1 to 4, slot 5 covers 5 alone, slot 6 covers 5 to 6:</p>
+<div class="table-wrap"><table>
+<tr><th>slot <var>i</var></th><th>binary</th><th>lowbit</th><th>covers</th><th>tree[<var>i</var>]</th></tr>
+<tr><td>1</td><td>001</td><td>1</td><td>1..1</td><td>1</td></tr>
+<tr><td>2</td><td>010</td><td>2</td><td>1..2</td><td>4</td></tr>
+<tr><td>3</td><td>011</td><td>1</td><td>3..3</td><td>5</td></tr>
+<tr><td>4</td><td>100</td><td>4</td><td>1..4</td><td>16</td></tr>
+<tr><td>5</td><td>101</td><td>1</td><td>5..5</td><td>9</td></tr>
+<tr><td>6</td><td>110</td><td>2</td><td>5..6</td><td>20</td></tr>
+</table></div>
+<p>Piece three: a prefix sum by walking down. To sum positions 1 to 5, start at <var>i</var> = 5, take tree[5] = 9, then remove the lowest bit: 5 − 1 = 4. Take tree[4] = 16, remove the lowest bit: 4 − 4 = 0, stop. Total 25, from two slots. The blocks visited, 5..5 and 1..4, tile the range 1..5 exactly.</p>
+<p>Piece four: a change by walking up. Add 2 to position 4. Every slot whose block contains position 4 must grow by 2. Start at <var>i</var> = 4, add 2 so tree[4] = 18, then add the lowest bit: 4 + 4 = 8, which is past the end, stop. Had the array been longer, slot 8 (covering 1..8) would be next.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant is that tree[<var>i</var>] equals the sum of positions <var>i</var> − lowbit(<var>i</var>) + 1 through <var>i</var>. The downward walk from <var>i</var> takes the block ending at <var>i</var>, then jumps to <var>i</var> − lowbit(<var>i</var>), which is exactly the position just before that block, and takes the block ending there, and so on until 0. The blocks are adjacent and end at position <var>i</var>, so together they cover 1..<var>i</var> once each.</p>
+<p>The upward walk must visit every slot whose block contains position <var>p</var>. A slot <var>j</var> &gt; <var>p</var> contains <var>p</var> exactly when <var>j</var> − lowbit(<var>j</var>) &lt; <var>p</var>, and the next such slot after <var>p</var> itself is <var>p</var> + lowbit(<var>p</var>): adding the lowest set bit clears it and carries, producing the smallest larger number whose block reaches back past <var>p</var>. Repeating the step visits all of them and nothing else.</p>
+
+<h3>Why it is fast</h3>
+<p>Each downward step removes one set bit from <var>i</var>, and <var>i</var> has at most log<sub>2</sub> <var>n</var> + 1 bits, so a prefix sum reads at most that many slots. Each upward step moves the lowest set bit at least one place to the left, so an update also takes at most log<sub>2</sub> <var>n</var> + 1 steps:</p>
+<p class="formula">query and update ≤ ⌊log<sub>2</sub> <var>n</var>⌋ + 1 slot visits</p>
+<p>For a million positions that is 21 steps for either operation, against a million for one of them in the by-hand approaches. The memory is one extra array of <var>n</var> numbers, and the code is two loops of three lines each. A segment tree does the same job with more memory and more code; the Fenwick tree is the compact choice when only prefix sums and point updates are needed. A range sum from <var>l</var> to <var>r</var> is prefix(<var>r</var>) − prefix(<var>l</var> − 1).</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "count how many earlier elements are smaller", "prefix sum with updates", "number of inversions", or any scan where you must ask how many already-seen values fall below a threshold. Say: "I will scan once and keep a Fenwick tree over values, so each count and each insert is O(log <var>n</var>)".</p>
+<p>Count of Smaller Numbers After Self scans from the right: for each number, query the prefix sum of values below it, then add 1 at its value. Reverse Pairs scans the same way asking how many seen values exceed 2 × the current one. Range Sum Query Mutable is the plain point-update, range-sum use.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Prefix sums in O(log n) by walking the lowest set bit up and down.</p>
     <p><strong>Reach for it when:</strong> Count of smaller numbers after self, reverse pairs, create sorted array, range sum mutable.</p>
     <p><strong>Cost:</strong> O(log n) per op.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Fenwick prefix sum on [1,3,5,7,9,11]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Each tree slot sums a block whose length is its <em>lowest set bit</em></li><li>tree[1] = sum of array[0..0] = <em>1</em> (lowbit 1)</li><li>tree[2] = sum of array[0..1] = <em>4</em> (lowbit 2)</li><li>tree[3] = sum of array[2..2] = <em>5</em> (lowbit 1)</li><li>tree[4] = sum of array[0..3] = <em>16</em> (lowbit 4)</li><li>tree[5] = sum of array[4..4] = <em>9</em> (lowbit 1)</li><li>tree[6] = sum of array[4..5] = <em>20</em> (lowbit 2)</li><li>prefix(5): start at i = 5, walk down by <em>clearing the lowest bit</em></li><li>add tree[5] = 9 → sum 9; i = 5 − 1 = 4</li><li>add tree[4] = 16 → sum 25; i = 4 − 4 = 0</li><li>prefix(5) = <em>25</em> from only 2 slots</li><li>update array[3] += 2: climb i = 4, then i += lowbit(i)</li><li>tree[4] += 2 → <em>18</em>; next i = 4 + 4 = 8</li><li>Both walks touch one slot per bit: <em>O(log n)</em> query and update</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>5 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/reverse-pairs">Reverse Pairs</a></td><td><span class="diff hard">Hard</span></td><td class="num">42</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/count-of-smaller-numbers-after-self">Count of Smaller Numbers After Self</a></td><td><span class="diff hard">Hard</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/count-of-range-sum">Count of Range Sum</a></td><td><span class="diff hard">Hard</span></td><td class="num">23</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/number-of-pairs-satisfying-inequality">Number of Pairs Satisfying Inequality</a></td><td><span class="diff hard">Hard</span></td><td class="num">18</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/range-sum-query-mutable">Range Sum Query - Mutable</a></td><td><span class="diff medium">Medium</span></td><td class="num">11</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-advanced-structures">Advanced Structures</a>: <a href="/dsa/segment-tree/">Segment tree (range query + point update)</a>, <a href="/dsa/ordered-set-sliding/">Ordered set / sorted container</a>, <a href="/dsa/sqrt-bucket/">Bucketing by value range</a>, <a href="/dsa/matrix-exponentiation/">Matrix exponentiation for recurrences</a>, <a href="/dsa/meet-in-the-middle/">Meet in the middle</a>.</p>
   </article>
 
@@ -428,7 +460,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

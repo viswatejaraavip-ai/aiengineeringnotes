@@ -394,22 +394,47 @@
       <p>Every visited original has exactly one clone.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>You are given a drawing of four nodes in a ring, 1–2–3–4–1, where each node holds a list of its neighbours, and you must make an exact copy: new nodes, same values, same connections. By hand you draw four fresh circles, write 1 to 4 in them, and draw the same four lines. Easy, because you can see the whole drawing.</p>
+<p>A program cannot see the whole drawing; it only holds node 1 and can follow neighbour pointers. If it copies node 1, then copies neighbour 2, then from 2 copies neighbour 1 again, it makes a second copy of 1, then a second copy of 2, and never stops, because the ring has no end. The naive copy loops forever and also creates the wrong shape.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a <strong>map</strong> from original node to its copy. Before copying a node, look it up. If it is there, reuse the copy; if not, create the copy and record it immediately, before touching its neighbours.</p>
+<p>Piece two: a traversal, depth-first or breadth-first, that visits each original once. The map doubles as the visited set.</p>
+<p>Walk the ring starting at 1:</p>
+<ol>
+<li>1 not in map: create 1′, map = {1: 1′}. Visit its neighbours 2 and 4.</li>
+<li>2 not in map: create 2′, map = {1: 1′, 2: 2′}. Neighbours of 2 are 1 and 3. 1 is in the map: reuse 1′, wire 2′ → 1′.</li>
+<li>3 not in map: create 3′. Its neighbour 2 is in the map: wire 3′ → 2′.</li>
+<li>4 not in map: create 4′. Its neighbours 3 and 1 are both in the map: wire 4′ → 3′ and 4′ → 1′.</li>
+<li>Back at 1: neighbour 4 is in the map, wire 1′ → 4′. Done: four copies, four edges mirrored.</li>
+</ol>
+<p>The same skeleton, "map plus traversal", clones a linked list with random pointers, finds whether a path exists, or collects which rooms a set of keys can open; only the work done per node changes.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: every original node that has been seen has exactly one copy, and it is in the map. Creating the copy before exploring neighbours is what keeps it true in a ring: when the walk comes back round to 1, the lookup finds 1′ instead of making a new one. Every edge u → v in the original becomes u′ → map[v], which exists because v is either already copied or copied on the spot, so the copy has exactly the original's edges and no others.</p>
+<h3>Why it is fast</h3>
+<p>Each node is created once and each edge is wired once; map lookups are constant time on average:</p>
+<p class="formula">work = <var>V</var> + <var>E</var>, and memory <var>V</var> for the map</p>
+<p>Without the map the walk never terminates on any graph with a cycle, so the comparison is not slow versus fast but finite versus infinite.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "deep copy", "clone", "each node has a random or extra pointer", "reachable from the start", "can you reach every room". The first thing to say: "I will traverse once and keep a map from original to copy so each node is created exactly once." Clone Graph is the example above. Keys and Rooms is the same traversal with a visited set instead of a copy map: count rooms reached from room 0.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Map original→copy; create a node the first time you see it, reuse afterwards.</p>
     <p><strong>Reach for it when:</strong> Clone graph, copy random list, keys and rooms, find if path exists.</p>
     <p><strong>Cost:</strong> O(V + E) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Clone Graph on a 4-node cycle</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Map original → clone; a node is cloned <em>once</em>, on first sight</li><li>First time at 1: create clone <em>1&#x27;</em> and record it in the map</li><li>First time at 2: create clone <em>2&#x27;</em> and record it in the map</li><li>1 already in the map: <em>reuse</em> 1&#x27; instead of cloning again</li><li>First time at 3: create clone <em>3&#x27;</em> and record it in the map</li><li>2 already in the map: <em>reuse</em> 2&#x27; instead of cloning again</li><li>First time at 4: create clone <em>4&#x27;</em> and record it in the map</li><li>3 already in the map: <em>reuse</em> 3&#x27; instead of cloning again</li><li>1 already in the map: <em>reuse</em> 1&#x27; instead of cloning again</li><li>Wire 3&#x27; → 4&#x27;</li><li>Wire 2&#x27; → 3&#x27;</li><li>Wire 1&#x27; → 2&#x27;</li><li>4 already in the map: <em>reuse</em> 4&#x27; instead of cloning again</li><li>Clone finished: same shape, 4 new nodes, every edge mirrored</li><li>Each node and edge handled once: <em>O(V + E)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>7 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/number-of-provinces">Number of Provinces</a></td><td><span class="diff medium">Medium</span></td><td class="num">40</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/clone-graph">Clone Graph</a></td><td><span class="diff medium">Medium</span></td><td class="num">40</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/evaluate-division">Evaluate Division</a></td><td><span class="diff medium">Medium</span></td><td class="num">36</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/keys-and-rooms">Keys and Rooms</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-if-path-exists-in-graph">Find if Path Exists in Graph</a></td><td><span class="diff easy">Easy</span></td><td class="num">24</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/find-the-town-judge">Find the Town Judge</a></td><td><span class="diff easy">Easy</span></td><td class="num">20</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/all-paths-from-source-to-target">All Paths From Source to Target</a></td><td><span class="diff medium">Medium</span></td><td class="num">8</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-graphs">Graphs</a>: <a href="/dsa/grid-dfs-islands/">Grid flood fill (components)</a>, <a href="/dsa/bfs-multi-source/">Multi-source BFS</a>, <a href="/dsa/bfs-shortest-unweighted/">BFS shortest path (unweighted)</a>, <a href="/dsa/bfs-state-space/">BFS over an augmented state</a>, <a href="/dsa/bfs-0-1/">0-1 BFS (deque)</a>, <a href="/dsa/dfs-cycle-coloring/">DFS three-colour cycle detection</a>, <a href="/dsa/topo-kahn/">Topological sort (Kahn&#x27;s)</a>, <a href="/dsa/union-find/">Union–Find (disjoint sets)</a>, <a href="/dsa/dijkstra/">Dijkstra (weighted shortest path)</a>, <a href="/dsa/bellman-ford-k-stops/">Bellman–Ford with k rounds</a>, <a href="/dsa/mst-kruskal-prim/">Minimum spanning tree</a>, <a href="/dsa/graph-bipartite/">Bipartite colouring</a>, <a href="/dsa/eulerian-path/">Eulerian path (Hierholzer)</a>, <a href="/dsa/tarjan-bridges/">Bridges / articulation (low-link)</a>, <a href="/dsa/implicit-graph-search/">Implicit graph (states as nodes)</a>.</p>
   </article>
 
@@ -428,7 +453,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

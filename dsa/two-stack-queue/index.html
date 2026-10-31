@@ -394,22 +394,58 @@
       <p>outbox top is the oldest element not yet dequeued.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>You only have stacks, piles where you can touch the top card only, and you are asked to build a queue, a line where the first one in is the first one out. Push 1, 2, 3 into the queue, then pop: you must get 1, the oldest. But a stack with 1, 2, 3 pushed has 3 on top.</p>
+<p>By hand with one stack you could dig: to reach the bottom card, move every card above it to a side pile, take the bottom one, and move everything back. For a queue of <var>n</var> cards that is about 2<var>n</var> moves for every pop, and if you move the cards back every time, a sequence of <var>n</var> pops costs about <var>n</var><sup>2</sup> moves.</p>
+<p>The wasteful step is moving the cards back. When you pour a pile onto a side pile, the order flips: 3, 2, 1 becomes 1 on top. That flipped order is exactly a queue's order. Why undo it?</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p><strong>Piece 1: an inbox stack.</strong> Every push goes onto the inbox. After push 1, push 2, push 3 the inbox is 1, 2, 3 with 3 on top.</p>
+<p><strong>Piece 2: an outbox stack.</strong> A pop takes from the outbox. If the outbox is empty, pour the whole inbox into it, one card at a time: 3 moves first and lands at the bottom, then 2, then 1 lands on top. Now the outbox is 3, 2, 1 with 1 on top. Pop gives 1.</p>
+<p><strong>Piece 3: leave the outbox alone.</strong> New pushes keep going to the inbox. The outbox still has 3, 2 with 2 on top, and those are older than anything in the inbox, so pops keep coming from the outbox until it is empty. Only then do we pour again.</p>
+<div class="table-wrap"><table>
+<tr><th>Operation</th><th>Inbox (top on the right)</th><th>Outbox (top on the right)</th><th>Result</th></tr>
+<tr><td>push 1</td><td>1</td><td></td><td></td></tr>
+<tr><td>push 2</td><td>1 2</td><td></td><td></td></tr>
+<tr><td>push 3</td><td>1 2 3</td><td></td><td></td></tr>
+<tr><td>pop: pour, then take top</td><td></td><td>3 2</td><td>1</td></tr>
+<tr><td>push 4</td><td>4</td><td>3 2</td><td></td></tr>
+<tr><td>pop</td><td>4</td><td>3</td><td>2</td></tr>
+<tr><td>pop</td><td>4</td><td></td><td>3</td></tr>
+<tr><td>pop: pour, then take top</td><td></td><td></td><td>4</td></tr>
+</table></div>
+
+<h3>Why it is correct</h3>
+<p>The invariant: reading the outbox from top to bottom and then the inbox from bottom to top gives all the queued elements from oldest to newest.</p>
+<p>A push adds the newest element to the top of the inbox, which is the end of that reading order, so the invariant holds. A pop when the outbox is non-empty takes its top, which is the first element of the reading order, the oldest. A pour moves the inbox cards one by one onto the outbox; the inbox's bottom card (oldest) is moved last, so it ends on top of the outbox. Pouring only happens when the outbox is empty, so no older card gets buried under newer ones.</p>
+<p>That last point is the subtle one. If you poured while the outbox still had cards, the newer inbox cards would land on top of older outbox cards, and the next pop would return a newer card first. Waiting until the outbox is empty prevents that.</p>
+
+<h3>Why it is fast</h3>
+<p>Follow one card. It is pushed onto the inbox once, moved to the outbox once, and popped once. Three moves in its whole life, no matter how many operations happen around it.</p>
+<p class="formula">total moves for <var>n</var> elements &le; 3<var>n</var>, so each operation is O(1) amortised</p>
+<p>A single pop that triggers a pour can take <var>n</var> moves, but those moves pay for the next <var>n</var> pops, which are then free. Averaged over the sequence, each operation costs a constant. Compared with digging, which costs <var>n</var> moves per pop every time, this is the difference between <var>n</var><sup>2</sup> and 3<var>n</var>.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The cues are "implement a queue using stacks", "implement a stack using queues", "amortised O(1)", or any design where one structure must be simulated with another. Say: "Two stacks, one for arrivals and one for departures; pouring one into the other reverses the order, and I only pour when the departure stack is empty so each element moves at most once."</p>
+<p>Implement Queue using Stacks is the example above. Implement Stack using Queues is the mirror: after each push, rotate the queue so the newest element is at the front, costing O(<var>n</var>) per push but O(1) per pop. Design Circular Queue is a different trick, a fixed array with head and tail indices that wrap around.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Push to inbox; when outbox is empty, pour inbox over so the order flips.</p>
     <p><strong>Reach for it when:</strong> Implement queue with stacks, undo/redo, amortised O(1) designs.</p>
     <p><strong>Cost:</strong> O(1) amortised per op.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Queue via two stacks: push 1,2,3; pop; push 4; pop</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Two stacks: pushes land in <em>inbox</em>, pops come from <em>outbox</em></li><li>push(1): onto inbox</li><li>push(2): onto inbox</li><li>push(3): onto inbox</li><li>pop(): outbox empty, <em>pour</em> inbox over, the order flips</li><li>pop() = <em>1</em>: the oldest element was on top of outbox</li><li>push(4): inbox again; outbox keeps the older ones</li><li>pop() = <em>2</em>: the oldest element was on top of outbox</li><li>pop() = <em>3</em>: the oldest element was on top of outbox</li><li>Outbox empty again: next pop pours <em>4</em> over</li><li>Each element is moved at most once: <em>O(1)</em> amortised per op</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>5 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/implement-stack-using-queues">Implement Stack using Queues</a></td><td><span class="diff easy">Easy</span></td><td class="num">38</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/implement-queue-using-stacks">Implement Queue using Stacks</a></td><td><span class="diff easy">Easy</span></td><td class="num">34</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/design-circular-queue">Design Circular Queue</a></td><td><span class="diff medium">Medium</span></td><td class="num">26</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/design-circular-deque">Design Circular Deque</a></td><td><span class="diff medium">Medium</span></td><td class="num">5</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/design-front-middle-back-queue">Design Front Middle Back Queue</a></td><td><span class="diff medium">Medium</span></td><td class="num">5</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-queue-deque">Queue &amp; Deque</a>: <a href="/dsa/mono-deque-window-max/">Monotonic deque window max</a>, <a href="/dsa/queue-moving-stats/">Queue over a time window</a>.</p>
   </article>
 
@@ -428,7 +464,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

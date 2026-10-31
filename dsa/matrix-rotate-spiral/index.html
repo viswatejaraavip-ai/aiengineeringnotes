@@ -394,22 +394,55 @@
       <p>The bounds (top, bottom, left, right) always enclose the unvisited ring.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Read this 3 × 4 grid in a spiral, starting at the top-left and going clockwise:</p>
+<div class="table-wrap"><table>
+<tr><td>1</td><td>2</td><td>3</td><td>4</td></tr>
+<tr><td>5</td><td>6</td><td>7</td><td>8</td></tr>
+<tr><td>9</td><td>10</td><td>11</td><td>12</td></tr>
+</table></div>
+<p>With a finger you would trace the outer ring, 1 2 3 4 8 12 11 10 9 5, then the inner row, 6 7. Easy to do, surprisingly fiddly to program: the first attempt usually revisits a cell on the turn, or runs off the edge when the grid is a single row. The by-hand trick that does work is to think in rings: peel the outside ring, then the next ring, until nothing is left.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The structure is four numbers that describe the ring still to be visited: <code>top</code>, <code>bottom</code>, <code>left</code>, <code>right</code>, the row and column indices of its edges. At the start they are 0, 2, 0, 3, the whole grid. Each ring is walked in four straight runs, and after each run the matching edge moves inwards by one:</p>
+<ol>
+<li>Walk row <code>top</code> from <code>left</code> to <code>right</code>: 1 2 3 4. Then top becomes 1.</li>
+<li>Walk column <code>right</code> from <code>top</code> to <code>bottom</code>: 8 12. Then right becomes 2.</li>
+<li>If top ≤ bottom, walk row <code>bottom</code> from right to left: 11 10 9. Then bottom becomes 1.</li>
+<li>If left ≤ right, walk column <code>left</code> from bottom to top: 5. Then left becomes 1.</li>
+<li>Bounds are now top 1, bottom 1, left 1, right 2. Walk row 1 from 1 to 2: 6 7. Top becomes 2, which is past bottom, so stop.</li>
+</ol>
+<p>The two "if" checks in steps 3 and 4 are what prevent a double visit when the remaining ring is a single row or a single column.</p>
+<p>Rotating a square grid 90° clockwise is the cousin. Rather than moving each cell to a computed destination, do two simple passes: transpose (swap cell (<var>i</var>, <var>j</var>) with (<var>j</var>, <var>i</var>), which flips the grid over its main diagonal), then reverse every row. On a 2 × 2 grid [[1, 2], [3, 4]]: transpose gives [[1, 3], [2, 4]], reversing rows gives [[3, 1], [4, 2]], which is the grid turned clockwise.</p>
+
+<h3>Why it is correct</h3>
+<p>For the spiral, the invariant is that the four bounds enclose exactly the cells not yet visited, and every cell outside them has been output exactly once. Each run outputs the cells along one edge of that rectangle and then shrinks the matching bound, so the enclosed rectangle loses exactly the cells just output. The guards keep a degenerate rectangle (one row or one column left) from being walked twice in opposite directions. The loop ends when top passes bottom or left passes right, which means the rectangle is empty and every cell has been output.</p>
+<p>For rotation, write a cell's position as (row, column). Transposing sends (<var>i</var>, <var>j</var>) to (<var>j</var>, <var>i</var>); reversing a row of length <var>n</var> then sends it to (<var>j</var>, <var>n</var> − 1 − <var>i</var>). A clockwise quarter turn of an <var>n</var> × <var>n</var> grid sends (<var>i</var>, <var>j</var>) to exactly (<var>j</var>, <var>n</var> − 1 − <var>i</var>), so the two passes together are the rotation.</p>
+
+<h3>Why it is fast</h3>
+<p>Each cell is output once in the spiral, so the time is the number of cells, O(<var>m</var> · <var>n</var>), with four integers of extra memory. The rotation does one swap per cell above the diagonal and one swap per pair in each row, about <var>n</var><sup>2</sup> swaps in total, in place, with no second grid. The naive rotation that copies into a new grid also takes <var>n</var><sup>2</sup> steps but needs <var>n</var><sup>2</sup> extra memory, which is exactly the part interviewers ask you to avoid.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "spiral order", "rotate the image in place", "diagonal order", "set the whole row and column to zero", "transpose". Say: "I will keep four shrinking bounds and walk one ring at a time", or "rotation is a transpose followed by reversing each row, done in place".</p>
+<p>Spiral Matrix is the walk-through above; Spiral Matrix II fills the numbers 1 … <var>n</var><sup>2</sup> into the same walk. Rotate Image is the transpose-then-reverse pair. Set Matrix Zeroes uses the first row and first column of the grid itself as the markers of which rows and columns must be cleared, so it needs no extra memory beyond two flags.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Rotate = transpose then reverse rows; spiral = four shrinking bounds.</p>
     <p><strong>Reach for it when:</strong> Rotate image, spiral matrix I/II, diagonal traverse, set matrix zeroes.</p>
     <p><strong>Cost:</strong> O(mn) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Spiral Matrix on a 3×4 grid</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Keep four bounds; walk the <em>outer ring</em>, then shrink</li><li>Row 0 left→right, then top becomes 1</li><li>Column 3 top→bottom, then right becomes 2</li><li>Row 2 right→left, then bottom becomes 1</li><li>Column 0 bottom→top, then left becomes 1</li><li>Row 1 left→right, then top becomes 2</li><li>Bounds crossed: every cell visited <em>exactly once</em></li><li>Rotation is the cousin: transpose, then reverse each row</li><li><em>O(m·n)</em> time, output only</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>9 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/spiral-matrix">Spiral Matrix</a></td><td><span class="diff medium">Medium</span></td><td class="num">59</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/rotate-image">Rotate Image</a></td><td><span class="diff medium">Medium</span></td><td class="num">56</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/set-matrix-zeroes">Set Matrix Zeroes</a></td><td><span class="diff medium">Medium</span></td><td class="num">50</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/diagonal-traverse">Diagonal Traverse</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/transpose-matrix">Transpose Matrix</a></td><td><span class="diff easy">Easy</span></td><td class="num">29</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/flipping-an-image">Flipping an Image</a></td><td><span class="diff easy">Easy</span></td><td class="num">29</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/spiral-matrix-ii">Spiral Matrix II</a></td><td><span class="diff medium">Medium</span></td><td class="num">28</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/toeplitz-matrix">Toeplitz Matrix</a></td><td><span class="diff easy">Easy</span></td><td class="num">26</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/game-of-life">Game of Life</a></td><td><span class="diff medium">Medium</span></td><td class="num">23</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-matrix">Matrix</a>: <a href="/dsa/matrix-staircase-search/">Staircase search in a sorted matrix</a>.</p>
   </article>
 
@@ -428,7 +461,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

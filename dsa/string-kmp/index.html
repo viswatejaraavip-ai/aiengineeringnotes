@@ -394,22 +394,51 @@
       <p>lps[i] is the longest proper prefix of p[:i+1] that is also a suffix.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Find the pattern <code>aabaaab</code> inside the text <code>aabaaabaaac</code>. By hand you would line the pattern up at position 0, compare letter by letter, and if something fails, slide the pattern one step right and compare from the start again. Here the first alignment succeeds at once, but imagine the text is a long run of <code>a</code>s with a <code>b</code> at the end and the pattern is <code>aaab</code>. Every alignment matches three letters and fails on the fourth; you slide one step and re-read the same <code>a</code>s. For a text of <var>n</var> letters and a pattern of <var>m</var>, that is up to <var>n</var> × <var>m</var> comparisons: 10 million for a 10,000-letter text and a 1,000-letter pattern.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The waste comes from forgetting. When the pattern fails at letter <var>j</var>, you already know the text matched the first <var>j</var> letters of the pattern. The pattern can be slid so that one of its own prefixes lines up with the end of that matched stretch, and the pattern alone tells you how far: nothing about the text is needed.</p>
+<p>So build a table from the pattern alone, called <strong>lps</strong> (longest proper prefix that is also a suffix). <code>lps[i]</code> is the length of the longest prefix of <code>p[0..i]</code> that also ends at <code>i</code>, not counting the whole piece.</p>
+<div class="table-wrap"><table>
+<tr><th><var>i</var></th><th>prefix of pattern</th><th>longest border</th><th>lps</th></tr>
+<tr><td>0</td><td><code>a</code></td><td>none</td><td>0</td></tr>
+<tr><td>1</td><td><code>aa</code></td><td><code>a</code></td><td>1</td></tr>
+<tr><td>2</td><td><code>aab</code></td><td>none</td><td>0</td></tr>
+<tr><td>3</td><td><code>aaba</code></td><td><code>a</code></td><td>1</td></tr>
+<tr><td>4</td><td><code>aabaa</code></td><td><code>aa</code></td><td>2</td></tr>
+<tr><td>5</td><td><code>aabaaa</code></td><td><code>aa</code></td><td>2</td></tr>
+<tr><td>6</td><td><code>aabaaab</code></td><td><code>aab</code></td><td>3</td></tr>
+</table></div>
+<p>Now scan the text with two pointers, <var>i</var> in the text and <var>j</var> in the pattern. On a match, advance both. On a mismatch with <var>j</var> &gt; 0, do not move <var>i</var>; set <var>j</var> = <code>lps[j−1]</code> and compare again. With <var>j</var> = 0, advance <var>i</var>. In the example all seven letters match, so the pattern is found at 0; set <var>j</var> = <code>lps[6]</code> = 3 and keep going. The text's next letters <code>a a a</code> match <code>p[3..5]</code>, then <code>c</code> fails against <code>p[6]</code>: slide <var>j</var> to <code>lps[5]</code> = 2, fail again, <var>j</var> = <code>lps[1]</code> = 1, fail, <var>j</var> = <code>lps[0]</code> = 0, fail with nothing left, so advance <var>i</var>. The text pointer never moved backwards.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: at every moment, <code>p[0..j−1]</code> equals the last <var>j</var> letters of the text read so far. After a mismatch, any alignment that could still succeed must have some prefix of the pattern matching a suffix of those <var>j</var> letters, and the longest such prefix is exactly <code>lps[j−1]</code> letters long, by the table's definition. Choosing the longest keeps every shorter possibility available for later slides, so no alignment is skipped. Since the matched letters are known to be equal to the pattern's own prefix, the slide can be computed from the pattern alone, which is why the table never looks at the text.</p>
+<p class="formula">lps[<var>i</var>] = max { <var>k</var> &lt; <var>i</var>+1 : <code>p[0..k−1]</code> = <code>p[i−k+1..i]</code> }</p>
+
+<h3>Why it is fast</h3>
+<p>During the scan, <var>i</var> only moves forward, so at most <var>n</var> advances. Each mismatch lowers <var>j</var>, and <var>j</var> can only have been raised by a match, one per advance of <var>i</var>, so there are at most <var>n</var> mismatches too. The scan is O(<var>n</var>). Building the table is the same argument on the pattern against itself: O(<var>m</var>). Total O(<var>n</var> + <var>m</var>), about 11,000 steps for the 10,000 and 1,000 case, against 10 million.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: find a pattern in a text, "does the string repeat", "shortest string to prepend to make a palindrome", borders of a string. Say: I will precompute the failure table of the pattern so that the text pointer never backs up. <em>Find the Index of the First Occurrence in a String</em> is the search itself. <em>Repeated Substring Pattern</em> is a one-liner on the table: the string repeats if <var>n</var> − <code>lps[n−1]</code> divides <var>n</var>. <em>Shortest Palindrome</em> builds the table of <code>s + # + reverse(s)</code> to find the longest palindromic prefix.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>The prefix table lets a mismatch jump without re-scanning the text.</p>
     <p><strong>Reach for it when:</strong> Find first occurrence, shortest palindrome, repeated substring pattern.</p>
     <p><strong>Cost:</strong> O(n + m) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>KMP: &#x27;aabaaab&#x27; in &#x27;aabaaabaaac&#x27;</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>First a table on the <em>pattern alone</em>: how far can a mismatch fall back?</li><li>lps[0..2]: &#x27;a&#x27; → 0, &#x27;aa&#x27; → 1 (prefix a = suffix a), &#x27;aab&#x27; → 0</li><li>&#x27;aaba&#x27; → 1, &#x27;aabaa&#x27; → 2, &#x27;aabaaa&#x27; → 2, &#x27;aabaaab&#x27; → 3 (&#x27;aab&#x27;)</li><li>Characters match: move <em>both</em> pointers forward</li><li>All 7 match: pattern found at <em>0</em>; fall back to j = lps[6] = 3</li><li>&#x27;a&#x27; = p[3]: match, j = 4</li><li>&#x27;a&#x27; = p[4]: match, j = 5</li><li>&#x27;a&#x27; = p[5]: match, j = 6</li><li>&#x27;c&#x27; ≠ p[6]: <em>slide</em> j = lps[5] = 2, i stays</li><li>&#x27;c&#x27; ≠ p[2]: <em>slide</em> j = lps[1] = 1, i stays</li><li>&#x27;c&#x27; ≠ p[1]: <em>slide</em> j = lps[0] = 0, i stays</li><li>&#x27;c&#x27; ≠ p[0] with nothing to fall back on: advance i</li><li>Text pointer never moves backwards: match at <em>0</em>, scan done</li><li>Table O(m), scan O(n): <em>O(n + m)</em> instead of O(n·m)</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>6 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/find-the-index-of-the-first-occurrence-in-a-string">Find the Index of the First Occurrence in a String</a></td><td><span class="diff easy">Easy</span></td><td class="num">56</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/rotate-string">Rotate String</a></td><td><span class="diff easy">Easy</span></td><td class="num">40</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/shortest-palindrome">Shortest Palindrome</a></td><td><span class="diff hard">Hard</span></td><td class="num">36</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/repeated-substring-pattern">Repeated Substring Pattern</a></td><td><span class="diff easy">Easy</span></td><td class="num">34</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/repeated-string-match">Repeated String Match</a></td><td><span class="diff medium">Medium</span></td><td class="num">30</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/longest-happy-prefix">Longest Happy Prefix</a></td><td><span class="diff hard">Hard</span></td><td class="num">21</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-string-algorithms">String Algorithms</a>: <a href="/dsa/string-rolling-hash/">Rolling hash (Rabin–Karp)</a>, <a href="/dsa/string-build-reverse/">Reverse-and-build string transforms</a>, <a href="/dsa/string-parse-state/">Parse with a state machine</a>, <a href="/dsa/string-two-string-alternate/">Merge / compare two strings in lockstep</a>, <a href="/dsa/string-matching-automaton/">Multi-pattern scan with a set of lengths</a>.</p>
   </article>
 
@@ -428,7 +457,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

@@ -394,22 +394,48 @@
       <p>dp[i][j] is the best for the subarray i..j treated alone.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>You have balloons in a row, <code>[3, 1, 5, 8]</code>. Bursting a balloon earns you the product of it and its two current neighbours, and the row closes up afterwards. Outside the row imagine invisible balloons worth 1 on each side. Which order earns the most coins?</p>
+<p>By hand you would try orders. Burst 1 first: 3 × 1 × 5 = 15, leaving <code>[3, 5, 8]</code>. Then 5: 3 × 5 × 8 = 120, leaving <code>[3, 8]</code>. Then 3: 1 × 3 × 8 = 24, then 8: 1 × 8 × 1 = 8. Total 167. Is that the best? There are 4 × 3 × 2 × 1 = 24 orders for four balloons; for 12 balloons there are 479 million. Trying orders is hopeless, and the obvious shortcut fails: after bursting the first balloon, its neighbours become adjacent, so the two halves of the row are no longer separate problems.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The trick is to think about the <strong>last</strong> balloon burst instead of the first. Add the invisible 1s so the row is <code>[1, 3, 1, 5, 8, 1]</code> with indices 0 to 5. Consider an open interval (<var>i</var>, <var>j</var>): the balloons strictly between positions <var>i</var> and <var>j</var>, where the balloons at <var>i</var> and <var>j</var> are still standing. If balloon <var>k</var> is the last one burst inside that interval, then at that moment its neighbours are exactly <var>i</var> and <var>j</var>, so it earns <code>v[i]</code> × <code>v[k]</code> × <code>v[j]</code>. Everything left of <var>k</var> was burst while <var>i</var> and <var>k</var> stood, everything right of <var>k</var> while <var>k</var> and <var>j</var> stood. The two sides never touch, so they are independent smaller problems.</p>
+<p>So the structure is a table <var>dp</var>[<var>i</var>][<var>j</var>] = most coins from bursting everything strictly between <var>i</var> and <var>j</var>. Fill it by the width of the interval, narrow first.</p>
+<ol>
+<li>Width 2, nothing inside: <var>dp</var>[<var>i</var>][<var>i</var>+1] = 0 for every <var>i</var>.</li>
+<li>Width 3, one balloon inside: <var>dp</var>[0][2] = 1 × 3 × 1 = 3, <var>dp</var>[1][3] = 3 × 1 × 5 = 15, <var>dp</var>[2][4] = 1 × 5 × 8 = 40, <var>dp</var>[3][5] = 5 × 8 × 1 = 40.</li>
+<li>Width 4, two balloons inside, two choices of last: <var>dp</var>[1][4] = max(last is 1: 3 × 1 × 8 + 0 + 40 = 64, last is 5: 3 × 5 × 8 + 15 + 0 = 135) = 135.</li>
+<li>Width 6, the whole row: last is 8 gives 1 × 8 × 1 + <var>dp</var>[0][4] + 0 = 8 + 159 = 167; the other choices score less. Answer 167.</li>
+</ol>
+<p>Each cell only needs cells of smaller width, which are already final because of the fill order.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant is that <var>dp</var>[<var>i</var>][<var>j</var>] is the true optimum for the balloons strictly inside (<var>i</var>, <var>j</var>) with <var>i</var> and <var>j</var> standing. Every order of bursting the inside has some last balloon <var>k</var>, so the optimum equals the best over <var>k</var> of: coins for <var>k</var> last, plus the best for the left part, plus the best for the right part. The left and right parts are smaller intervals with their own boundaries standing, so by the invariant their table cells are their true optima. Taking the maximum over all <var>k</var> therefore gives the true optimum for (<var>i</var>, <var>j</var>).</p>
+<p class="formula"><var>dp</var>[<var>i</var>][<var>j</var>] = max over <var>i</var> &lt; <var>k</var> &lt; <var>j</var> of ( <code>v[i]</code>·<code>v[k]</code>·<code>v[j]</code> + <var>dp</var>[<var>i</var>][<var>k</var>] + <var>dp</var>[<var>k</var>][<var>j</var>] )</p>
+
+<h3>Why it is fast</h3>
+<p>With <var>n</var> balloons plus two borders there are about <var>n</var><sup>2</sup>/2 intervals, and each interval tries at most <var>n</var> choices of <var>k</var>. That is O(<var>n</var><sup>3</sup>) multiplications and additions: for 12 balloons roughly 1,000 steps instead of 479 million orders, and for 300 balloons about 27 million steps, still instant. Memory is the <var>n</var> × <var>n</var> table.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: items in a row, an operation that removes or merges neighbours, and a cost that depends on what is adjacent at that moment. The greedy and left-to-right ideas fail because removing one item changes its neighbours. Say: I will define the answer for every interval and decide which element is handled last, so the two sides become independent. <em>Burst Balloons</em> is the textbook case. <em>Minimum Cost to Merge Stones</em> and <em>Strange Printer</em> use the same interval table with a different combine rule, and <em>Predict the Winner</em> fills intervals from the ends inward.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Choose the last element burst/removed in [i, j]; the sides become independent.</p>
     <p><strong>Reach for it when:</strong> Burst balloons, minimum cost to merge stones, strange printer, remove boxes, matrix chain.</p>
     <p><strong>Cost:</strong> O(n³) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Burst Balloons on [3,1,5,8]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Pick the balloon burst <em>last</em> in (i, j): its neighbours are then i and j, so the two sides are independent</li><li>dp[0][2] = <em>3</em>: burst 3 last, 1·3·1 + dp[0][1] + dp[1][2]</li><li>dp[1][3] = <em>15</em>: burst 1 last, 3·1·5 + dp[1][2] + dp[2][3]</li><li>dp[2][4] = <em>40</em>: burst 5 last, 1·5·8 + dp[2][3] + dp[3][4]</li><li>dp[3][5] = <em>40</em>: burst 8 last, 5·8·1 + dp[3][4] + dp[4][5]</li><li>dp[0][3] = <em>30</em>: burst 3 last, 1·3·5 + dp[0][1] + dp[1][3]</li><li>dp[1][4] = <em>135</em>: burst 5 last, 3·5·8 + dp[1][3] + dp[3][4]</li><li>dp[2][5] = <em>48</em>: burst 8 last, 1·8·1 + dp[2][4] + dp[4][5]</li><li>dp[0][4] = <em>159</em>: burst 3 last, 1·3·8 + dp[0][1] + dp[1][4]</li><li>dp[1][5] = <em>159</em>: burst 8 last, 3·8·1 + dp[1][4] + dp[4][5]</li><li>dp[0][5] = <em>167</em>: burst 8 last, 1·8·1 + dp[0][4] + dp[4][5]</li><li>dp[0][5] = <em>167</em>: the whole array, every length filled from short to long</li><li>n² intervals × n split points: <em>O(n³)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>9 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/burst-balloons">Burst Balloons</a></td><td><span class="diff hard">Hard</span></td><td class="num">42</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/predict-the-winner">Predict the Winner</a></td><td><span class="diff medium">Medium</span></td><td class="num">37</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/stone-game">Stone Game</a></td><td><span class="diff medium">Medium</span></td><td class="num">31</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/minimum-cost-to-merge-stones">Minimum Cost to Merge Stones</a></td><td><span class="diff hard">Hard</span></td><td class="num">23</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/guess-number-higher-or-lower-ii">Guess Number Higher or Lower II</a></td><td><span class="diff medium">Medium</span></td><td class="num">21</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/remove-boxes">Remove Boxes</a></td><td><span class="diff hard">Hard</span></td><td class="num">13</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/minimum-score-triangulation-of-polygon">Minimum Score Triangulation of Polygon</a></td><td><span class="diff medium">Medium</span></td><td class="num">8</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/minimum-cost-tree-from-leaf-values">Minimum Cost Tree From Leaf Values</a></td><td><span class="diff medium">Medium</span></td><td class="num">8</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/strange-printer">Strange Printer</a></td><td><span class="diff hard">Hard</span></td><td class="num">6</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-dynamic-programming">Dynamic Programming</a>: <a href="/dsa/dp-1d-linear/">1-D linear DP</a>, <a href="/dsa/dp-kadane/">Kadane (best ending here)</a>, <a href="/dsa/dp-lis/">Longest increasing subsequence</a>, <a href="/dsa/dp-grid-paths/">Grid path DP</a>, <a href="/dsa/dp-knapsack-01/">0/1 knapsack (subset sum)</a>, <a href="/dsa/dp-unbounded-coin/">Unbounded knapsack (coin change)</a>, <a href="/dsa/dp-lcs-edit/">Two-sequence DP (LCS / edit distance)</a>, <a href="/dsa/dp-pattern-matching/">Wildcard / regex matching DP</a>, <a href="/dsa/dp-palindrome-expand/">Palindromes: expand or table</a>, <a href="/dsa/dp-word-break/">Prefix segmentation DP</a>, <a href="/dsa/dp-state-machine-stock/">State-machine DP (stocks)</a>, <a href="/dsa/dp-bitmask/">Bitmask DP over subsets</a>, <a href="/dsa/dp-memo-dfs/">Memoised DFS (top-down)</a>, <a href="/dsa/dp-digit/">Digit DP</a>, <a href="/dsa/dp-game-minimax/">Game DP (minimax on a range)</a>, <a href="/dsa/dp-count-ways-mod/">Counting ways with modulo</a>, <a href="/dsa/dp-longest-string-chain/">DP over sorted keys (chains)</a>.</p>
   </article>
 
@@ -428,7 +454,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

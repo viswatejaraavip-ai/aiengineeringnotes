@@ -394,22 +394,56 @@
       <p>The stored intervals are disjoint and sorted at all times.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>A room-booking desk tracks which stretches of the day are taken. Someone books 10 to 20. Later the 14 to 16 part is cancelled. A caller asks whether 13 to 15 is fully booked: no, because 14 to 15 is free. Then 16 to 18 is booked again, and someone asks whether 16 to 19 is fully booked: yes.</p>
+<p>By hand you might keep a mark for every minute of the day. That is fine for a day, and hopeless when times run to a billion. Keeping an unsorted pile of booked stretches is compact but every question has to read the whole pile, and overlapping stretches pile up until nobody can tell what is really booked.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: represent a stretch as a half-open range [<var>a</var>, <var>b</var>), meaning <var>a</var> is included and <var>b</var> is not. This makes two ranges that touch, [10, 14) and [14, 16), cover exactly [10, 16) with no gap and no double count.</p>
+<p>Piece two: keep the ranges in a list sorted by start, and never let two of them overlap or touch. The list after each operation:</p>
+<div class="table-wrap"><table>
+<tr><th>operation</th><th>stored ranges</th></tr>
+<tr><td>add [10, 20)</td><td>[10, 20)</td></tr>
+<tr><td>remove [14, 16)</td><td>[10, 14), [16, 20)</td></tr>
+<tr><td>query [13, 15)</td><td>false, the range starting at or before 13 ends at 14 &lt; 15</td></tr>
+<tr><td>add [16, 18)</td><td>[10, 14), [16, 20), it was already inside</td></tr>
+<tr><td>query [16, 19)</td><td>true, [16, 20) contains it</td></tr>
+</table></div>
+<p>Piece three: the three operations as edits to that list.</p>
+<ul>
+<li>add [<var>a</var>, <var>b</var>): find every stored range that overlaps or touches [<var>a</var>, <var>b</var>). Replace all of them, together with the new one, by a single range from the smallest start to the largest end.</li>
+<li>remove [<var>a</var>, <var>b</var>): find every stored range that overlaps it. Delete them, and put back the pieces that stick out: a left piece [start, <var>a</var>) if start &lt; <var>a</var>, and a right piece [<var>b</var>, end) if end &gt; <var>b</var>.</li>
+<li>query [<var>a</var>, <var>b</var>): find the stored range with the largest start that is at most <var>a</var>. The answer is true exactly when it exists and its end is at least <var>b</var>.</li>
+</ul>
+<p>"Find" is a binary search on the sorted starts. In a language with an ordered map or a sorted-list container the find, insert and delete are all built in.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant is that the stored ranges are sorted, disjoint and non-touching, and their union is exactly the set of booked points. Add merges every range that could overlap or touch the new one into a single range, so the union grows by exactly the new range and no two stored ranges overlap afterwards. Remove cuts exactly the removed points out of each affected range, keeping the leftover pieces, so the union shrinks by exactly the removed range. For query, because the stored ranges are disjoint, a point belongs to at most one of them; the range with the largest start at most <var>a</var> is the only one that can contain <var>a</var>, and because ranges do not touch, [<var>a</var>, <var>b</var>) is fully covered only if that single range reaches <var>b</var>.</p>
+
+<h3>Why it is fast</h3>
+<p>A query is one binary search, O(log <var>n</var>) for <var>n</var> stored ranges. Add and remove binary search for the first affected range and then handle each affected range once; a range that is merged or deleted disappears, so over the whole life of the structure each range is created once and removed at most once. Averaged over all operations, add and remove cost O(log <var>n</var>) each. The minute-by-minute marks cost time and memory proportional to the size of the timeline, not the number of bookings.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "add a range", "remove a range", "is this interval fully covered", "book a time without double booking", "how many overlapping bookings". Say: "I will keep disjoint sorted intervals, merge on add, split on remove, and binary search on query".</p>
+<p>Range Module is the structure above exactly. My Calendar I is the add operation with a check: before inserting, find the neighbours and refuse if either overlaps. Exam Room is the mirror image, storing the occupied seats in sorted order and binary searching for the largest gap between neighbours.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Keep disjoint sorted intervals; add merges neighbours, remove splits them.</p>
     <p><strong>Reach for it when:</strong> Range module, my calendar I/II/III, data stream disjoint intervals, exam room.</p>
     <p><strong>Cost:</strong> O(log n) per op.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Range Module add [10,20), remove [14,16), query [13,15)</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Keep a <em>sorted list of disjoint</em> half-open ranges</li><li>add [10,20): nothing overlaps, insert it</li><li>remove [14,16): find ranges overlapping it</li><li>Cut: keep the left piece [10,14) and the right piece <em>[16,20)</em></li><li>query [13,15): find the range starting at or before 13</li><li>[10,14) ends at 14 &lt; 15: <em>not fully covered</em> → false</li><li>add [16,18): it overlaps [16,20)</li><li>Merge overlapping neighbours into one range: still [16,20)</li><li>query [16,19): inside [16,20) → <em>true</em></li><li>Binary search for the neighbours: <em>O(log n)</em> per op</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>7 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/range-module">Range Module</a></td><td><span class="diff hard">Hard</span></td><td class="num">40</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/my-calendar-i">My Calendar I</a></td><td><span class="diff medium">Medium</span></td><td class="num">27</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/my-calendar-ii">My Calendar II</a></td><td><span class="diff medium">Medium</span></td><td class="num">24</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/exam-room">Exam Room</a></td><td><span class="diff medium">Medium</span></td><td class="num">21</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/my-calendar-iii">My Calendar III</a></td><td><span class="diff hard">Hard</span></td><td class="num">20</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/data-stream-as-disjoint-intervals">Data Stream as Disjoint Intervals</a></td><td><span class="diff hard">Hard</span></td><td class="num">8</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/count-integers-in-intervals">Count Integers in Intervals</a></td><td><span class="diff hard">Hard</span></td><td class="num">6</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-design">Design</a>: <a href="/dsa/lru-cache/">Hash map + doubly linked list (LRU)</a>, <a href="/dsa/design-hashmap-with-list/">Hash map + array for O(1) random</a>, <a href="/dsa/design-time-versioned/">Time-versioned map</a>, <a href="/dsa/design-iterator/">Lazy iterators</a>, <a href="/dsa/reservoir-stream-design/">Streaming data structures</a>.</p>
   </article>
 
@@ -428,7 +462,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

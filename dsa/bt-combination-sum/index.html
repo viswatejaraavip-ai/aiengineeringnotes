@@ -394,22 +394,39 @@
       <p>Choices are non-decreasing in index, so no duplicates appear.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Coins of value 2, 3, 6 and 7, as many of each as you like. Which multisets of coins add up to 7? By hand: 2+2+3 and 7. Easy for a target of 7. Now imagine listing all ways to make 30 with those coins. You would soon write 2+2+3+... and later 3+2+2+..., the same bag of coins in a different order, and have to cross one out. Avoiding those duplicates by checking every new answer against the old ones is slow and error prone.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: sort the coins: [2, 3, 6, 7]. Piece two: a <strong>path</strong>, the coins chosen so far, as a stack. Piece three: <strong>remaining</strong>, the target minus the path's sum.</p>
+<p>Piece four, the rule that kills duplicates: a <strong>start</strong> index. When you are choosing the next coin, you may choose only coins at position start or later. If you chose the coin at position <var>p</var>, the next choice starts at <var>p</var> again, not <var>p</var> + 1, because reuse is allowed, but never earlier. That forces every path to be written in non-decreasing order, so 2+2+3 can appear but 3+2+2 cannot.</p>
+<p>Piece five: pruning. Because the coins are sorted, once a coin is bigger than remaining, every later coin is too, so stop the loop.</p>
+<div class="table-wrap"><table><tr><th>path</th><th>remaining</th><th>start</th><th>what happens</th></tr><tr><td>[]</td><td>7</td><td>0</td><td>take 2</td></tr><tr><td>[2]</td><td>5</td><td>0</td><td>take 2</td></tr><tr><td>[2, 2]</td><td>3</td><td>0</td><td>take 2</td></tr><tr><td>[2, 2, 2]</td><td>1</td><td>0</td><td>2 &gt; 1: prune, pop</td></tr><tr><td>[2, 2]</td><td>3</td><td>1</td><td>take 3, remaining 0: record 2+2+3</td></tr><tr><td>[2, 2]</td><td>3</td><td>2</td><td>6 &gt; 3: prune, pop</td></tr><tr><td>[2]</td><td>5</td><td>1</td><td>take 3 → remaining 2, nothing fits from start 1; 6 &gt; 5: prune</td></tr><tr><td>[]</td><td>7</td><td>3</td><td>eventually take 7, remaining 0: record 7</td></tr></table></div>
+<h3>Why it is correct</h3>
+<p>The invariant: the path is always sorted, because each new coin comes from the current start or later and start never moves backwards. Every multiset of coins has exactly one sorted spelling, so each answer is recorded exactly once. Nothing is lost: any valid multiset, written in sorted order, is one of the paths the loop builds, since at each step its next coin is at or after the position of the previous one. Pruning is safe because remaining only shrinks along a path, so a coin too big now is too big for every deeper step too.</p>
+<h3>Why it is fast</h3>
+<p>Without the start index, a combination of <var>k</var> coins would be generated up to <var>k</var> factorial times (every ordering of its coins). With it, each of the <var>C</var> combinations is built once, costing about its length to copy:</p>
+<p class="formula">work ≈ <var>k</var> · <var>C</var> plus the dead branches that pruning cuts short</p>
+<p>The dead branches are bounded by the number of sorted prefixes whose sum stays under the target, which for small targets is tiny.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "all combinations that sum to", "choose <var>k</var> of <var>n</var>", "may reuse" or "each once", "no duplicate combinations". The first thing to say: "backtrack with a start index so every combination is built in sorted order once." Combination Sum is the example above with reuse, so the recursive start is <var>p</var>. Combination Sum II forbids reuse and has duplicate coins: recurse with <var>p</var> + 1 and, within a level, skip a coin equal to the previous coin. Combinations is the same loop with the sum replaced by a count of <var>k</var> picks.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Only choose from index start onward so each combination is made once.</p>
     <p><strong>Reach for it when:</strong> Combination sum I/II/III, combinations, palindrome partitioning.</p>
     <p><strong>Cost:</strong> O(k · C) time for C combinations.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Combination Sum [2,3,6,7] target 7</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Reuse allowed, but only choose from <em>start</em> onward so each set is made once</li><li>Take 2 (start = 0): remaining 7 − 2 = <em>5</em></li><li>Take 2 (start = 0): remaining 5 − 2 = <em>3</em></li><li>Take 2 (start = 0): remaining 3 − 2 = <em>1</em></li><li>2 &gt; remaining 1: candidates are sorted, <em>prune</em> the rest</li><li>Take 3 (start = 1): remaining 3 − 3 = <em>0</em></li><li>remaining = 0: <em>2+2+3</em> is a valid combination</li><li>6 &gt; remaining 3: candidates are sorted, <em>prune</em> the rest</li><li>Take 3 (start = 1): remaining 5 − 3 = <em>2</em></li><li>3 &gt; remaining 2: candidates are sorted, <em>prune</em> the rest</li><li>6 &gt; remaining 5: candidates are sorted, <em>prune</em> the rest</li><li>Take 3 (start = 1): remaining 7 − 3 = <em>4</em></li><li>Take 3 (start = 1): remaining 4 − 3 = <em>1</em></li><li>3 &gt; remaining 1: candidates are sorted, <em>prune</em> the rest</li><li>6 &gt; remaining 4: candidates are sorted, <em>prune</em> the rest</li><li>Take 6 (start = 2): remaining 7 − 6 = <em>1</em></li><li>6 &gt; remaining 1: candidates are sorted, <em>prune</em> the rest</li><li>Take 7 (start = 3): remaining 7 − 7 = <em>0</em></li><li>remaining = 0: <em>7</em> is a valid combination</li><li>Found <em>2+2+3</em> and <em>7</em>; 3+2+2 never appears because start only moves forward</li><li>Branching bounded by target / smallest candidate: exponential, but pruned</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>6 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/combination-sum">Combination Sum</a></td><td><span class="diff medium">Medium</span></td><td class="num">47</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/palindrome-partitioning">Palindrome Partitioning</a></td><td><span class="diff medium">Medium</span></td><td class="num">46</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/combination-sum-ii">Combination Sum II</a></td><td><span class="diff medium">Medium</span></td><td class="num">34</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/combinations">Combinations</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/partition-to-k-equal-sum-subsets">Partition to K Equal Sum Subsets</a></td><td><span class="diff medium">Medium</span></td><td class="num">20</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/combination-sum-iii">Combination Sum III</a></td><td><span class="diff medium">Medium</span></td><td class="num">18</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-backtracking">Backtracking</a>: <a href="/dsa/bt-subsets/">Subsets (include / exclude)</a>, <a href="/dsa/bt-permutations/">Permutations with a used set</a>, <a href="/dsa/bt-grid-word-search/">Grid DFS with undo</a>, <a href="/dsa/bt-constraint-prune/">Constraint placement with pruning</a>, <a href="/dsa/bt-generate-parentheses/">Generate valid sequences</a>.</p>
   </article>
 
@@ -428,7 +445,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

@@ -394,22 +394,45 @@
       <p>The global best is updated with left + right + node, but only one side is returned upward.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Take the tree with 1 at the top, 2 and 3 below it, and 4 and 5 below 2. The diameter is the longest path between any two nodes, counted in edges. By eye you can find it: 4 up to 2, up to 1, down to 3, which is 3 edges. By hand you would try every pair of nodes and count the edges between them. With 5 nodes that is 10 pairs. With <var>n</var> nodes it is about <var>n</var><sup>2</sup>/2 pairs, and each count can take up to <var>n</var> steps: for 10,000 nodes that is roughly 500 billion steps. We need something that does not look at pairs at all.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The tree is the only structure: a root, and every node with up to two children. The trick is to notice where the longest path "bends". Any path goes up for a while and then down. Its highest node is the bend. So the longest path is the longest left-going branch plus the longest right-going branch at some bend node. If we can compute, for each node, the length of the longest branch hanging below it, we can try every node as the bend.</p>
+<p>Piece one: ask each node for its longest downward branch, in edges. A leaf has none: 0. A node with children returns 1 + the larger child branch. This is the post-order fold from recursive DFS.</p>
+<p>Piece two: at every node, while we have both children's branch lengths in hand, also compute "left branch + right branch", the longest path that bends here. Keep the biggest of these in one shared variable, the running best.</p>
+<p>Piece three, the subtle one: the node returns only one branch upward, the longer one, because a path that continues up to the parent can use only one side of this node. The bent path is recorded in the best variable and is never returned.</p>
+<div class="table-wrap"><table><tr><th>Node</th><th>Left branch</th><th>Right branch</th><th>Bend here</th><th>Returns up</th><th>Best so far</th></tr><tr><td>4</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr><tr><td>5</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr><tr><td>2</td><td>0</td><td>0</td><td>0 + 0 + 2 = 2</td><td>1</td><td>2</td></tr><tr><td>3</td><td>0</td><td>0</td><td>0</td><td>0</td><td>2</td></tr><tr><td>1</td><td>1</td><td>0</td><td>1 + 0 + 2 = 3</td><td>2 (unused)</td><td>3</td></tr></table></div>
+<p>"Bend here" is the two branch lengths plus the two edges that connect the node to its children (when a child exists). The diameter is 3.</p>
+
+<h3>Why it is correct</h3>
+<p>Every path in a tree has exactly one highest node, so every path is counted as a "bend here" at that node. At that node the longest possible bent path uses the longest branch on each side, which is exactly what the children returned. So the maximum over all nodes of the bend value is the maximum over all paths.</p>
+<p class="formula">best = max over <var>v</var> of ( branch(left(<var>v</var>)) + branch(right(<var>v</var>)) + edges to them )</p>
+<p>Returning only the longer branch is also right: a path that goes through <var>v</var> and continues to <var>v</var>'s parent enters <var>v</var> from above, so it can descend into only one of <var>v</var>'s children. For maximum path sum with values that can be negative, the same shape works with one change: a branch that sums to less than 0 is replaced by 0, because it is better to not take it.</p>
+
+<h3>Why it is fast</h3>
+<p>Each node is visited once, does two additions and two comparisons, and returns one number. Total work: O(<var>n</var>). Compare with roughly <var>n</var><sup>2</sup> pairs by hand. The only extra memory is the recursion stack, O(<var>h</var>) where <var>h</var> is the height.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Listen for "longest path", "path that need not pass through the root", or "best sum of a path between any two nodes". Say: "A path has a highest node. I will compute the best single branch below each node, and at each node combine the two branches into a candidate answer, returning only one branch upward." Diameter of Binary Tree is the pure form. Binary Tree Maximum Path Sum adds the rule that a negative branch counts as 0. Longest Univalue Path keeps a branch only if the child's value equals the node's.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Each node returns its best single-branch; the answer considers both branches joined at the node.</p>
     <p><strong>Reach for it when:</strong> Diameter, maximum path sum, longest univalue path.</p>
     <p><strong>Cost:</strong> O(n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Diameter of [1,2,3,4,5]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Each node returns its <em>best single branch</em>; the answer joins two branches at a node</li><li>Recurse to the leaves first: 4 and 5 have no children</li><li>Leaf 4 returns branch <em>0</em>; leaf 5 returns <em>0</em></li><li>Node 2: left 0, right 0 → path through it = 0 + 0 + 2 edges = <em>2</em></li><li>Node 2 returns 1 + max(0, 0) = <em>1</em> upward</li><li>Leaf 3 returns <em>0</em></li><li>Root: left 1 + right 0 + 2 edges = <em>3</em> &gt; 2, new best</li><li>Root returns 1 + max(1, 0) = 2 (unused); the <em>diameter is 3</em></li><li>One post-order pass: <em>O(n)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>4 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/binary-tree-maximum-path-sum">Binary Tree Maximum Path Sum</a></td><td><span class="diff hard">Hard</span></td><td class="num">47</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/diameter-of-binary-tree">Diameter of Binary Tree</a></td><td><span class="diff easy">Easy</span></td><td class="num">44</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/longest-univalue-path">Longest Univalue Path</a></td><td><span class="diff medium">Medium</span></td><td class="num">17</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/binary-tree-longest-consecutive-sequence-ii">Binary Tree Longest Consecutive Sequence II</a></td><td><span class="diff medium">Medium</span></td><td class="num">17</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-trees">Trees</a>: <a href="/dsa/tree-dfs-recursive/">Recursive DFS (post-order fold)</a>, <a href="/dsa/tree-bfs-levels/">Level-order BFS</a>, <a href="/dsa/tree-root-to-leaf/">Root-to-leaf path carry</a>, <a href="/dsa/tree-lca/">Lowest common ancestor</a>, <a href="/dsa/tree-build-from-traversals/">Build from traversals</a>, <a href="/dsa/tree-iterative-inorder/">Iterative traversal with a stack</a>, <a href="/dsa/tree-vertical-coords/">Column / coordinate traversal</a>, <a href="/dsa/tree-rerooting/">Rerooting DP (sum over all roots)</a>, <a href="/dsa/tree-delete-forest/">Post-order deletion / pruning</a>, <a href="/dsa/tree-distance-k/">Tree as a graph (parent pointers)</a>, <a href="/dsa/tree-dp-choose-skip/">Tree DP: take or skip this node</a>, <a href="/dsa/bfs-tree-serialization/">Serialize / deserialize by BFS</a>.</p>
   </article>
 
@@ -428,7 +451,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

@@ -394,22 +394,52 @@
       <p>If total ≥ 0, the last restart index is a valid start.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Five petrol stations sit on a circular road. At station <var>i</var> you get <code>gas[i]</code> litres, and driving to the next station burns <code>cost[i]</code> litres. With gas <code>[1, 2, 3, 4, 5]</code> and cost <code>[3, 4, 5, 1, 2]</code>, from which station can you start with an empty tank and drive the whole loop?</p>
+<p>By hand you would try each start. Start at 0: get 1, need 3, stranded. Start at 1: get 2, need 4, stranded. Start at 3: get 4, pay 1, tank 3; get 5, pay 2, tank 6; get 1, pay 3, tank 4; get 2, pay 4, tank 2; get 3, pay 5, tank 0. Made it. For <var>n</var> stations that is <var>n</var> starts times up to <var>n</var> stops each: O(<var>n</var><sup>2</sup>), about 10 billion steps for 100,000 stations.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Think of each station as a single number, its gain: <code>gas[i] − cost[i]</code>. Here the gains are <code>[−2, −2, −2, 3, 3]</code>. Driving from a start is just adding gains in order, and you are stranded the first time the running sum goes below zero. Two counters do all the work:</p>
+<ul>
+<li><strong>total</strong>: the sum of all gains, never reset.</li>
+<li><strong>tank</strong>: the running sum since the current candidate start; when it goes negative, reset it to 0 and move the candidate start to the next station.</li>
+</ul>
+<ol>
+<li><var>i</var> = 0: tank = −2. Negative. Start cannot be 0; candidate = 1, tank = 0.</li>
+<li><var>i</var> = 1: tank = −2. Negative. Candidate = 2, tank = 0.</li>
+<li><var>i</var> = 2: tank = −2. Negative. Candidate = 3, tank = 0.</li>
+<li><var>i</var> = 3: tank = 3.</li>
+<li><var>i</var> = 4: tank = 6.</li>
+</ol>
+<p>total = −2 − 2 − 2 + 3 + 3 = 0, which is not negative, so a full loop is possible, and the answer is the last candidate, station 3. One pass, no restarts of the drive itself.</p>
+
+<h3>Why it is correct</h3>
+<p>Two facts. First, if you start at <var>s</var> and first go negative at station <var>k</var>, then no station between <var>s</var> and <var>k</var> can be a valid start either. Starting later in that stretch only removes some non-negative prefix of gains (the tank was at least 0 at every station before <var>k</var>), so you arrive at <var>k</var> with less fuel than before, and you were already stranded there. That justifies jumping the candidate straight to <var>k</var> + 1. Second, if the total of all gains is at least 0, the final candidate works: every earlier stretch was abandoned because its sum was negative, so the stretch from the final candidate to the end has sum ≥ 0 at every point (it never went negative) and large enough to cover the negative stretches at the beginning when you wrap around, since the grand total is ≥ 0.</p>
+<p class="formula">Σ gains over the loop ≥ 0 ⇔ some start completes the loop</p>
+
+<h3>Why it is fast</h3>
+<p>One scan with two additions and one comparison per station: O(<var>n</var>) time, O(1) memory. For 100,000 stations that is 100,000 steps rather than 10 billion. The saving comes from the first fact: a failed attempt rules out a whole stretch of starts at once instead of one.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: a circular route, a running balance that must never dip below zero, "find a starting point". The same reset-on-negative move is the heart of Kadane's algorithm for the maximum subarray, where a negative running sum is dropped because it can only hurt what follows. Say: I will track a running sum and restart whenever it goes negative, and use the grand total to decide whether any answer exists. <em>Gas Station</em> is the example. <em>Minimum Value to Get Positive Step by Step Sum</em> is the same scan asking how low the running sum ever gets. <em>Maximum Subarray</em> is the Kadane cousin.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Walk once; whenever the running tank goes negative, restart from the next index.</p>
     <p><strong>Reach for it when:</strong> Gas station, max subarray (Kadane cousin), minimum start value.</p>
     <p><strong>Cost:</strong> O(n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Gas Station gas [1,2,3,4,5] cost [3,4,5,1,2]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Walk once; <em>tank</em> resets when it drops below zero, <em>total</em> never resets</li><li>i=0: tank = -2 &lt; 0, nothing before 1 can be the start; <em>restart</em> at 1</li><li>i=1: tank = -2 &lt; 0, nothing before 2 can be the start; <em>restart</em> at 2</li><li>i=2: tank = -2 &lt; 0, nothing before 3 can be the start; <em>restart</em> at 3</li><li>i=3: tank +0 +3 = <em>3</em>, still ≥ 0</li><li>i=4: tank +3 +3 = <em>6</em>, still ≥ 0</li><li>total = 0 ≥ 0, so a tour exists; the last restart <em>3</em> is the answer</li><li>One pass, two counters: <em>O(n)</em> time, <em>O(1)</em> space</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>4 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/maximum-subarray">Maximum Subarray</a></td><td><span class="diff medium">Medium</span></td><td class="num">65</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/can-place-flowers">Can Place Flowers</a></td><td><span class="diff easy">Easy</span></td><td class="num">40</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/gas-station">Gas Station</a></td><td><span class="diff medium">Medium</span></td><td class="num">39</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/minimum-value-to-get-positive-step-by-step-sum">Minimum Value to Get Positive Step by Step Sum</a></td><td><span class="diff easy">Easy</span></td><td class="num">17</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-greedy">Greedy</a>: <a href="/dsa/greedy-jump-reach/">Furthest reach (jump game)</a>, <a href="/dsa/greedy-exchange-argument/">Sort, then take greedily</a>, <a href="/dsa/greedy-partition-labels/">Last-occurrence partition</a>, <a href="/dsa/greedy-candy-two-pass/">Two-pass neighbour constraints</a>, <a href="/dsa/greedy-count-sort-small/">Counting-based greedy (small alphabet)</a>, <a href="/dsa/greedy-two-pointer-assign/">Two-pointer assignment after sorting</a>.</p>
   </article>
 
@@ -428,7 +458,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

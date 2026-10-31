@@ -394,22 +394,49 @@
       <p>The DFS position in the trie matches the path spelled so far.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>A 3 × 3 board of letters and a list of words, <code>oath</code> and <code>eat</code>. A word is found if you can trace it through adjacent cells (up, down, left, right) without reusing a cell. Which words are on the board?</p>
+<p>By hand you would take the first word, look for its first letter on the board, and try to trace it; then take the second word and start over. That is one full board search per word. With 10,000 words and a 12 × 12 board, each word's search can branch into thousands of paths, and the board is explored 10,000 separate times, mostly along paths that no word uses.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Two pieces. First, put <strong>all</strong> the words into one trie, a tree of letters where shared prefixes share nodes: root → o → a → t → h✓ and root → e → a → t✓. Second, walk the board with a depth-first search, but carry a trie pointer along. From a cell you may only step to a neighbour whose letter is a child of the current trie node. If there is no such child, the whole branch is dead, for every word at once.</p>
+<ol>
+<li>Start at (0,0), letter <code>o</code>. The root has a child <code>o</code>, so enter it. Trie pointer: node <code>o</code>.</li>
+<li>Neighbour (1,0) is <code>e</code>. Node <code>o</code> has no child <code>e</code>. Prune that direction without looking further.</li>
+<li>Neighbour (0,1) is <code>a</code>. Child exists; pointer: node <code>a</code> under <code>o</code>. Then (0,2) <code>t</code>, then (1,2) <code>h</code>: that node is flagged. Found <code>oath</code>.</li>
+<li>Unmark the cells on the way back. The <code>oath</code> branch can even be deleted from the trie now, since it will never match again.</li>
+<li>Start at (1,0), letter <code>e</code>: root has child <code>e</code>. (1,1) <code>a</code>, (2,1) <code>t</code>, flagged: found <code>eat</code>.</li>
+<li>Starts at cells whose letter is not a child of the root die immediately.</li>
+</ol>
+<p>The trie pointer is the structure: it records "which prefix have I spelled so far", and the board walk and the trie walk move together, one letter per step.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: the trie node you are standing on is exactly the prefix spelled by the path of cells behind you. Stepping to a neighbour appends one letter to the path and moves to that letter's child, so the invariant holds after the step. Pruning is safe because if the trie has no child for a letter, no word in the list continues the current prefix with that letter, so no word can be completed through that cell. Reporting a word whenever the node is flagged is complete, because every placement of every word spells a root-to-flag path, and the search tries every start cell and every direction that the trie permits.</p>
+<p class="formula">node(path) = root ∘ <code>s[c<sub>1</sub>]</code> ∘ <code>s[c<sub>2</sub>]</code> ∘ … ; prune when child does not exist</p>
+
+<h3>Why it is fast</h3>
+<p>Building the trie costs the total length of all words. The search starts at each of the <var>m</var> × <var>n</var> cells and, from each, follows at most 4 directions per step for at most <var>L</var> steps, so the worst case is O(<var>mn</var> · 4<sup><var>L</var></sup>), the same bound as searching one word. The point is that this bound is paid <strong>once</strong> for all 10,000 words instead of once per word, and in practice the trie prunes almost every branch after two or three letters, so the real work is a small fraction of the bound.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: many words to find in one board or one stream, "find all words", a dictionary plus a path or sequence constraint. Say: I will build a trie of the words and search the board once, guided by the trie, so dead prefixes are cut immediately. <em>Word Search II</em> is the example. <em>Stream of Characters</em> stores the words reversed in a trie and walks the last few typed characters backwards. <em>Word Squares</em> uses the trie to list all words with a given prefix while building the square row by row.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Build a trie of all words; walk the grid and the trie together, pruning dead branches.</p>
     <p><strong>Reach for it when:</strong> Word search II, stream of characters, concatenated words.</p>
     <p><strong>Cost:</strong> O(mn · 4^L) with heavy pruning.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Word Search II for [oath, eat] on a 3×3 board</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Put every word in one <em>trie</em>; a cell is worth visiting only if the trie has that child</li><li>Start at (0,0) &#x27;o&#x27;: root has child &#x27;o&#x27;, <em>enter</em> it</li><li>Neighbour (1,0) &#x27;e&#x27;: node &#x27;o&#x27; has no child &#x27;e&#x27; → <em>prune</em> that branch</li><li>Neighbour (0,1) &#x27;a&#x27;: child exists, go deeper</li><li>(1,1) &#x27;a&#x27;: no child &#x27;a&#x27; → <em>prune</em>; (0,2) &#x27;t&#x27; → go on</li><li>(1,2) &#x27;h&#x27;: child exists and it is a <em>word end</em>: found &#x27;oath&#x27;</li><li>Unmark the path on the way back; the trie branch for &#x27;oath&#x27; can be <em>removed</em> (no more hits)</li><li>Start at (1,0) &#x27;e&#x27;: root has child &#x27;e&#x27;</li><li>(1,1) &#x27;a&#x27; then (2,1) &#x27;t&#x27;: both match, &#x27;t&#x27; is a word end: found &#x27;eat&#x27;</li><li>Other starts (&#x27;t&#x27;, &#x27;i&#x27;, &#x27;k&#x27;, …) die at the root: no such child</li><li>The trie prunes almost every path: far better than one DFS per word</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>3 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/word-search-ii">Word Search II</a></td><td><span class="diff hard">Hard</span></td><td class="num">34</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/stream-of-characters">Stream of Characters</a></td><td><span class="diff hard">Hard</span></td><td class="num">22</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/word-squares">Word Squares</a></td><td><span class="diff hard">Hard</span></td><td class="num">17</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-trie">Trie</a>: <a href="/dsa/trie-prefix/">Trie for prefix queries</a>, <a href="/dsa/trie-xor/">Binary trie for maximum XOR</a>.</p>
   </article>
 
@@ -428,7 +455,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

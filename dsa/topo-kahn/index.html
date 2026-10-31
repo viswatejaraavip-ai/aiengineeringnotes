@@ -394,22 +394,42 @@
       <p>Every dequeued node has all its prerequisites already output.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Four courses: 0 has no prerequisite; 1 needs 0; 2 needs 0; 3 needs both 1 and 2. In what order can you take them? By hand you say "0 has nothing before it, so take 0 first. Now 1 and 2 are free, take them. Now 3 is free." You never wrote a rule, but you used one: <em>take something that has nothing left waiting on it</em>.</p>
+<p>With 4 courses you can see what is free. With 5,000 courses and 20,000 prerequisites you cannot see it, and if you rescan the whole list every time you take a course that is 5,000 × 20,000 = 100 million checks. We want to keep the "how many prerequisites are still waiting" number for every course and update it cheaply.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>First, store the arrows: for each course, the list of courses that need it. 0: [1, 2], 1: [3], 2: [3], 3: [].</p>
+<p>Second, a counter per course called its <strong>in-degree</strong>: how many arrows point into it, that is, how many prerequisites it still has. Count once at the start:</p>
+<div class="table-wrap"><table><tr><th>course</th><td>0</td><td>1</td><td>2</td><td>3</td></tr><tr><th>in-degree</th><td>0</td><td>1</td><td>1</td><td>2</td></tr></table></div>
+<p>Third, a queue of courses whose in-degree is 0. These can be taken right now. Start: queue = [0].</p>
+<p>Now the loop. Take 0 from the queue and write it to the output. For every arrow out of 0, lower the target's counter by one, because one of its prerequisites is now done. 1 drops to 0, so enqueue it; 2 drops to 0, so enqueue it. Queue = [1, 2], output = [0]. Take 1: arrow 1 → 3 lowers 3 to 1, still waiting. Take 2: arrow 2 → 3 lowers 3 to 0, enqueue it. Take 3. Output = [0, 1, 2, 3].</p>
+<p>If the prerequisites contain a loop, every course in the loop keeps a counter of at least 1 forever, because each is waiting for another member of the loop. The queue runs dry with courses left over. That is how the same loop also detects cycles: fewer than <var>V</var> courses in the output means a cycle.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: a course is in the queue only when its counter is 0, and its counter is 0 only when every prerequisite has already been written to the output. Each decrement happens exactly when a prerequisite is written, so the counter always equals the number of prerequisites not yet output. A course therefore never appears before anything it needs, which is the definition of a valid order.</p>
+<h3>Why it is fast</h3>
+<p>Counting in-degrees looks at each arrow once. The loop writes each course once and, when writing it, touches each of its outgoing arrows once. So:</p>
+<p class="formula">work = <var>V</var> + <var>E</var></p>
+<p>For 5,000 courses and 20,000 prerequisites that is 25,000 steps instead of 100 million rescans.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "order such that every dependency comes first", "build order", "which words come before which" in an unknown alphabet, "can all be done". The first thing to say: "count in-degrees, queue the zeros, and peel." Course Schedule II asks for the order itself; this output list is the answer. Alien Dictionary first turns adjacent words into arrows between letters, then runs exactly this peel. Minimum Height Trees peels leaves (degree 1) layer by layer with the same queue idea.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Queue every zero in-degree node; removing it may free its successors.</p>
     <p><strong>Reach for it when:</strong> Course schedule II, alien dictionary, parallel courses, recipes, longest path in DAG.</p>
     <p><strong>Cost:</strong> O(V + E) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Course Schedule II on 4 courses</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Count in-degrees: how many prerequisites each course still has</li><li>Courses with in-degree <em>0</em> can start now: queue them</li><li>Take <em>0</em> from the queue: all its prerequisites are done</li><li>Edge 0→1: in-degree of 1 drops to <em>0</em>, enqueue it</li><li>Edge 0→2: in-degree of 2 drops to <em>0</em>, enqueue it</li><li>Take <em>1</em> from the queue: all its prerequisites are done</li><li>Edge 1→3: in-degree of 3 drops to 1, still waiting</li><li>Take <em>2</em> from the queue: all its prerequisites are done</li><li>Edge 2→3: in-degree of 3 drops to <em>0</em>, enqueue it</li><li>Take <em>3</em> from the queue: all its prerequisites are done</li><li>All 4 courses taken: order <em>0, 1, 2, 3</em> (a cycle would leave some behind)</li><li>Each edge is relaxed once: <em>O(V + E)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>11 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/course-schedule">Course Schedule</a></td><td><span class="diff medium">Medium</span></td><td class="num">51</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/longest-increasing-path-in-a-matrix">Longest Increasing Path in a Matrix</a></td><td><span class="diff hard">Hard</span></td><td class="num">38</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/course-schedule-ii">Course Schedule II</a></td><td><span class="diff medium">Medium</span></td><td class="num">37</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/alien-dictionary">Alien Dictionary</a></td><td><span class="diff hard">Hard</span></td><td class="num">34</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-all-possible-recipes-from-given-supplies">Find All Possible Recipes from Given Supplies</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/minimum-height-trees">Minimum Height Trees</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/sequence-reconstruction">Sequence Reconstruction</a></td><td><span class="diff medium">Medium</span></td><td class="num">32</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/parallel-courses-iii">Parallel Courses III</a></td><td><span class="diff hard">Hard</span></td><td class="num">22</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/build-a-matrix-with-conditions">Build a Matrix With Conditions</a></td><td><span class="diff hard">Hard</span></td><td class="num">22</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/parallel-courses">Parallel Courses</a></td><td><span class="diff medium">Medium</span></td><td class="num">20</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/largest-color-value-in-a-directed-graph">Largest Color Value in a Directed Graph</a></td><td><span class="diff hard">Hard</span></td><td class="num">20</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-graphs">Graphs</a>: <a href="/dsa/grid-dfs-islands/">Grid flood fill (components)</a>, <a href="/dsa/bfs-multi-source/">Multi-source BFS</a>, <a href="/dsa/bfs-shortest-unweighted/">BFS shortest path (unweighted)</a>, <a href="/dsa/bfs-state-space/">BFS over an augmented state</a>, <a href="/dsa/bfs-0-1/">0-1 BFS (deque)</a>, <a href="/dsa/dfs-cycle-coloring/">DFS three-colour cycle detection</a>, <a href="/dsa/union-find/">Union–Find (disjoint sets)</a>, <a href="/dsa/dijkstra/">Dijkstra (weighted shortest path)</a>, <a href="/dsa/bellman-ford-k-stops/">Bellman–Ford with k rounds</a>, <a href="/dsa/mst-kruskal-prim/">Minimum spanning tree</a>, <a href="/dsa/graph-bipartite/">Bipartite colouring</a>, <a href="/dsa/eulerian-path/">Eulerian path (Hierholzer)</a>, <a href="/dsa/tarjan-bridges/">Bridges / articulation (low-link)</a>, <a href="/dsa/graph-clone-traverse/">Clone / traverse with a visited map</a>, <a href="/dsa/implicit-graph-search/">Implicit graph (states as nodes)</a>.</p>
   </article>
 
@@ -428,7 +448,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

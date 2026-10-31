@@ -394,22 +394,45 @@
       <p>A node is appended only when all its edges are used.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>You have a pile of plane tickets, each from one airport to another: JFK → SFO, JFK → ATL, SFO → ATL, ATL → JFK, ATL → SFO. You must use every ticket exactly once, starting at JFK, and if several orders work, choose the one that is alphabetically first. By hand you start flying: JFK, cheapest alphabetically is ATL, then from ATL to JFK, then SFO, then ATL, then SFO. Every ticket used. The trip is JFK, ATL, JFK, SFO, ATL, SFO.</p>
+<p>That worked because greed happened to never strand us. It can fail: from JFK, flying to the alphabetically earlier airport could lead to a dead end while unused tickets remain elsewhere. Then you would have to back up and try another order, and with hundreds of tickets the retrying explodes.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: for each airport, the list of destinations, sorted alphabetically: JFK: [ATL, SFO], ATL: [JFK, SFO], SFO: [ATL]. We will consume tickets from the front of each list.</p>
+<p>Piece two: a stack holding the airports of the trip so far, like a stack of visited places. Push JFK.</p>
+<p>Piece three, the rule (Hierholzer): look at the airport on top of the stack. If it still has a ticket, take the first one, push the destination. If it has none, it is a dead end; pop it and write it to the <em>end</em> of the answer. Keep going until the stack is empty, then reverse the answer.</p>
+<ol>
+<li>Stack [JFK]. JFK has ATL: push. [JFK, ATL].</li>
+<li>ATL has JFK: push. [JFK, ATL, JFK]. JFK has SFO: push. [..., SFO]. SFO has ATL: push. ATL has SFO: push. Stack [JFK, ATL, JFK, SFO, ATL, SFO].</li>
+<li>SFO has nothing: pop, answer = [SFO]. ATL has nothing: pop, answer = [SFO, ATL]. SFO: pop. JFK: pop. ATL: pop. JFK: pop. Answer = [SFO, ATL, SFO, JFK, ATL, JFK].</li>
+<li>Reverse: JFK, ATL, JFK, SFO, ATL, SFO.</li>
+</ol>
+<p>The clever part is what happens when greed strands you early: the dead end gets written first, which after reversing puts it <em>last</em>, and the stack naturally backs up to an airport with tickets left and continues from there.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: an airport is written to the answer only when it has no unused ticket. So read backwards, the answer begins at the start, and each airport written just before another was reached by a ticket from it; the detours the stack unwinds are closed loops that get spliced in. The standard theorem says an Eulerian path exists exactly when every airport has as many arrivals as departures, except possibly the start (one extra departure) and the end (one extra arrival), and the problem promises this. Taking destinations in sorted order makes the first complete trip found the alphabetically smallest, because any earlier choice would have been tried first and only abandoned if it could not use all tickets.</p>
+<h3>Why it is fast</h3>
+<p>Each ticket is consumed once, each airport is pushed once per arrival and popped once. Sorting each destination list costs the log factor:</p>
+<p class="formula">work ≈ <var>E</var> log <var>E</var>, against the factorial number of orders a retry search could try</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "use every ticket, edge or pair exactly once", "reconstruct the itinerary", "a sequence where consecutive items chain", "shortest string containing every code". The first thing to say: "this is an Eulerian path; walk greedily, record on dead ends, reverse." Reconstruct Itinerary is the example above. Cracking the Safe builds a graph whose nodes are the last <var>n</var> − 1 digits and whose edges are digits, then the same walk gives the shortest superstring.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Walk greedily, back out when stuck, and record nodes post-order; reverse at the end.</p>
     <p><strong>Reach for it when:</strong> Reconstruct itinerary, valid arrangement of pairs, cracking the safe.</p>
     <p><strong>Cost:</strong> O(E log E) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Reconstruct Itinerary JFK→SFO→ATL→JFK→ATL→SFO</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Sort each airport&#x27;s tickets; walk greedily, <em>back out</em> when stuck</li><li>Start at JFK</li><li>JFK still has a ticket: fly to <em>ATL</em></li><li>ATL still has a ticket: fly to <em>JFK</em></li><li>JFK still has a ticket: fly to <em>SFO</em></li><li>SFO still has a ticket: fly to <em>ATL</em></li><li>ATL still has a ticket: fly to <em>SFO</em></li><li>SFO has no tickets left: <em>stuck</em>, write it at the end</li><li>ATL has no tickets left: <em>stuck</em>, write it at the end</li><li>SFO has no tickets left: <em>stuck</em>, write it at the end</li><li>JFK has no tickets left: <em>stuck</em>, write it at the end</li><li>ATL has no tickets left: <em>stuck</em>, write it at the end</li><li>JFK has no tickets left: <em>stuck</em>, write it at the end</li><li>Reversed post-order is the itinerary: <em>JFK ATL JFK SFO ATL SFO</em></li><li>Every ticket is used once; sorting costs <em>O(E log E)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>3 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/reconstruct-itinerary">Reconstruct Itinerary</a></td><td><span class="diff hard">Hard</span></td><td class="num">34</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/cracking-the-safe">Cracking the Safe</a></td><td><span class="diff hard">Hard</span></td><td class="num">22</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/valid-arrangement-of-pairs">Valid Arrangement of Pairs</a></td><td><span class="diff hard">Hard</span></td><td class="num">5</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-graphs">Graphs</a>: <a href="/dsa/grid-dfs-islands/">Grid flood fill (components)</a>, <a href="/dsa/bfs-multi-source/">Multi-source BFS</a>, <a href="/dsa/bfs-shortest-unweighted/">BFS shortest path (unweighted)</a>, <a href="/dsa/bfs-state-space/">BFS over an augmented state</a>, <a href="/dsa/bfs-0-1/">0-1 BFS (deque)</a>, <a href="/dsa/dfs-cycle-coloring/">DFS three-colour cycle detection</a>, <a href="/dsa/topo-kahn/">Topological sort (Kahn&#x27;s)</a>, <a href="/dsa/union-find/">Union–Find (disjoint sets)</a>, <a href="/dsa/dijkstra/">Dijkstra (weighted shortest path)</a>, <a href="/dsa/bellman-ford-k-stops/">Bellman–Ford with k rounds</a>, <a href="/dsa/mst-kruskal-prim/">Minimum spanning tree</a>, <a href="/dsa/graph-bipartite/">Bipartite colouring</a>, <a href="/dsa/tarjan-bridges/">Bridges / articulation (low-link)</a>, <a href="/dsa/graph-clone-traverse/">Clone / traverse with a visited map</a>, <a href="/dsa/implicit-graph-search/">Implicit graph (states as nodes)</a>.</p>
   </article>
 
@@ -428,7 +451,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

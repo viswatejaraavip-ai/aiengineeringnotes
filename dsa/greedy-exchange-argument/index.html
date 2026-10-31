@@ -394,22 +394,46 @@
       <p>No swap of two chosen decisions can improve the result.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Four people weigh <code>3, 2, 2, 1</code>. A boat carries at most two people and at most 3 units of weight. What is the fewest boats?</p>
+<p>By hand you would try pairings. 3 cannot share with anyone, since 3 + 1 = 4 is too much. The 1 can share with a 2. So: {3}, {2, 1}, {2}, three boats. For four people you can try all pairings. For 50,000 people the number of ways to pair them is astronomical, and even "try pairing each person with each other" is 50,000 × 50,000 = 2.5 billion checks.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Two pieces. First, <strong>sort</strong> the weights: <code>[1, 2, 2, 3]</code>. Second, two pointers, one at the lightest person and one at the heaviest. At each step the heaviest person definitely needs a boat now (nobody later is heavier). The only question is whether someone can ride along, and the best candidate is the lightest person, because if anyone fits with the heaviest, the lightest does.</p>
+<ol>
+<li>Pointers at 1 and 3. 1 + 3 = 4 is over 3. The 3 goes alone. One boat, heavy pointer moves to the 2.</li>
+<li>Pointers at 1 and 2. 1 + 2 = 3 fits. They share. Two boats, both pointers move inward.</li>
+<li>One person left, a 2. Alone. Three boats.</li>
+</ol>
+<p>The "structure" is the sorted order itself: once sorted, the questions "who is heaviest" and "who is lightest" are answered by position, with no searching.</p>
+
+<h3>Why it is correct</h3>
+<p>This is a greedy choice, and greedy choices need a proof, called an <strong>exchange argument</strong>: take any optimal plan and show you can swap it, without making it worse, into the plan the greedy rule makes. Here the rule is "pair the heaviest, <var>H</var>, with the lightest, <var>L</var>, if they fit". Suppose an optimal plan has <var>H</var> alone and <var>L</var> with someone else, <var>X</var>. Move <var>L</var> into <var>H</var>'s boat (they fit by assumption) and leave <var>X</var> alone: still a valid plan with the same number of boats. Suppose instead <var>H</var> rides with some <var>Y</var> and <var>L</var> with <var>X</var>. Swap <var>L</var> and <var>Y</var>: <var>H</var> + <var>L</var> ≤ <var>H</var> + <var>Y</var> fits, and <var>X</var> + <var>Y</var> ≤ <var>X</var> + <var>H</var> fits (since <var>Y</var> ≤ <var>H</var>). Same number of boats. So some optimal plan agrees with the greedy first step, and repeating the argument on the remaining people shows the greedy plan is optimal.</p>
+<p class="formula">if <var>L</var> + <var>H</var> ≤ limit and <var>Y</var> ≤ <var>H</var>, then <var>X</var> + <var>Y</var> ≤ <var>X</var> + <var>H</var>: the swap never breaks a boat</p>
+
+<h3>Why it is fast</h3>
+<p>Sorting <var>n</var> weights takes O(<var>n</var> log <var>n</var>). The two-pointer sweep moves each pointer at most <var>n</var> times in total, so it is O(<var>n</var>). For 50,000 people that is about 800,000 steps for the sort and 50,000 for the sweep, against 2.5 billion pair checks. The sort is the price of being able to answer "heaviest" and "lightest" instantly.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: a capacity or limit, "minimum number of groups or boats or trucks", "maximum number you can satisfy", choices that feel like they should be made largest-first or smallest-first. Say: I will sort, make the obvious local choice, and justify it with an exchange argument. Then actually give the two-line argument; interviewers listen for it. <em>Boats to Save People</em> is the example. <em>Assign Cookies</em> sorts children and cookies and gives each child the smallest cookie that satisfies them. <em>Two City Scheduling</em> sorts by the cost difference between the two cities, and the exchange argument is the same shape.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Order by the key that an exchange argument proves safe, then commit one by one.</p>
     <p><strong>Reach for it when:</strong> Assign cookies, boats to save people, two city scheduling, minimum cost to hire.</p>
     <p><strong>Cost:</strong> O(n log n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Boats to Save People [3,2,2,1] limit 3</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Sort first; pair the <em>heaviest</em> person with the <em>lightest</em> if they fit</li><li>Exchange argument: if the heaviest can share, sharing with the lightest never hurts</li><li>3 goes <em>alone</em> (too heavy to share)</li><li>1 + 2 = 3 ≤ 3: they <em>share</em> a boat</li><li>2 goes <em>alone</em> (last person)</li><li>Pointers crossed: <em>3</em> boats</li><li>Sort <em>O(n log n)</em>, then one two-pointer sweep</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>8 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/assign-cookies">Assign Cookies</a></td><td><span class="diff easy">Easy</span></td><td class="num">37</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/boats-to-save-people">Boats to Save People</a></td><td><span class="diff medium">Medium</span></td><td class="num">29</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/bag-of-tokens">Bag of Tokens</a></td><td><span class="diff medium">Medium</span></td><td class="num">26</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/minimum-number-of-refueling-stops">Minimum Number of Refueling Stops</a></td><td><span class="diff hard">Hard</span></td><td class="num">18</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/maximum-units-on-a-truck">Maximum Units on a Truck</a></td><td><span class="diff easy">Easy</span></td><td class="num">15</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/two-city-scheduling">Two City Scheduling</a></td><td><span class="diff medium">Medium</span></td><td class="num">8</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/maximum-ice-cream-bars">Maximum Ice Cream Bars</a></td><td><span class="diff medium">Medium</span></td><td class="num">5</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/reduce-array-size-to-the-half">Reduce Array Size to The Half</a></td><td><span class="diff medium">Medium</span></td><td class="num">5</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-greedy">Greedy</a>: <a href="/dsa/greedy-jump-reach/">Furthest reach (jump game)</a>, <a href="/dsa/greedy-gas-station/">Reset-on-negative sweep</a>, <a href="/dsa/greedy-partition-labels/">Last-occurrence partition</a>, <a href="/dsa/greedy-candy-two-pass/">Two-pass neighbour constraints</a>, <a href="/dsa/greedy-count-sort-small/">Counting-based greedy (small alphabet)</a>, <a href="/dsa/greedy-two-pointer-assign/">Two-pointer assignment after sorting</a>.</p>
   </article>
 
@@ -428,7 +452,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

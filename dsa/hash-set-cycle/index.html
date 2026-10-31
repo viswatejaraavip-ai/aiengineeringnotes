@@ -394,22 +394,52 @@
       <p>Every state visited so far is in the set.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>A "happy number" game: take a number, square each digit and add the squares, and repeat. 19 → 1² + 9² = 82 → 8² + 2² = 68 → 6² + 8² = 100 → 1² + 0² + 0² = 1. Once you reach 1 you stay at 1, so 19 is happy. Try 4: 4 → 16 → 37 → 58 → 89 → 145 → 42 → 20 → 4. It came back to 4, so it will loop forever and never reach 1. 4 is not happy.</p>
+<p>The danger is obvious when you do it by hand: how do you know when to stop? If you just keep computing, an unhappy number keeps you busy forever. You need a way to notice "I have been here before".</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The step is <em>deterministic</em>: from a given number you always go to the same next number. That means the moment any number appears a second time, everything after it will repeat exactly as before, forever. So "have I seen this before?" is the only question we need, and a <strong>hash set</strong> answers it in about one step.</p>
+<p>The procedure: keep a set called <var>seen</var>. At each number, if it is 1, stop with "happy". If it is already in <var>seen</var>, stop with "not happy". Otherwise add it to <var>seen</var> and compute the next number. For 19:</p>
+<div class="table-wrap"><table>
+<tr><th>Current</th><th>In seen?</th><th>seen afterwards</th><th>Next</th></tr>
+<tr><td>19</td><td>no</td><td>{19}</td><td>1 + 81 = 82</td></tr>
+<tr><td>82</td><td>no</td><td>{19, 82}</td><td>64 + 4 = 68</td></tr>
+<tr><td>68</td><td>no</td><td>{19, 82, 68}</td><td>36 + 64 = 100</td></tr>
+<tr><td>100</td><td>no</td><td>{19, 82, 68, 100}</td><td>1 + 0 + 0 = 1</td></tr>
+<tr><td>1</td><td>reached 1</td><td>stop: happy</td><td></td></tr>
+</table></div>
+<p>For 4 the set grows to {4, 16, 37, 58, 89, 145, 42, 20} and then 4 arrives again, is found in the set, and we stop with "not happy". The same skeleton detects a loop in any process that moves from state to state by a fixed rule: a linked list where each node points to a next node, a robot following fixed instructions, a function applied again and again.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: <em>the set holds exactly the states visited so far</em>. We add each state before leaving it, and never remove, so this holds at every step.</p>
+<p>Two things need to be true. First, if we stop with "cycle", there really is one: the state we just saw is in the set, so it was visited before, and a deterministic rule will now repeat the same path. Second, we always stop. For happy numbers, a number with <var>d</var> digits maps to at most 81<var>d</var>, so any number above 243 shrinks and every number below 1000 stays below 1000; the path lives in a finite box of states, and by the pigeonhole principle a path through a finite set of <var>m</var> states must repeat within <var>m</var> + 1 steps. The same finiteness argument covers a linked list with <var>n</var> nodes: after <var>n</var> + 1 moves some node is seen twice, or the walk fell off the end.</p>
+
+<h3>Why it is fast</h3>
+<p>Each state is processed once: one lookup, one insert, one step of the rule. If the path has <var>L</var> states before it repeats or terminates, that is O(<var>L</var>) time and O(<var>L</var>) memory. For a linked list <var>L</var> ≤ <var>n</var>. The by-hand method had no bound at all, because it never knew when to stop.</p>
+<p>When memory matters, there is a famous O(1)-space cousin: the fast and slow pointer (tortoise and hare), which detects the same cycle without storing anything. The set version is the one to reach for when you also need to know <em>which</em> states were visited, or when the states are numbers rather than pointers.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "repeat this operation until …", "does the process terminate", "detect a loop", or any walk along "next" pointers where you are not told there is an end. The first thing to say: "The step is deterministic, so a repeated state means an infinite loop; I will keep a set of visited states and stop on the first repeat."</p>
+<p><strong>Happy Number</strong> is the example above. <strong>Linked List Cycle</strong> is the same with node references as the states. <strong>Find the Duplicate Number</strong> can be read as "follow index → value as a pointer" and the duplicate is where two paths enter the same loop.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Repeating a deterministic step: a repeated state means a cycle.</p>
     <p><strong>Reach for it when:</strong> Happy numbers, digit games, linked structures when extra memory is fine.</p>
     <p><strong>Cost:</strong> O(cycle length) time and space.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Happy Number 19 → 82 → 68 → 100 → 1</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Repeat a deterministic step; a <em>repeated</em> value means a cycle, 1 means happy</li><li>19 is new: add it to seen, then 1² + 9² = <em>82</em></li><li>Move to 82, check the set</li><li>82 is new: add it to seen, then 8² + 2² = <em>68</em></li><li>Move to 68, check the set</li><li>68 is new: add it to seen, then 6² + 8² = <em>100</em></li><li>Move to 100, check the set</li><li>100 is new: add it to seen, then 1² + 0² + 0² = <em>1</em></li><li>Move to 1, check the set</li><li>Reached <em>1</em>: the number is happy</li><li>The set stops any loop; values stay small, so <em>O(log n)</em>-ish steps</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>4 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/happy-number">Happy Number</a></td><td><span class="diff easy">Easy</span></td><td class="num">55</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/linked-list-cycle">Linked List Cycle</a></td><td><span class="diff easy">Easy</span></td><td class="num">47</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-the-duplicate-number">Find the Duplicate Number</a></td><td><span class="diff medium">Medium</span></td><td class="num">46</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/walking-robot-simulation">Walking Robot Simulation</a></td><td><span class="diff medium">Medium</span></td><td class="num">6</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-arrays-hashing">Arrays &amp; Hashing</a>: <a href="/dsa/hash-complement/">Hash the complement</a>, <a href="/dsa/frequency-count/">Frequency counting</a>, <a href="/dsa/canonical-key/">Canonical key hashing</a>, <a href="/dsa/index-as-hash/">In-place index hashing</a>, <a href="/dsa/longest-consecutive/">Set-start expansion</a>.</p>
   </article>
 
@@ -428,7 +458,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

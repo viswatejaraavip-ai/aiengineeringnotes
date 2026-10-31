@@ -394,22 +394,54 @@
       <p>prefix(diff)[i] equals the total added to position i.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>A bus with 4 seats drives through stops 0, 1, 2, … Trip one: 2 people board at stop 1 and get off at stop 5. Trip two: 3 people board at stop 3 and get off at stop 7. Is the bus ever overfull?</p>
+<p>By hand you would keep a tally for every stop and, for each trip, add its passengers to every stop it covers: trip one adds 2 to stops 1, 2, 3, 4; trip two adds 3 to stops 3, 4, 5, 6. Then read the tallies: 0, 2, 2, 5, 5, 3, 3, 0. Stop 3 has 5 people, over capacity.</p>
+<p>The cost is the length of each trip. With <var>q</var> trips each covering up to <var>n</var> stops that is O(<var>q</var> · <var>n</var>). A thousand trips over a thousand stops is a million additions, and the same number appears in many problems: bookings on flights, flowers blooming between days, brightness of a row of lights.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Instead of recording the load at each stop, record <em>how the load changes</em> from one stop to the next. Call that the <strong>difference array</strong> <var>D</var>. Boarding 2 people at stop 1 changes the load by +2 there; getting off at stop 5 changes it by −2 there. A whole trip is just two entries:</p>
+<ol>
+<li>Trip (2 people, stops 1 → 5): <var>D</var>[1] += 2, <var>D</var>[5] −= 2.</li>
+<li>Trip (3 people, stops 3 → 7): <var>D</var>[3] += 3, <var>D</var>[7] −= 3.</li>
+</ol>
+<div class="table-wrap"><table>
+<tr><th>Stop</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th></tr>
+<tr><td><var>D</var> (changes)</td><td>0</td><td>+2</td><td>0</td><td>+3</td><td>0</td><td>−2</td><td>0</td><td>−3</td></tr>
+<tr><td>running sum = load</td><td>0</td><td>2</td><td>2</td><td>5</td><td>5</td><td>3</td><td>3</td><td>0</td></tr>
+</table></div>
+<p>To read the actual loads, walk left to right keeping a running sum of <var>D</var>: that is a prefix sum, and the running sum at each stop is exactly the tally from the by-hand method. The two pieces of the structure are therefore: a change array that each range update touches in two places, and one prefix-sum sweep at the end that turns changes back into values.</p>
+<p>Notice the convention: the subtraction goes at the first stop <em>after</em> the range ends. People who get off at stop 5 are not on the bus at stop 5, so the −2 sits at index 5. For a range that is inclusive on both ends, put the subtraction at <var>r</var> + 1.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: <em>the prefix sum of <var>D</var> up to index <var>i</var> equals the total added to position <var>i</var> by all updates so far</em>. Look at one update "+<var>k</var> on [<var>l</var>, <var>r</var>)", recorded as <var>D</var>[<var>l</var>] += <var>k</var> and <var>D</var>[<var>r</var>] −= <var>k</var>. For <var>i</var> &lt; <var>l</var> the prefix sum sees neither entry, contributing 0. For <var>l</var> ≤ <var>i</var> &lt; <var>r</var> it sees +<var>k</var> only, contributing <var>k</var>. For <var>i</var> ≥ <var>r</var> it sees both, contributing <var>k</var> − <var>k</var> = 0. That is exactly "add <var>k</var> to positions <var>l</var> … <var>r</var> − 1 and nothing elsewhere". Prefix sums are additive, so several updates stack correctly: the sum of the contributions is the contribution of the sum.</p>
+
+<h3>Why it is fast</h3>
+<p>Each update costs 2 writes regardless of the range length, and the final sweep costs <var>n</var> additions. Total:</p>
+<p class="formula">2<var>q</var> + <var>n</var> operations, O(<var>n</var> + <var>q</var>)</p>
+<p>against O(<var>q</var> · <var>n</var>) for updating every position each time. For a thousand trips over a thousand stops that is about 3,000 operations instead of a million. The trick is to delay the work: updates are cheap because they only write down intentions, and the one sweep pays for all of them together.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: many operations of the form "add <var>k</var> to every element in a range", followed by a question about the final values or the maximum, with no reads in between. If reads and writes are interleaved you need a Fenwick tree or segment tree instead; if all the writes come first, the difference array is enough.</p>
+<p>Say: "Each range add becomes two point edits in a difference array, and one prefix sum at the end recovers the values." <strong>Car Pooling</strong> is the example: the answer is whether the running sum ever exceeds the capacity. <strong>Corporate Flight Bookings</strong> is the same with seats on flights. <strong>Meeting Rooms II</strong> can be solved by +1 at each start and −1 at each end; the maximum running sum is the number of rooms needed.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Add at l, subtract at r+1; a prefix sum replays every range update.</p>
     <p><strong>Reach for it when:</strong> Many range increments, then read all values; car pooling, bookings.</p>
     <p><strong>Cost:</strong> O(n + q) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Car Pooling trips [[2,1,5],[3,3,7]] capacity 4</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>A range add becomes <em>two</em> point edits: +k at l, −k at r</li><li>Trip of 2 boards at stop 1: diff[1] += 2</li><li>…and leaves at stop 5: diff[5] −= 2</li><li>Trip of 3 boards at stop 3: diff[3] += 3</li><li>…and leaves at stop 7: diff[7] −= 3</li><li>Stop 0: load = 0 + (0) = <em>0</em></li><li>Stop 1: load = 0 + (2) = <em>2</em></li><li>Stop 2: load = 2 + (0) = <em>2</em></li><li>Stop 3: load = 2 + (3) = <em>5</em> &gt; capacity!</li><li>Load peaks at 5 &gt; 4 at stop 3: <em>false</em></li><li>q updates + one prefix pass: <em>O(n + q)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>7 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/meeting-rooms-ii">Meeting Rooms II</a></td><td><span class="diff medium">Medium</span></td><td class="num">58</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/zero-array-transformation-i">Zero Array Transformation I</a></td><td><span class="diff medium">Medium</span></td><td class="num">46</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/car-pooling">Car Pooling</a></td><td><span class="diff medium">Medium</span></td><td class="num">30</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/number-of-flowers-in-full-bloom">Number of Flowers in Full Bloom</a></td><td><span class="diff hard">Hard</span></td><td class="num">23</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/corporate-flight-bookings">Corporate Flight Bookings</a></td><td><span class="diff medium">Medium</span></td><td class="num">21</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/range-addition">Range Addition</a></td><td><span class="diff medium">Medium</span></td><td class="num">20</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/minimum-number-of-k-consecutive-bit-flips">Minimum Number of K Consecutive Bit Flips</a></td><td><span class="diff hard">Hard</span></td><td class="num">18</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-prefix-sums">Prefix Sums</a>: <a href="/dsa/prefix-sum-hash/">Prefix sum + hashmap</a>, <a href="/dsa/prefix-product-both-sides/">Prefix and suffix products</a>, <a href="/dsa/prefix-sum-2d/">2D prefix sums</a>.</p>
   </article>
 
@@ -428,7 +460,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

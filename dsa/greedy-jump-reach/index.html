@@ -394,22 +394,52 @@
       <p>Every index ≤ reach is reachable with the current number of jumps.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>You stand on the first cell of <code>[2, 3, 1, 1, 4]</code>. The number on a cell is the furthest you may jump forward from it. What is the fewest jumps to reach the last cell?</p>
+<p>By hand you would try routes. 0 → 1 → 4 is two jumps (from cell 1, with a 3, you can reach cell 4). 0 → 2 → 3 → 4 is three. For five cells you can list all routes. For 10,000 cells the routes multiply beyond counting, and even the careful method, "for each cell, the fewest jumps to reach it", looks back at every cell that could have jumped here, which is O(<var>n</var><sup>2</sup>) work: about 50 million steps for 10,000 cells.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>There is no data structure here, only two numbers that grow as you scan left to right:</p>
+<ul>
+<li><strong>end</strong>: the furthest cell you can stand on with the jumps taken so far. It starts at 0.</li>
+<li><strong>farthest</strong>: the furthest cell reachable by one more jump from any cell you have scanned. It starts at 0.</li>
+</ul>
+<p>Scan cells from left to right. At cell <var>i</var>, update farthest = max(farthest, <var>i</var> + <code>nums[i]</code>). When <var>i</var> reaches end, you have seen every cell the current jumps can land on, so you must take one more jump, and the best place it can get you is farthest: count a jump and set end = farthest.</p>
+<ol>
+<li><var>i</var> = 0: farthest = 0 + 2 = 2. Now <var>i</var> = end, so jump 1; end = 2.</li>
+<li><var>i</var> = 1: farthest = max(2, 1 + 3) = 4.</li>
+<li><var>i</var> = 2: farthest = max(4, 2 + 1) = 4. Now <var>i</var> = end, so jump 2; end = 4.</li>
+<li><var>i</var> = 3: farthest = max(4, 3 + 1) = 4. The last cell, 4, is within end.</li>
+</ol>
+<p>Two jumps. Think of end as the right edge of the current "level": every cell up to end costs the same number of jumps, and the next level stretches to the furthest point any cell in this level can reach.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: after scanning cell <var>i</var>, every cell up to end is reachable with the jumps counted so far, and farthest is the furthest cell reachable with one more jump. When <var>i</var> reaches end, no cell beyond end is reachable with the current count, because every cell at or before end has been scanned and none reaches further than farthest with its single jump. So one more jump is unavoidable, and taking it as "the whole stretch up to farthest is now reachable" is exact: any cell up to farthest is one jump from some scanned cell. The count is therefore the true minimum, level by level.</p>
+<p class="formula">level<sub><var>k</var>+1</sub> right edge = max over <var>i</var> in levels 0..<var>k</var> of ( <var>i</var> + <code>nums[i]</code> )</p>
+
+<h3>Why it is fast</h3>
+<p>Each cell is visited once and does one maximum and one comparison, so the scan is O(<var>n</var>) with two integers of memory. For 10,000 cells that is 10,000 steps instead of 50 million. The reason the O(<var>n</var><sup>2</sup>) look-back is unnecessary is that the set of cells reachable in <var>k</var> jumps is always a prefix of the array, so it is fully described by its right edge.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: each position gives a reach, intervals that start at a point and extend rightwards, "minimum number of jumps, clips, taps". Say: reachable cells form a prefix, so I only track its right edge and the furthest edge one more step can give. <em>Jump Game</em> asks only whether the last cell is reachable: scan and check that <var>i</var> never passes farthest. <em>Jump Game II</em> is the example. <em>Video Stitching</em> and <em>Minimum Number of Taps to Open to Water a Garden</em> are the same scan after converting each clip or tap into "from this point you can reach that point".</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Track the furthest index reachable; a new level starts when you pass the current edge.</p>
     <p><strong>Reach for it when:</strong> Jump game I/II, video stitching, minimum taps to water a garden.</p>
     <p><strong>Cost:</strong> O(n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Jump Game II on [2,3,1,1,4]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Scan once; <em>farthest</em> = furthest index reachable so far, <em>end</em> = edge of the current jump</li><li>i=0: can reach 0+2 = 2, farthest = <em>2</em></li><li>i reached end: take jump <em>1</em>, new end = farthest = 2</li><li>i=1: can reach 1+3 = 4, farthest = <em>4</em></li><li>i=2: can reach 2+1 = 3, farthest = <em>4</em></li><li>i reached end: take jump <em>2</em>, new end = farthest = 4</li><li>i=3: can reach 3+1 = 4, farthest = <em>4</em></li><li>Index 4 is inside the current jump: <em>2</em> jumps (0→1→4)</li><li>One pass, no DP table: <em>O(n)</em> time, <em>O(1)</em> space</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>5 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/jump-game">Jump Game</a></td><td><span class="diff medium">Medium</span></td><td class="num">56</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/jump-game-ii">Jump Game II</a></td><td><span class="diff medium">Medium</span></td><td class="num">45</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/jump-game-vii">Jump Game VII</a></td><td><span class="diff medium">Medium</span></td><td class="num">23</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/video-stitching">Video Stitching</a></td><td><span class="diff medium">Medium</span></td><td class="num">21</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/minimum-number-of-taps-to-open-to-water-a-garden">Minimum Number of Taps to Open to Water a Garden</a></td><td><span class="diff hard">Hard</span></td><td class="num">17</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-greedy">Greedy</a>: <a href="/dsa/greedy-exchange-argument/">Sort, then take greedily</a>, <a href="/dsa/greedy-gas-station/">Reset-on-negative sweep</a>, <a href="/dsa/greedy-partition-labels/">Last-occurrence partition</a>, <a href="/dsa/greedy-candy-two-pass/">Two-pass neighbour constraints</a>, <a href="/dsa/greedy-count-sort-small/">Counting-based greedy (small alphabet)</a>, <a href="/dsa/greedy-two-pointer-assign/">Two-pointer assignment after sorting</a>.</p>
   </article>
 
@@ -428,7 +458,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

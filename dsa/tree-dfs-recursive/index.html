@@ -394,22 +394,47 @@
       <p>f(node) depends only on f(left) and f(right).</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Here is a small family tree of numbers. 3 is at the top. Below 3 sit 9 and 20. Below 20 sit 15 and 7. The question: how many levels deep is the tree? You can see the answer, 3, by looking. But a computer cannot "look"; it can only stand on one node and see that node's two children. So we need a way to get the answer by standing on nodes one at a time.</p>
+<p>The by-hand method most people try is to trace every path from the top to every bottom node, writing down each path's length, then take the biggest. For our tree that is three paths: 3→9 (2 nodes), 3→20→15 (3 nodes), 3→20→7 (3 nodes). Fine for 5 nodes. But a tree with a million nodes can have half a million bottom nodes, and each path can be hundreds long. Writing every path means revisiting the top nodes hundreds of thousands of times.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>First, what is a tree? One node at the top (the root). Every node may have a left child and a right child, or none. A node with no children is a leaf. That is the whole structure. There is no clever extra memory; the trick is in how we ask the question.</p>
+<p>Piece one: instead of asking "how deep is the whole tree", ask each node a smaller question: "how deep is the part below <em>you</em>?" A leaf answers 1 at once (just itself).</p>
+<p>Piece two: a node that has children cannot answer alone, so it asks its left child, then its right child, waits for both numbers, and combines them: its depth is 1 + the larger of the two answers.</p>
+<p>Watch it on the example. The root 3 asks 9. 9 is a leaf: answer 1. The root asks 20. 20 asks 15: a leaf, 1. 20 asks 7: a leaf, 1. 20 combines: 1 + max(1, 1) = 2. The root combines: 1 + max(1, 2) = 3. Done, and no path was written twice.</p>
+<div class="table-wrap"><table><tr><th>Node</th><th>Left answer</th><th>Right answer</th><th>Its own answer</th></tr><tr><td>9</td><td>0 (none)</td><td>0 (none)</td><td>1</td></tr><tr><td>15</td><td>0</td><td>0</td><td>1</td></tr><tr><td>7</td><td>0</td><td>0</td><td>1</td></tr><tr><td>20</td><td>1</td><td>1</td><td>1 + max(1, 1) = 2</td></tr><tr><td>3</td><td>1</td><td>2</td><td>1 + max(1, 2) = 3</td></tr></table></div>
+<p>The order matters: children first, parent last. That is called post-order, and the function calling itself on each child is called recursion. The computer keeps a stack of unfinished questions: while 20 waits for 15, both 3 and 20 are "on hold".</p>
+
+<h3>Why it is correct</h3>
+<p>The rule we rely on: the answer for a node depends only on the answers of its two children, never on anything above it or beside it. For depth that is obviously true: the deepest path below 3 must go through 9 or through 20, so it is one step longer than the deeper of those two.</p>
+<p class="formula">depth(<var>v</var>) = 1 + max(depth(left(<var>v</var>)), depth(right(<var>v</var>))), with depth(nothing) = 0</p>
+<p>Leaves are the base case and are correct by definition. If every child's answer is correct, the formula makes the parent's answer correct. Working upward from the leaves, every node ends up correct, including the root. The same shape works for "are these two trees the same" (same value here, and same on the left, and same on the right), for mirror symmetry, for inverting a tree (invert both children, then swap them) and for counting nodes (1 + left count + right count).</p>
+
+<h3>Why it is fast</h3>
+<p>Each node is asked exactly once and answers exactly once, doing a constant amount of work (a comparison and an addition). So the total work is proportional to the number of nodes <var>n</var>: O(<var>n</var>). The by-hand path listing was far more, because top nodes were rewritten in every path.</p>
+<p>The hidden cost is the stack of questions on hold. It is as long as the longest chain from the root down, the height <var>h</var>. For a balanced tree that is about log<sub>2</sub> <var>n</var> (20 for a million nodes); for a tree that is really a long chain it is <var>n</var>, which is why very deep trees can overflow the recursion stack.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The cue is a question about a whole tree whose answer can be assembled from the two halves: height, balance, equality, symmetry, count, sum. Say out loud: "I will define what each node returns, handle the leaf case, and combine the children's returns at the parent." In Maximum Depth of Binary Tree the return is the depth. In Same Tree you walk two trees side by side and return whether this pair matches and both child pairs match. In Balanced Binary Tree return the height but also mark the answer false the moment two child heights differ by more than 1.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Solve the children, then combine at the parent.</p>
     <p><strong>Reach for it when:</strong> Height, balanced, same/symmetric tree, invert, count nodes.</p>
     <p><strong>Cost:</strong> O(n) time, O(h) stack.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Maximum Depth of [3,9,20,null,null,15,7]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Ask the root: how deep is the tree below you?</li><li>The root cannot answer yet: it asks its <em>left</em> child first</li><li>9 has no children: it returns <em>1</em></li><li>Now the <em>right</em> child, 20, is asked</li><li>20 asks its left child 15: a leaf, returns <em>1</em></li><li>Then its right child 7: also a leaf, returns <em>1</em></li><li>20 combines: 1 + max(1, 1) = <em>2</em></li><li>Root combines: 1 + max(1, 2) = <em>3</em></li><li>Every node is visited once and answers once: <em>O(n)</em>, stack depth <em>O(h)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>11 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/same-tree">Same Tree</a></td><td><span class="diff easy">Easy</span></td><td class="num">46</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/symmetric-tree">Symmetric Tree</a></td><td><span class="diff easy">Easy</span></td><td class="num">42</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/invert-binary-tree">Invert Binary Tree</a></td><td><span class="diff easy">Easy</span></td><td class="num">40</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/maximum-depth-of-binary-tree">Maximum Depth of Binary Tree</a></td><td><span class="diff easy">Easy</span></td><td class="num">40</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/balanced-binary-tree">Balanced Binary Tree</a></td><td><span class="diff easy">Easy</span></td><td class="num">36</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/minimum-depth-of-binary-tree">Minimum Depth of Binary Tree</a></td><td><span class="diff easy">Easy</span></td><td class="num">26</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/count-complete-tree-nodes">Count Complete Tree Nodes</a></td><td><span class="diff medium">Medium</span></td><td class="num">26</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/flip-equivalent-binary-trees">Flip Equivalent Binary Trees</a></td><td><span class="diff medium">Medium</span></td><td class="num">24</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/subtree-of-another-tree">Subtree of Another Tree</a></td><td><span class="diff easy">Easy</span></td><td class="num">21</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/evaluate-boolean-binary-tree">Evaluate Boolean Binary Tree</a></td><td><span class="diff easy">Easy</span></td><td class="num">21</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/merge-two-binary-trees">Merge Two Binary Trees</a></td><td><span class="diff easy">Easy</span></td><td class="num">11</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-trees">Trees</a>: <a href="/dsa/tree-path-through-node/">Best path through each node</a>, <a href="/dsa/tree-bfs-levels/">Level-order BFS</a>, <a href="/dsa/tree-root-to-leaf/">Root-to-leaf path carry</a>, <a href="/dsa/tree-lca/">Lowest common ancestor</a>, <a href="/dsa/tree-build-from-traversals/">Build from traversals</a>, <a href="/dsa/tree-iterative-inorder/">Iterative traversal with a stack</a>, <a href="/dsa/tree-vertical-coords/">Column / coordinate traversal</a>, <a href="/dsa/tree-rerooting/">Rerooting DP (sum over all roots)</a>, <a href="/dsa/tree-delete-forest/">Post-order deletion / pruning</a>, <a href="/dsa/tree-distance-k/">Tree as a graph (parent pointers)</a>, <a href="/dsa/tree-dp-choose-skip/">Tree DP: take or skip this node</a>, <a href="/dsa/bfs-tree-serialization/">Serialize / deserialize by BFS</a>.</p>
   </article>
 
@@ -428,7 +453,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

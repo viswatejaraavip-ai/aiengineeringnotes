@@ -394,22 +394,53 @@
       <p>dp[pos][tight][state] counts completions of the prefix.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Using only the digits 1, 3 and 5, how many positive numbers are at most 234? By hand you would start listing: 1, 3, 5, 11, 13, 15, 31, 33, 35, 51, 53, 55, 111, 113, 115, … and check each against 234. That works for 234. For the same question with the limit 2,340,000,000 it does not: there are billions of candidates and you cannot write them down.</p>
+<p>Notice what made the small case easy. One-digit and two-digit numbers are automatically below 234, so you only had to count them: 3 one-digit numbers and 3 × 3 = 9 two-digit numbers. The only delicate part is three-digit numbers, where the limit 234 actually bites.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Build the number one digit at a time from the left, side by side with the limit 2-3-4. At each position you are in one of two situations:</p>
+<ul>
+<li><strong>tight</strong>: every digit placed so far equals the limit's digit, so the next digit must not exceed the limit's next digit.</li>
+<li><strong>free</strong>: some earlier digit was already smaller than the limit's, so any allowed digit may follow.</li>
+</ul>
+<p>Keep a count for each (position, situation): how many ways to finish the number from here. Fill it from the right end, where there is exactly one way to finish: place nothing.</p>
+<div class="table-wrap"><table>
+<tr><th>position</th><th>limit digit</th><th>free</th><th>tight</th></tr>
+<tr><td>3 (end)</td><td></td><td>1</td><td>1</td></tr>
+<tr><td>2</td><td>4</td><td>3 × 1 = 3</td><td>digits below 4: {1, 3} → 2 × free[3] = 2; digit 4 not allowed → +0; total 2</td></tr>
+<tr><td>1</td><td>3</td><td>3 × 3 = 9</td><td>digits below 3: {1} → 1 × free[2] = 3; digit 3 allowed → + tight[2] = 2; total 5</td></tr>
+<tr><td>0</td><td>2</td><td>3 × 9 = 27</td><td>digits below 2: {1} → 1 × free[1] = 9; digit 2 not allowed → +0; total 9</td></tr>
+</table></div>
+<p>So there are 9 three-digit numbers at most 234 (111, 113, 115, 131, 133, 135, 151, 153, 155). Add the shorter numbers, which are all free: 3 + 9 = 12. Total 21. The structure is just a two-column table, position by position, and it never writes a single candidate number down.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: tight[<var>p</var>] counts the ways to fill positions <var>p</var> onward given that the prefix so far equals the limit's prefix, and free[<var>p</var>] counts the ways given the prefix is already smaller. From a tight position, choosing a digit below the limit's digit makes the rest free, choosing exactly the limit's digit (if allowed) keeps it tight, and choosing a bigger digit is impossible. From a free position any allowed digit keeps it free. Those are all the cases, and they do not overlap, so adding them counts every valid completion exactly once.</p>
+<p class="formula">tight[<var>p</var>] = (number of allowed digits &lt; <var>L</var><sub><var>p</var></sub>) · free[<var>p</var>+1] + [<var>L</var><sub><var>p</var></sub> allowed] · tight[<var>p</var>+1]</p>
+
+<h3>Why it is fast</h3>
+<p>The limit has <var>d</var> digits. For each position there are two situations and at most 10 digits to try, so the work is about 20<var>d</var> steps. A limit of 2,340,000,000 has 10 digits: about 200 steps, instead of billions of candidates. Problems add more state, such as "which digits have been used" (a mask of 10 bits) or "the count of ones so far", and the cost becomes <var>d</var> × (states) × 10, still tiny.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "how many numbers up to <var>N</var>" with a condition on the digits, and <var>N</var> far too large to loop over. Say: I will build the number digit by digit against <var>N</var>, tracking whether I am still tied with <var>N</var>. <em>Numbers At Most N Given Digit Set</em> is exactly the example above. <em>Count Numbers with Unique Digits</em> adds a mask of used digits to the state. <em>Number of Digit One</em> adds a running count of ones.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Build the number digit by digit with a &#x27;tight&#x27; flag and the needed state.</p>
     <p><strong>Reach for it when:</strong> Count numbers with unique digits, numbers at most N given digit set, count good numbers.</p>
     <p><strong>Cost:</strong> O(digits · states · 10) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Count numbers ≤ 234 using digit set {1,3,5}</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li><em>tight</em> = prefix equals N so far; <em>free</em> = already smaller, anything goes</li><li>At the end there is exactly <em>1</em> way to finish (the empty suffix)</li><li>free[2] = 3 choices × free[3] = <em>3</em></li><li>free[1] = 3 choices × free[2] = <em>9</em></li><li>free[0] = 3 choices × free[1] = <em>27</em></li><li>tight[2]: 2 digit(s) below 4 × free[3] + 0 since 4 is not allowed = <em>2</em></li><li>tight[1]: 1 digit(s) below 3 × free[2] + tight[2] since 3 is allowed = <em>5</em></li><li>tight[0]: 1 digit(s) below 2 × free[1] + 0 since 2 is not allowed = <em>9</em></li><li>3-digit numbers ≤ 234: tight[0] = <em>9</em>; shorter numbers are free: 3 + 9 = <em>12</em></li><li>Total = 9 + 12 = <em>21</em></li><li>digits × (tight, free) × choices: <em>O(len · 10)</em>, never enumerate 234 numbers</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>5 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/count-numbers-with-unique-digits">Count Numbers with Unique Digits</a></td><td><span class="diff medium">Medium</span></td><td class="num">28</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/number-of-digit-one">Number of Digit One</a></td><td><span class="diff hard">Hard</span></td><td class="num">28</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/numbers-with-repeated-digits">Numbers With Repeated Digits</a></td><td><span class="diff hard">Hard</span></td><td class="num">20</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/numbers-at-most-n-given-digit-set">Numbers At Most N Given Digit Set</a></td><td><span class="diff hard">Hard</span></td><td class="num">6</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/count-special-integers">Count Special Integers</a></td><td><span class="diff hard">Hard</span></td><td class="num">6</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-dynamic-programming">Dynamic Programming</a>: <a href="/dsa/dp-1d-linear/">1-D linear DP</a>, <a href="/dsa/dp-kadane/">Kadane (best ending here)</a>, <a href="/dsa/dp-lis/">Longest increasing subsequence</a>, <a href="/dsa/dp-grid-paths/">Grid path DP</a>, <a href="/dsa/dp-knapsack-01/">0/1 knapsack (subset sum)</a>, <a href="/dsa/dp-unbounded-coin/">Unbounded knapsack (coin change)</a>, <a href="/dsa/dp-lcs-edit/">Two-sequence DP (LCS / edit distance)</a>, <a href="/dsa/dp-pattern-matching/">Wildcard / regex matching DP</a>, <a href="/dsa/dp-palindrome-expand/">Palindromes: expand or table</a>, <a href="/dsa/dp-word-break/">Prefix segmentation DP</a>, <a href="/dsa/dp-interval/">Interval DP (last operation)</a>, <a href="/dsa/dp-state-machine-stock/">State-machine DP (stocks)</a>, <a href="/dsa/dp-bitmask/">Bitmask DP over subsets</a>, <a href="/dsa/dp-memo-dfs/">Memoised DFS (top-down)</a>, <a href="/dsa/dp-game-minimax/">Game DP (minimax on a range)</a>, <a href="/dsa/dp-count-ways-mod/">Counting ways with modulo</a>, <a href="/dsa/dp-longest-string-chain/">DP over sorted keys (chains)</a>.</p>
   </article>
 
@@ -428,7 +459,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

@@ -394,22 +394,52 @@
       <p>The container is always sorted, so neighbours are adjacent.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Numbers arrive one by one: 1, 5, 9, 1, 5, 9. After each arrival you must say whether the new number is within distance <var>t</var> of any of the last <var>k</var> numbers. Take <var>k</var> = 3 and <var>t</var> = 0, so the question becomes "is there an equal number among the last three?". By hand you look back at the three most recent numbers and compare. That is 3 comparisons per arrival; with <var>k</var> = 100,000 it is 100,000 comparisons per arrival, and a million arrivals makes a hundred billion.</p>
+<p>The waste is in comparing against every window member when only the two members nearest in value matter: the largest member at most <var>x</var>, and the smallest member at least <var>x</var>. If neither is within <var>t</var>, nothing else is.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: keep the window's values in sorted order. In a sorted list the two neighbours of a value are found by bisection, cutting the range in half each step, and they sit next to each other.</p>
+<p>Piece two: a container that stays sorted while things are added and removed in O(log <var>k</var>). A balanced tree does it, and so does a skip list; Python offers a sorted list container, Java a TreeMap, C++ a multiset. The exact machinery does not matter for the pattern; what matters is three operations: insert, remove, and "neighbours of <var>x</var>".</p>
+<p>Piece three: the sliding window. When a value enters, ask for its neighbours, then insert it. When the window is longer than <var>k</var>, remove the oldest value, which you find by position in the original stream, not by its sorted place:</p>
+<div class="table-wrap"><table>
+<tr><th>arrival</th><th>neighbours in the window</th><th>within t = 0?</th><th>sorted window after insert (max 3)</th></tr>
+<tr><td>1</td><td>none</td><td>no</td><td>[1]</td></tr>
+<tr><td>5</td><td>1 below, none above</td><td>no</td><td>[1, 5]</td></tr>
+<tr><td>9</td><td>5 below, none above</td><td>no</td><td>[1, 5, 9]</td></tr>
+<tr><td>1</td><td>1 at or below, 5 above</td><td>yes, 1 − 1 = 0</td><td>stop, answer true</td></tr>
+</table></div>
+<p>Had the answer been no, the oldest value 1 would be removed to keep the window at three, giving [1, 5, 9] again with the new 1.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant is that the container holds exactly the last <var>k</var> values, in sorted order. Insert and remove by value keep it sorted; removing the oldest keeps the membership right. The neighbour test is complete: let <var>a</var> be the largest window value at most <var>x</var> and <var>b</var> the smallest at least <var>x</var>. Any other window value <var>y</var> is either below <var>a</var>, so <var>x</var> − <var>y</var> &gt; <var>x</var> − <var>a</var>, or above <var>b</var>, so <var>y</var> − <var>x</var> &gt; <var>b</var> − <var>x</var>. So if neither neighbour is within <var>t</var>, no window value is:</p>
+<p class="formula">min over the window of |<var>x</var> − <var>y</var>| = min(<var>x</var> − <var>a</var>, <var>b</var> − <var>x</var>)</p>
+
+<h3>Why it is fast</h3>
+<p>Each arrival does one neighbour lookup, one insert and at most one remove, each O(log <var>k</var>) in a balanced sorted container. For <var>n</var> arrivals that is O(<var>n</var> log <var>k</var>): for a million arrivals and a window of 100,000, about 17 million steps against a hundred billion. The memory is the window, O(<var>k</var>).</p>
+<p>The same container answers other window questions. The median is the middle element, reached by index in a sorted list. The maximum minus the minimum is last minus first, which solves "longest subarray with difference at most a limit". "How many earlier values are smaller" is the insertion index of the new value.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "sliding window" together with "median", "within distance <var>t</var>", "difference at most", "k-th smallest so far", or any time you need the value just above or just below <var>x</var> among a changing set. Say: "the only members that matter are the two nearest in value, so I will keep the window in a sorted container and bisect".</p>
+<p>Sliding Window Median keeps the window sorted and reads the middle. Longest Continuous Subarray With Absolute Diff Less Than or Equal to Limit grows a window and shrinks it while last − first exceeds the limit. Count of Smaller Numbers After Self scans from the right and records each value's insertion index.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Keep a sorted multiset; bisect for neighbours, insert/delete in O(log n).</p>
     <p><strong>Reach for it when:</strong> Contains duplicate III, sliding window median, 132 pattern, exam room, my calendar.</p>
     <p><strong>Cost:</strong> O(log n) per op.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Contains Duplicate III window k=3, t=0 on [1,5,9,1,5,9]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Keep the window&#x27;s values in a <em>sorted container</em>; neighbours of x are one bisect away</li><li>x = 1: nearest values — / —, none within 0</li><li>insert 1 in sorted position</li><li>x = 5: nearest values 1 / —, none within 0</li><li>insert 5 in sorted position</li><li>x = 9: nearest values 5 / —, none within 0</li><li>insert 9 in sorted position</li><li>x = 1: neighbour 1 is within t = 0 → <em>true</em></li><li>Insert, remove and neighbour lookup are all <em>O(log k)</em>: O(n log k) total</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>8 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/count-of-smaller-numbers-after-self">Count of Smaller Numbers After Self</a></td><td><span class="diff hard">Hard</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/kth-largest-element-in-a-stream">Kth Largest Element in a Stream</a></td><td><span class="diff easy">Easy</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/longest-continuous-subarray-with-absolute-diff-less-than-or-equal-to-limit">Longest Continuous Subarray With Absolute Diff Less Than or Equal to Limit</a></td><td><span class="diff medium">Medium</span></td><td class="num">32</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/sliding-window-median">Sliding Window Median</a></td><td><span class="diff hard">Hard</span></td><td class="num">30</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/my-calendar-i">My Calendar I</a></td><td><span class="diff medium">Medium</span></td><td class="num">27</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/exam-room">Exam Room</a></td><td><span class="diff medium">Medium</span></td><td class="num">21</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/minimum-absolute-difference-queries">Minimum Absolute Difference Queries</a></td><td><span class="diff medium">Medium</span></td><td class="num">17</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/contains-duplicate-iii">Contains Duplicate III</a></td><td><span class="diff hard">Hard</span></td><td class="num">13</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-advanced-structures">Advanced Structures</a>: <a href="/dsa/segment-tree/">Segment tree (range query + point update)</a>, <a href="/dsa/fenwick-tree/">Fenwick tree (binary indexed tree)</a>, <a href="/dsa/sqrt-bucket/">Bucketing by value range</a>, <a href="/dsa/matrix-exponentiation/">Matrix exponentiation for recurrences</a>, <a href="/dsa/meet-in-the-middle/">Meet in the middle</a>.</p>
   </article>
 
@@ -428,7 +458,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

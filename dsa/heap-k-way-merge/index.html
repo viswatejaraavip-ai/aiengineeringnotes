@@ -394,22 +394,44 @@
       <p>The heap holds exactly one candidate per non-empty list.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Three sorted lists: A = [1, 4, 5], B = [1, 3, 4], C = [2, 6]. Merge them into one sorted list. By hand you look at the first element of each list, pick the smallest, write it down, and cross it off. Then look at the new firsts again. With three lists that is a glance at three numbers each time. With <var>k</var> = 10,000 lists, each pick means scanning 10,000 front elements, and there are <var>N</var> picks in total (one per element across all lists), so about <var>N</var> × <var>k</var> looks. For 10,000 lists of 10,000 elements that is a trillion.</p>
+<p>The wasteful part is clear: between picks, only one list's front changes, yet we rescan all of them. We need something that remembers the fronts and finds the smallest without a full scan.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a min-heap holding one entry per list: (front value, which list, position). The heap always shows the smallest entry, which is the smallest front across all lists.</p>
+<p>Piece two: the loop. Pop the smallest entry, append its value to the output. Then advance that list by one and push its new front, if the list is not exhausted. Every other list's entry sits untouched in the heap.</p>
+<div class="table-wrap"><table><tr><th>Heap (fronts)</th><th>Pop</th><th>Push</th><th>Output so far</th></tr><tr><td>{1A, 1B, 2C}</td><td>1 from A</td><td>4A</td><td>1</td></tr><tr><td>{1B, 2C, 4A}</td><td>1 from B</td><td>3B</td><td>1, 1</td></tr><tr><td>{2C, 3B, 4A}</td><td>2 from C</td><td>6C</td><td>1, 1, 2</td></tr><tr><td>{3B, 4A, 6C}</td><td>3 from B</td><td>4B</td><td>1, 1, 2, 3</td></tr><tr><td>{4A, 4B, 6C}</td><td>4 from A</td><td>5A</td><td>…, 4</td></tr><tr><td>{4B, 5A, 6C}</td><td>4 from B</td><td>B exhausted</td><td>…, 4, 4</td></tr><tr><td>{5A, 6C}</td><td>5 from A</td><td>A exhausted</td><td>…, 5</td></tr><tr><td>{6C}</td><td>6 from C</td><td>C exhausted</td><td>1, 1, 2, 3, 4, 4, 5, 6</td></tr></table></div>
+<p>Piece three: the same loop works when the "lists" are implicit. A sorted matrix is a set of sorted rows. "Pairs with the smallest sums" from two sorted arrays is <var>n</var> lists, one per first element, each sorted by the second element. You push the first element of each list and generate the next on demand.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: the heap contains exactly the current front of every non-empty list. Initially it holds every first element. Each step removes one front and replaces it with that list's next element, so the set of fronts is maintained.</p>
+<p class="formula">next output = min over lists of (front of list) = top of the heap</p>
+<p>Because each list is sorted, its front is its smallest remaining element, so the smallest front is the smallest remaining element anywhere. Appending it keeps the output sorted, and nothing smaller can appear later.</p>
+
+<h3>Why it is fast</h3>
+<p>Every element is pushed into the heap once and popped once. The heap never holds more than <var>k</var> entries, so each operation costs O(log <var>k</var>). Total O(<var>N</var> log <var>k</var>) for <var>N</var> elements overall, with O(<var>k</var>) extra memory. For 10,000 lists of 10,000 elements, that is about 10<sup>8</sup> × 14 heap steps instead of a trillion scans. Concatenating everything and sorting would be O(<var>N</var> log <var>N</var>), which is worse when <var>k</var> ≪ <var>N</var>, and impossible for streams.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>"Merge k sorted lists", "kth smallest in a sorted matrix", "k pairs with the smallest sums", "smallest range covering one element from each list". The shared shape is several sorted sources and the need to consume them in global order. Say: "I will heap the front of each source and repeatedly pop the smallest and push its successor." Merge k Sorted Lists is this exactly on linked lists. Kth Smallest Element in a Sorted Matrix runs the loop <var>k</var> times over the rows. Smallest Range Covering Elements from K Lists keeps the same heap plus the current maximum, so that the range is max − min at every step.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Heap the head of each list; pop the smallest and push its successor.</p>
     <p><strong>Reach for it when:</strong> Merge k sorted lists, smallest range, kth smallest in sorted matrix, k pairs.</p>
     <p><strong>Cost:</strong> O(N log k) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Merge [1,4,5],[1,3,4],[2,6]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Seed the heap with the <em>head</em> of every list</li><li>Pop the smallest, <em>1</em> from A; push A&#x27;s next, 4</li><li>Pop the smallest, <em>1</em> from B; push B&#x27;s next, 3</li><li>Pop the smallest, <em>2</em> from C; push C&#x27;s next, 6</li><li>Pop the smallest, <em>3</em> from B; push B&#x27;s next, 4</li><li>Pop the smallest, <em>4</em> from A; push A&#x27;s next, 5</li><li>Pop <em>4</em> from B; B is exhausted, nothing to push</li><li>Pop <em>5</em> from A; A is exhausted, nothing to push</li><li>Pop <em>6</em> from C; C is exhausted, nothing to push</li><li>Heap empty: output <em>[1,1,2,3,4,4,5,6]</em> is sorted</li><li>N elements, each through a heap of size k: <em>O(N log k)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>6 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/merge-k-sorted-lists">Merge k Sorted Lists</a></td><td><span class="diff hard">Hard</span></td><td class="num">49</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-k-pairs-with-smallest-sums">Find K Pairs with Smallest Sums</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/kth-smallest-element-in-a-sorted-matrix">Kth Smallest Element in a Sorted Matrix</a></td><td><span class="diff medium">Medium</span></td><td class="num">26</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/kth-smallest-number-in-multiplication-table">Kth Smallest Number in Multiplication Table</a></td><td><span class="diff hard">Hard</span></td><td class="num">18</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/smallest-range-covering-elements-from-k-lists">Smallest Range Covering Elements from K Lists</a></td><td><span class="diff hard">Hard</span></td><td class="num">17</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/ugly-number-ii">Ugly Number II</a></td><td><span class="diff medium">Medium</span></td><td class="num">15</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-heap">Heap</a>: <a href="/dsa/heap-top-k/">Top-k with a size-k heap</a>, <a href="/dsa/heap-two-heaps-median/">Two heaps (running median)</a>, <a href="/dsa/heap-scheduling-greedy/">Greedy scheduling with a heap</a>, <a href="/dsa/heap-lazy-deletion/">Lazy deletion heap</a>, <a href="/dsa/heap-frequency-rebuild/">Pop-k-then-rebuild (frequency greedy)</a>.</p>
   </article>
 
@@ -428,7 +450,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

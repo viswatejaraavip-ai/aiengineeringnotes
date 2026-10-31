@@ -394,22 +394,45 @@
       <p>Each subtree is built from a contiguous sorted slice, so heights differ by ≤ 1.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>You have the sorted list [−10, −3, 0, 5, 9] and must build a binary search tree from it. The lazy way is to insert the values one by one: −10 becomes the root, −3 goes to its right, 0 to the right of that, and so on. You get a tree that is really a chain leaning to the right, five levels deep. Searching it costs as much as scanning the list. A good BST is short and bushy, with the levels filled from the top, so that a search takes about log<sub>2</sub> <var>n</var> steps.</p>
+<p>By hand, with the list in front of you, the right move is obvious: put the middle value on top so that half the values go left and half go right. Then do the same to each half.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a slice, described by two indices [<var>lo</var>, <var>hi</var>] into the sorted list. The whole list is [0, 4]. An empty slice (<var>lo</var> &gt; <var>hi</var>) builds nothing.</p>
+<p>Piece two: the middle. For a slice take <var>m</var> = (<var>lo</var> + <var>hi</var>) / 2 rounded down. The value at <var>m</var> becomes the root of this slice's subtree.</p>
+<p>Piece three: recurse. The left child is built from [<var>lo</var>, <var>m</var> − 1] and the right child from [<var>m</var> + 1, <var>hi</var>]. Because the list is sorted, everything in the left slice is smaller than the root value and everything in the right slice is larger, so the BST rule is automatic.</p>
+<div class="table-wrap"><table><tr><th>Slice</th><th>Middle index</th><th>Root</th><th>Left slice</th><th>Right slice</th></tr><tr><td>[0, 4]</td><td>2</td><td>0</td><td>[0, 1]</td><td>[3, 4]</td></tr><tr><td>[0, 1]</td><td>0</td><td>−10</td><td>empty</td><td>[1, 1]</td></tr><tr><td>[1, 1]</td><td>1</td><td>−3</td><td>empty</td><td>empty</td></tr><tr><td>[3, 4]</td><td>3</td><td>5</td><td>empty</td><td>[4, 4]</td></tr><tr><td>[4, 4]</td><td>4</td><td>9</td><td>empty</td><td>empty</td></tr></table></div>
+<p>The tree: 0 on top; −10 and 5 below; −3 under −10 on the right; 9 under 5 on the right. Three levels for five values instead of five.</p>
+
+<h3>Why it is correct</h3>
+<p>Two things to show. It is a BST: at every node, the left subtree was built from values before the root in the sorted list, so all smaller, and the right subtree from values after it, so all larger. It is balanced: a slice of <var>s</var> values splits into slices of sizes</p>
+<p class="formula">⌊(<var>s</var> − 1)/2⌋ and ⌈(<var>s</var> − 1)/2⌉, which differ by at most 1</p>
+<p>Two subtrees whose sizes differ by at most one, both built the same way, have heights that differ by at most one. The argument repeats inside each subtree, so every node is height-balanced, and the overall height is about log<sub>2</sub> <var>n</var>.</p>
+
+<h3>Why it is fast</h3>
+<p>Every value is placed exactly once, with constant work to compute the middle and the two slices: O(<var>n</var>) time. The recursion depth is the height, O(log <var>n</var>). Inserting one by one into an empty BST would have cost O(<var>n</var> log <var>n</var>) at best and O(<var>n</var><sup>2</sup>) for already-sorted input. If the input is a sorted linked list rather than an array, you cannot index the middle, so either copy to an array first (O(<var>n</var>) extra memory) or build inorder while walking the list with a pointer that advances once per node, which is also O(<var>n</var>).</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>"Sorted array to a height-balanced BST", "sorted linked list to BST", "rebalance this BST". Say: "The middle element becomes the root and I recurse on each half; the sorted order guarantees the BST rule and halving guarantees balance." Convert Sorted Array to Binary Search Tree is this exactly. Convert Sorted List to Binary Search Tree is the same with the list-walking trick. Balance a Binary Search Tree is two patterns joined: read the existing tree inorder into a sorted array, then rebuild it with this one.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>The middle element becomes the root; recurse on each half.</p>
     <p><strong>Reach for it when:</strong> Sorted array/list to BST, unique BSTs, balance a BST.</p>
     <p><strong>Cost:</strong> O(n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Sorted array [-10,-3,0,5,9] to a BST</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Pick the middle so both halves get the same size</li><li>Slice [0,4]: middle index 2 → <em>0</em> becomes the root</li><li>Place 0; left gets [0,1], right gets [3,4]</li><li>Slice [0,1]: middle index 0 → <em>-10</em> becomes the left child</li><li>Place -10; left gets [0,-1], right gets [1,1]</li><li>Slice [1,1]: middle index 1 → <em>-3</em> becomes the right child</li><li>Place -3; left gets [1,0], right gets [2,1]</li><li>Slice [3,4]: middle index 3 → <em>5</em> becomes the right child</li><li>Place 5; left gets [3,2], right gets [4,4]</li><li>Slice [4,4]: middle index 4 → <em>9</em> becomes the right child</li><li>Place 9; left gets [4,3], right gets [5,4]</li><li>Every slice halves, so no subtree is deeper than its sibling by more than <em>1</em></li><li>Each element placed once: <em>O(n)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>5 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/convert-sorted-array-to-binary-search-tree">Convert Sorted Array to Binary Search Tree</a></td><td><span class="diff easy">Easy</span></td><td class="num">34</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/convert-sorted-list-to-binary-search-tree">Convert Sorted List to Binary Search Tree</a></td><td><span class="diff medium">Medium</span></td><td class="num">26</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/unique-binary-search-trees-ii">Unique Binary Search Trees II</a></td><td><span class="diff medium">Medium</span></td><td class="num">22</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/unique-binary-search-trees">Unique Binary Search Trees</a></td><td><span class="diff medium">Medium</span></td><td class="num">20</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/balance-a-binary-search-tree">Balance a Binary Search Tree</a></td><td><span class="diff medium">Medium</span></td><td class="num">8</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-binary-search-tree">Binary Search Tree</a>: <a href="/dsa/bst-bounds-validate/">BST range bounds</a>, <a href="/dsa/bst-inorder-sorted/">Inorder = sorted order</a>, <a href="/dsa/bst-insert-delete/">BST insert / delete / search</a>.</p>
   </article>
 
@@ -428,7 +451,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

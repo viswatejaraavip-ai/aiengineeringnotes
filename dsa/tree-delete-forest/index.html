@@ -394,22 +394,45 @@
       <p>A subtree is returned pruned, so the parent only looks at its own two children.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>A tree: 1 at the top; 2 and 3 below; 4 and 5 under 2; 6 and 7 under 3. Delete the nodes 3 and 5. When a node goes, its children do not vanish; they become the tops of their own little trees. The result is a forest: the tree under 1 (now 1, 2, 4), the tree 6, and the tree 7.</p>
+<p>By hand, you would cross out 3 and 5, then look at every remaining node and ask "is my parent crossed out, or do I have no parent?"; if so, I am a root. This needs parent pointers, which binary tree nodes usually do not have. Doing it from the top down also has a trap: if you remove 3 from its parent first, you lose your only way of reaching 6 and 7.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>The tree is unchanged; the structure we add is a set of values to delete, for O(1) membership checks, and a list of forest roots.</p>
+<p>Piece one: handle children before the parent. Visit a node, first recurse into its left and right subtrees, and only then decide about the node itself. Each recursive call returns what should hang in that position afterwards: the same node, or nothing if it was deleted.</p>
+<p>Piece two: deciding at the node. After the children have returned, reattach them: left = whatever the left call returned, right = whatever the right call returned. If this node is in the delete set, its surviving children have no live parent, so add each of them to the forest list, and return nothing to the parent. If it is not deleted, return the node.</p>
+<p>Piece three: the top. Whatever the root call returns, if it is not nothing, is also a forest root.</p>
+<div class="table-wrap"><table><tr><th>Finish visiting</th><th>Deleted?</th><th>Returns to parent</th><th>Added to forest</th></tr><tr><td>4</td><td>no</td><td>4</td><td></td></tr><tr><td>5</td><td>yes</td><td>nothing</td><td>(no children)</td></tr><tr><td>2</td><td>no</td><td>2, now with right = nothing</td><td></td></tr><tr><td>6</td><td>no</td><td>6</td><td></td></tr><tr><td>7</td><td>no</td><td>7</td><td></td></tr><tr><td>3</td><td>yes</td><td>nothing</td><td>6, 7</td></tr><tr><td>1</td><td>no</td><td>1, now with right = nothing</td><td>1 (top of tree)</td></tr></table></div>
+
+<h3>Why it is correct</h3>
+<p>The invariant: a recursive call returns its subtree already pruned, with every deleted node removed and every orphan already recorded. Leaves satisfy it trivially. If both children's calls satisfy it, then after reattaching, the only node not yet decided is this one, and we decide it by one set lookup. So the parent never has to look deeper than its own two children, and the top call returns the fully pruned tree.</p>
+<p>A node becomes a forest root exactly when it survives and its parent does not (or it has no parent). We add children at the moment their parent is deleted, which is the only moment both facts are known together, and the top of the tree is handled separately.</p>
+<p class="formula">roots = { <var>v</var> : <var>v</var> survives and (parent(<var>v</var>) is deleted or <var>v</var> is the root) }</p>
+
+<h3>Why it is fast</h3>
+<p>Every node is visited once, does one set lookup and at most two reattachments: O(<var>n</var>) time, plus the set of size <var>k</var> and the recursion stack of O(<var>h</var>). The by-hand method needed parent pointers and a second scan; this does it in one walk.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>"Delete these nodes and return the remaining trees", "remove every subtree that contains no 1", "delete leaves with a given value, repeatedly", "trim the tree to a range". The shared shape is a decision at a node that depends on what its children became. Say: "I will recurse post-order, let each call return the pruned subtree, and decide about the node after reattaching the children." Delete Nodes And Return Forest is this exactly. Binary Tree Pruning returns nothing for a subtree that ends up with no 1 in it. Delete Leaves With a Given Value works because a node that becomes a leaf after its children are deleted is judged after them.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Decide at the parent after the children report; a deleted node promotes its children.</p>
     <p><strong>Reach for it when:</strong> Delete nodes and return forest, prune tree, delete leaves with value, trim BST.</p>
     <p><strong>Cost:</strong> O(n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Delete Nodes [3,5] from [1,2,3,4,5,6,7]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Delete 3 and 5; every orphaned child becomes a new root</li><li>Visit 1, go down first</li><li>Visit 2, go down first</li><li>Visit 4, go down first</li><li>4 stays attached to its parent</li><li>Visit 5, go down first</li><li>5 is deleted: cut it out, its children already reported</li><li>2 stays attached to its parent</li><li>Visit 3, go down first</li><li>Visit 6, go down first</li><li>6 survives with no live parent: it is a <em>forest root</em></li><li>Visit 7, go down first</li><li>7 survives with no live parent: it is a <em>forest root</em></li><li>3 is deleted: cut it out, its children already reported</li><li>1 survives with no live parent: it is a <em>forest root</em></li><li>Forest: roots <em>1, 6, 7</em>; the nodes 3 and 5 are gone</li><li>One post-order pass: <em>O(n)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>6 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/delete-nodes-and-return-forest">Delete Nodes And Return Forest</a></td><td><span class="diff medium">Medium</span></td><td class="num">37</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/height-of-binary-tree-after-subtree-removal-queries">Height of Binary Tree After Subtree Removal Queries</a></td><td><span class="diff hard">Hard</span></td><td class="num">27</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/find-leaves-of-binary-tree">Find Leaves of Binary Tree</a></td><td><span class="diff medium">Medium</span></td><td class="num">24</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/delete-leaves-with-a-given-value">Delete Leaves With a Given Value</a></td><td><span class="diff medium">Medium</span></td><td class="num">11</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/trim-a-binary-search-tree">Trim a Binary Search Tree</a></td><td><span class="diff medium">Medium</span></td><td class="num">8</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/binary-tree-pruning">Binary Tree Pruning</a></td><td><span class="diff medium">Medium</span></td><td class="num">5</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-trees">Trees</a>: <a href="/dsa/tree-dfs-recursive/">Recursive DFS (post-order fold)</a>, <a href="/dsa/tree-path-through-node/">Best path through each node</a>, <a href="/dsa/tree-bfs-levels/">Level-order BFS</a>, <a href="/dsa/tree-root-to-leaf/">Root-to-leaf path carry</a>, <a href="/dsa/tree-lca/">Lowest common ancestor</a>, <a href="/dsa/tree-build-from-traversals/">Build from traversals</a>, <a href="/dsa/tree-iterative-inorder/">Iterative traversal with a stack</a>, <a href="/dsa/tree-vertical-coords/">Column / coordinate traversal</a>, <a href="/dsa/tree-rerooting/">Rerooting DP (sum over all roots)</a>, <a href="/dsa/tree-distance-k/">Tree as a graph (parent pointers)</a>, <a href="/dsa/tree-dp-choose-skip/">Tree DP: take or skip this node</a>, <a href="/dsa/bfs-tree-serialization/">Serialize / deserialize by BFS</a>.</p>
   </article>
 
@@ -428,7 +451,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

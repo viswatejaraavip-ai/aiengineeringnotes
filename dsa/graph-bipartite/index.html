@@ -394,22 +394,42 @@
       <p>Every discovered edge joins two different colours.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Six students must be split into two teams, and certain pairs refuse to be on the same team: (0,1), (0,3), (1,2), (2,3). Can it be done? By hand: put 0 on team red. Then 1 and 3 must be blue. Then 2, who dislikes 1, must be red. Check 2–3: red and blue, fine. It works. Now add one more refusal, (0,2). 0 and 2 are both red. Try again from scratch with 0 blue and the same clash appears. The triangle 0–1–2 can never be split into two teams, because three people in a circle cannot alternate two colours.</p>
+<p>By hand you re-tried from scratch. With thousands of students and refusals, you want one pass that either produces the two teams or points at the clash.</p>
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: the graph, as a list of neighbours per student: 0: [1, 3], 1: [0, 2], 2: [1, 3], 3: [0, 2].</p>
+<p>Piece two: a colour array, one slot per student, starting empty.</p>
+<p>Piece three: breadth-first search with one extra rule. Paint the start student with colour A and put them in a queue. Take a student out; for each neighbour: if unpainted, paint it the <strong>opposite</strong> colour and enqueue; if already painted, check it is the opposite colour; if it is the same colour, stop: the graph is not two-colourable.</p>
+<div class="table-wrap"><table><tr><th>step</th><th>took out</th><th>colours (0,1,2,3)</th><th>queue</th></tr><tr><td>start</td><td></td><td>A, –, –, –</td><td>[0]</td></tr><tr><td>1</td><td>0</td><td>A, B, –, B</td><td>[1, 3]</td></tr><tr><td>2</td><td>1</td><td>A, B, A, B</td><td>[3, 2]</td></tr><tr><td>3</td><td>3</td><td>A, B, A, B (2 is A, 3 is B, fine)</td><td>[2]</td></tr></table></div>
+<p>Repeat from any unpainted student, since the graph may be in several pieces. With the extra edge 0–2, step 2 would find 2 already painted A while painting from 1, which is B, so 2 becomes A, and then 0–2 compares A with A: clash.</p>
+<h3>Why it is correct</h3>
+<p>The invariant: every edge whose both ends are painted joins two different colours. Painting a neighbour the opposite colour keeps it true; checking an already-painted neighbour keeps it true or reports a clash. If the search finishes with no clash, the colours are the two teams.</p>
+<p>If there is a clash, why can no other painting succeed? Because in a connected piece the first colour forces every other colour: a neighbour must be opposite, its neighbour opposite again, and so on. There are only two possible paintings, mirror images of each other, and the clash appears in both. A clash means an <strong>odd cycle</strong>: going round a cycle alternates colours, so a cycle returns to its own colour only if its length is odd.</p>
+<h3>Why it is fast</h3>
+<p>Each student is painted and dequeued once, and each refusal is checked twice, once from each end:</p>
+<p class="formula">work = <var>V</var> + 2<var>E</var></p>
+<p>Re-trying from scratch for each start, as the by-hand attempt did, would multiply this by <var>V</var>.</p>
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "split into two groups", "no two neighbours in the same group", "is the graph bipartite", "dislikes" or "conflicts" as edges. The first thing to say: "two-colour it with BFS; a same-colour edge means an odd cycle and the answer is no." Is Graph Bipartite? is the routine itself. Possible Bipartition gives the dislikes as pairs; build the neighbour lists and run the same painting.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>BFS/DFS painting neighbours the opposite colour; a clash means odd cycle.</p>
     <p><strong>Reach for it when:</strong> Is graph bipartite, possible bipartition, two-group splits.</p>
     <p><strong>Cost:</strong> O(V + E) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Is Graph Bipartite? on a 4-node square plus a chord</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Paint node 0 purple and BFS; every neighbour gets the <em>opposite</em> colour</li><li>Pop 0: check each neighbour of 0</li><li>1 is unpainted: give it the <em>opposite</em> colour of 0</li><li>3 is unpainted: give it the <em>opposite</em> colour of 0</li><li>2 is unpainted: give it the <em>opposite</em> colour of 0</li><li>Pop 1: check each neighbour of 1</li><li>Edge 1–0: colours already differ, fine</li><li>Edge 1–2: <em>same colour</em> on both ends, an odd cycle</li><li>Not bipartite: the triangle 0-1-2 cannot be 2-coloured</li><li>One BFS over the graph: <em>O(V + E)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>3 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/is-graph-bipartite">Is Graph Bipartite?</a></td><td><span class="diff medium">Medium</span></td><td class="num">27</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/possible-bipartition">Possible Bipartition</a></td><td><span class="diff medium">Medium</span></td><td class="num">11</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/divide-nodes-into-the-maximum-number-of-groups">Divide Nodes Into the Maximum Number of Groups</a></td><td><span class="diff hard">Hard</span></td><td class="num">11</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-graphs">Graphs</a>: <a href="/dsa/grid-dfs-islands/">Grid flood fill (components)</a>, <a href="/dsa/bfs-multi-source/">Multi-source BFS</a>, <a href="/dsa/bfs-shortest-unweighted/">BFS shortest path (unweighted)</a>, <a href="/dsa/bfs-state-space/">BFS over an augmented state</a>, <a href="/dsa/bfs-0-1/">0-1 BFS (deque)</a>, <a href="/dsa/dfs-cycle-coloring/">DFS three-colour cycle detection</a>, <a href="/dsa/topo-kahn/">Topological sort (Kahn&#x27;s)</a>, <a href="/dsa/union-find/">Union–Find (disjoint sets)</a>, <a href="/dsa/dijkstra/">Dijkstra (weighted shortest path)</a>, <a href="/dsa/bellman-ford-k-stops/">Bellman–Ford with k rounds</a>, <a href="/dsa/mst-kruskal-prim/">Minimum spanning tree</a>, <a href="/dsa/eulerian-path/">Eulerian path (Hierholzer)</a>, <a href="/dsa/tarjan-bridges/">Bridges / articulation (low-link)</a>, <a href="/dsa/graph-clone-traverse/">Clone / traverse with a visited map</a>, <a href="/dsa/implicit-graph-search/">Implicit graph (states as nodes)</a>.</p>
   </article>
 
@@ -428,7 +448,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

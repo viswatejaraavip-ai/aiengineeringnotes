@@ -394,22 +394,49 @@
       <p>dp[i] counts distinct constructions of the first i positions.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>The letters A to Z are coded as 1 to 26. The message <code>226</code> could be <code>2 2 6</code> (BBF), <code>22 6</code> (VF) or <code>2 26</code> (BZ). How many readings does a digit string have?</p>
+<p>By hand you would list them, as above, and get 3. Now try <code>2222222222</code>, ten digits. Each boundary between digits can be a cut or not, with the rule that a two-digit group must be 10 to 26. Listing by hand gives 89 readings after a lot of care, and for 40 digits the count is in the hundreds of millions, far more than anyone can list. The listing also repeats itself: every reading of the first 8 digits gets written out again for each way of finishing the last 2.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Count, do not list. Keep an array <var>dp</var> where <var>dp</var>[<var>i</var>] is the number of readings of the first <var>i</var> digits. A reading of the first <var>i</var> digits ends either with a one-digit letter (then the first <var>i</var> − 1 digits were read some way) or with a two-digit letter (then the first <var>i</var> − 2 digits were read some way). Those two groups are different readings, so add them:</p>
+<div class="table-wrap"><table>
+<tr><th><var>i</var></th><th>prefix</th><th>last digit alone</th><th>last two digits as one letter</th><th><var>dp</var>[<var>i</var>]</th></tr>
+<tr><td>0</td><td>(empty)</td><td></td><td></td><td>1</td></tr>
+<tr><td>1</td><td><code>2</code></td><td><code>2</code> ok → <var>dp</var>[0] = 1</td><td></td><td>1</td></tr>
+<tr><td>2</td><td><code>22</code></td><td><code>2</code> ok → <var>dp</var>[1] = 1</td><td><code>22</code> ok → <var>dp</var>[0] = 1</td><td>2</td></tr>
+<tr><td>3</td><td><code>226</code></td><td><code>6</code> ok → <var>dp</var>[2] = 2</td><td><code>26</code> ok → <var>dp</var>[1] = 1</td><td>3</td></tr>
+</table></div>
+<p>Three readings, as found by hand. The walk-through video uses <code>1226</code> and reaches 5. The empty prefix counts as one reading, the "nothing to read" reading; without it the two-digit case at <var>i</var> = 2 would have nothing to add.</p>
+<p>The last piece is the <strong>modulo</strong>. Counts grow fast, so problems ask for the answer modulo 1,000,000,007. Take the remainder after each addition. Because (<var>a</var> + <var>b</var>) mod <var>m</var> = ((<var>a</var> mod <var>m</var>) + (<var>b</var> mod <var>m</var>)) mod <var>m</var>, reducing early never changes the final remainder, and the numbers stay small enough to add safely.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: <var>dp</var>[<var>i</var>] equals the number of distinct readings of the first <var>i</var> digits. Every reading of a prefix has a last letter, which uses one or two digits. Readings whose last letter is one digit are in one-to-one correspondence with readings of the prefix one shorter; readings whose last letter is two digits correspond to readings of the prefix two shorter, and only exist when those two digits form a value from 10 to 26 (a leading zero is not a letter). No reading is in both groups, since the last letter has a definite length. So the sum counts each reading exactly once.</p>
+<p class="formula"><var>dp</var>[<var>i</var>] = [<var>s</var><sub><var>i</var></sub> ≠ 0] · <var>dp</var>[<var>i</var>−1] + [10 ≤ <var>s</var><sub><var>i</var>−1</sub><var>s</var><sub><var>i</var></sub> ≤ 26] · <var>dp</var>[<var>i</var>−2]</p>
+
+<h3>Why it is fast</h3>
+<p>Each cell is one or two additions, so <var>n</var> digits take O(<var>n</var>) steps, and since a cell only looks back two places, two variables are enough memory. Compare with listing: the number of readings itself can be exponential in <var>n</var> (for all 1s and 2s it is a Fibonacci number), so any method that writes them out is exponential, while counting is linear.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "how many ways", "number of distinct", "return the answer modulo 10<sup>9</sup> + 7". The modulo is the giveaway that the count is huge and you are meant to add counts of smaller cases rather than enumerate. Say: the number of ways to reach state <var>i</var> is the sum of the ways to reach each state that can step to it. <em>Decode Ways</em> is the example. <em>Domino and Tromino Tiling</em> and <em>Knight Dialer</em> are the same shape with different predecessor rules.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Sum the ways from every predecessor state, mod 1e9+7.</p>
     <p><strong>Reach for it when:</strong> Decode ways, unique paths, number of music playlists, dice rolls, count vowels permutation.</p>
     <p><strong>Cost:</strong> O(n · states) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Decode Ways on &#x27;226&#x27;</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>dp[0] = <em>1</em>: the empty prefix decodes one way</li><li>dp[1]: &#x27;1&#x27; alone → dp[0] = 1 = <em>1</em></li><li>dp[2]: &#x27;2&#x27; alone → dp[1] = 1 + &#x27;12&#x27; as one letter → dp[0] = 1 = <em>2</em></li><li>dp[3]: &#x27;2&#x27; alone → dp[2] = 2 + &#x27;22&#x27; as one letter → dp[1] = 1 = <em>3</em></li><li>dp[4]: &#x27;6&#x27; alone → dp[3] = 3 + &#x27;26&#x27; as one letter → dp[2] = 2 = <em>5</em></li><li>Each dp[i] sums two earlier states; <em>mod</em> keeps the numbers small</li><li>Answer dp[4] = <em>5</em>: 1,2,2,6 · 12,2,6 · 1,22,6 · 1,2,26 · 12,26</li><li>A Fibonacci-shaped recurrence: <em>O(n)</em> time, two variables of memory</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>7 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/count-good-numbers">Count Good Numbers</a></td><td><span class="diff medium">Medium</span></td><td class="num">39</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/domino-and-tromino-tiling">Domino and Tromino Tiling</a></td><td><span class="diff medium">Medium</span></td><td class="num">35</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/decode-ways">Decode Ways</a></td><td><span class="diff medium">Medium</span></td><td class="num">30</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/knight-dialer">Knight Dialer</a></td><td><span class="diff medium">Medium</span></td><td class="num">26</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/number-of-dice-rolls-with-target-sum">Number of Dice Rolls With Target Sum</a></td><td><span class="diff medium">Medium</span></td><td class="num">20</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/number-of-ways-to-stay-in-the-same-place-after-some-steps">Number of Ways to Stay in the Same Place After Some Steps</a></td><td><span class="diff hard">Hard</span></td><td class="num">18</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/number-of-music-playlists">Number of Music Playlists</a></td><td><span class="diff hard">Hard</span></td><td class="num">5</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-dynamic-programming">Dynamic Programming</a>: <a href="/dsa/dp-1d-linear/">1-D linear DP</a>, <a href="/dsa/dp-kadane/">Kadane (best ending here)</a>, <a href="/dsa/dp-lis/">Longest increasing subsequence</a>, <a href="/dsa/dp-grid-paths/">Grid path DP</a>, <a href="/dsa/dp-knapsack-01/">0/1 knapsack (subset sum)</a>, <a href="/dsa/dp-unbounded-coin/">Unbounded knapsack (coin change)</a>, <a href="/dsa/dp-lcs-edit/">Two-sequence DP (LCS / edit distance)</a>, <a href="/dsa/dp-pattern-matching/">Wildcard / regex matching DP</a>, <a href="/dsa/dp-palindrome-expand/">Palindromes: expand or table</a>, <a href="/dsa/dp-word-break/">Prefix segmentation DP</a>, <a href="/dsa/dp-interval/">Interval DP (last operation)</a>, <a href="/dsa/dp-state-machine-stock/">State-machine DP (stocks)</a>, <a href="/dsa/dp-bitmask/">Bitmask DP over subsets</a>, <a href="/dsa/dp-memo-dfs/">Memoised DFS (top-down)</a>, <a href="/dsa/dp-digit/">Digit DP</a>, <a href="/dsa/dp-game-minimax/">Game DP (minimax on a range)</a>, <a href="/dsa/dp-longest-string-chain/">DP over sorted keys (chains)</a>.</p>
   </article>
 
@@ -428,7 +455,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

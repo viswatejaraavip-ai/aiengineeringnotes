@@ -394,22 +394,44 @@
       <p>The stack holds the ancestors whose left side is done but who are not yet visited.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>A binary search tree keeps smaller values to the left and larger values to the right. Walking it in the order "left side, me, right side", the inorder, lists the values from smallest to largest. The recursive version is three lines. But sometimes you cannot use recursion: a tree a million nodes deep would blow the call stack, or the problem wants an iterator object with a next() method that returns one value at a time and pauses in between. Recursion cannot pause.</p>
+<p>Take the tree: 4 at the top; 2 and 6 below; 1 and 3 under 2; 7 under 6. By hand you walk down to the far left, say 1, then step back to 2, then look right (3), step back to 4, and so on. The "step back" is the part a plain loop cannot do, because a node does not know its parent. We need our own memory of the way we came.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a stack. A pile where you add on top and remove from the top. Two operations: push and pop. It will hold the nodes we walked through on the way down, so we can step back to them.</p>
+<p>Piece two: the left spine. From the current node, keep going to the left child, pushing each node as you pass. Stop when there is no left child. The stack now holds the path from where you started down to the leftmost node, with the leftmost on top.</p>
+<p>Piece three: pop, visit, go right. Pop the top node: it has no unvisited left side, so it is next in order. Output it. Then move to its right child and run piece two from there. If there is no right child, just pop again.</p>
+<div class="table-wrap"><table><tr><th>Action</th><th>Stack (bottom → top)</th><th>Output so far</th></tr><tr><td>push the left spine from 4</td><td>4, 2, 1</td><td></td></tr><tr><td>pop 1, visit, right is empty</td><td>4, 2</td><td>1</td></tr><tr><td>pop 2, visit, go right to 3, push spine</td><td>4, 3</td><td>1, 2</td></tr><tr><td>pop 3, visit, right is empty</td><td>4</td><td>1, 2, 3</td></tr><tr><td>pop 4, visit, go right to 6, push spine</td><td>6</td><td>1, 2, 3, 4</td></tr><tr><td>pop 6, visit, go right to 7, push spine</td><td>7</td><td>1, 2, 3, 4, 6</td></tr><tr><td>pop 7, visit, right is empty</td><td>(empty)</td><td>1, 2, 3, 4, 6, 7</td></tr></table></div>
+<p>Stop when the stack is empty and there is no node to walk from. For an iterator, next() is exactly one "pop, visit, push the right child's spine", and hasNext() is "the stack is not empty".</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: the stack holds exactly the nodes whose left side has been fully handled but who have not been output yet, in order from top of tree to bottom. Pushing a left spine keeps it true: every node pushed is waiting on its left side, and the spine ends where there is no left side. Popping the top keeps it true: the top is the deepest waiting node, nothing on its left remains, so it is the smallest unvisited value and the correct next output. Walking into its right child and pushing that spine is the same situation one level down.</p>
+<p class="formula">next output = the top of the stack, which is the smallest value not yet output</p>
+
+<h3>Why it is fast</h3>
+<p>Each node is pushed exactly once and popped exactly once, so a full traversal is 2<var>n</var> stack operations, O(<var>n</var>). A single next() call can push a long spine, but across all calls the pushes total <var>n</var>, so next() is O(1) on average. The stack never holds more than one root-to-leaf path, so memory is O(<var>h</var>), the height, which is much less than <var>n</var> for a balanced tree.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>"Without recursion", "implement an iterator over a BST", "kth smallest", "next and hasNext in O(1) average and O(h) memory". Say: "I will keep an explicit stack of the left spine; pop gives the next value and I then push the right child's left spine." Binary Search Tree Iterator is exactly this object. Kth Smallest Element in a BST runs the same loop and stops after <var>k</var> pops. Validate Binary Search Tree uses the loop and checks that each popped value is larger than the previous one.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Push the left spine; pop, visit, then push the right child&#x27;s left spine.</p>
     <p><strong>Reach for it when:</strong> Inorder iterator, BST iterator, kth smallest, flatten, Morris traversal.</p>
     <p><strong>Cost:</strong> O(n) time, O(h) space.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Inorder of [1,null,2,3] iteratively</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Walk left as far as possible, pushing every node</li><li>Push 4, step left</li><li>Push 2, step left</li><li>Push 1, step left</li><li>Nothing on the left: pop and <em>visit 1</em>, then go right</li><li>Nothing on the left: pop and <em>visit 2</em>, then go right</li><li>Push 3, step left</li><li>Nothing on the left: pop and <em>visit 3</em>, then go right</li><li>Nothing on the left: pop and <em>visit 4</em>, then go right</li><li>Push 6, step left</li><li>Nothing on the left: pop and <em>visit 6</em>, then go right</li><li>Push 7, step left</li><li>Nothing on the left: pop and <em>visit 7</em>, then go right</li><li>Stack empty and no node left: <em>[1,2,3,4,6,7]</em>, sorted</li><li>Each node pushed and popped once: <em>O(n)</em> time, <em>O(h)</em> stack</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>8 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/binary-tree-inorder-traversal">Binary Tree Inorder Traversal</a></td><td><span class="diff easy">Easy</span></td><td class="num">42</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/kth-smallest-element-in-a-bst">Kth Smallest Element in a BST</a></td><td><span class="diff medium">Medium</span></td><td class="num">41</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/validate-binary-search-tree">Validate Binary Search Tree</a></td><td><span class="diff medium">Medium</span></td><td class="num">36</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/flatten-binary-tree-to-linked-list">Flatten Binary Tree to Linked List</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/binary-search-tree-iterator">Binary Search Tree Iterator</a></td><td><span class="diff medium">Medium</span></td><td class="num">29</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/binary-tree-preorder-traversal">Binary Tree Preorder Traversal</a></td><td><span class="diff easy">Easy</span></td><td class="num">28</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/closest-binary-search-tree-value">Closest Binary Search Tree Value</a></td><td><span class="diff easy">Easy</span></td><td class="num">18</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/binary-tree-postorder-traversal">Binary Tree Postorder Traversal</a></td><td><span class="diff easy">Easy</span></td><td class="num">13</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-trees">Trees</a>: <a href="/dsa/tree-dfs-recursive/">Recursive DFS (post-order fold)</a>, <a href="/dsa/tree-path-through-node/">Best path through each node</a>, <a href="/dsa/tree-bfs-levels/">Level-order BFS</a>, <a href="/dsa/tree-root-to-leaf/">Root-to-leaf path carry</a>, <a href="/dsa/tree-lca/">Lowest common ancestor</a>, <a href="/dsa/tree-build-from-traversals/">Build from traversals</a>, <a href="/dsa/tree-vertical-coords/">Column / coordinate traversal</a>, <a href="/dsa/tree-rerooting/">Rerooting DP (sum over all roots)</a>, <a href="/dsa/tree-delete-forest/">Post-order deletion / pruning</a>, <a href="/dsa/tree-distance-k/">Tree as a graph (parent pointers)</a>, <a href="/dsa/tree-dp-choose-skip/">Tree DP: take or skip this node</a>, <a href="/dsa/bfs-tree-serialization/">Serialize / deserialize by BFS</a>.</p>
   </article>
 
@@ -428,7 +450,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

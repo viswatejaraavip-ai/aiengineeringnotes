@@ -394,22 +394,44 @@
       <p>The heap holds the k largest seen so far; its root is the kth largest.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Numbers arrive one at a time: 4, 5, 8, 2, 3, 5, 10, 9. After each arrival you want to know the third largest so far. By hand you would keep a sorted list of everything, insert each newcomer in its place, and read the third entry from the end. Inserting into a sorted list of <var>m</var> numbers means shifting about <var>m</var>/2 of them, so after a million numbers each insert costs about half a million moves. And you keep all million numbers although only three matter.</p>
+<p>The first idea: only keep the three biggest seen so far. A newcomer either beats the smallest of the three, and replaces it, or does not, and is thrown away. Now the list has three entries and inserting is cheap. The question is how to do this when <var>k</var> is 1,000 instead of 3.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a min-heap. A heap is a collection where you can always see its smallest element at once, add a new element, and remove the smallest, each of the last two costing about log<sub>2</sub>(size) steps. Internally it is a tree where every node is smaller than its children; the root is therefore the minimum. For now, treat it as a bag with a cheap "smallest" button.</p>
+<p>Piece two: cap the bag at <var>k</var> elements. Push the first <var>k</var> numbers in. From then on, compare each newcomer with the smallest in the bag. If the newcomer is bigger, remove the smallest and push the newcomer. Otherwise ignore it.</p>
+<p>Piece three: read the answer. The bag holds the <var>k</var> largest numbers seen so far, and its smallest element is therefore the <var>k</var>-th largest overall.</p>
+<div class="table-wrap"><table><tr><th>Arrives</th><th>Action</th><th>Bag contents</th><th>Smallest = 3rd largest</th></tr><tr><td>4, 5, 8</td><td>push, bag not full</td><td>{4, 5, 8}</td><td>4</td></tr><tr><td>2</td><td>2 ≤ 4, ignore</td><td>{4, 5, 8}</td><td>4</td></tr><tr><td>3</td><td>3 ≤ 4, ignore</td><td>{4, 5, 8}</td><td>4</td></tr><tr><td>5</td><td>5 &gt; 4, replace 4</td><td>{5, 5, 8}</td><td>5</td></tr><tr><td>10</td><td>10 &gt; 5, replace 5</td><td>{5, 8, 10}</td><td>5</td></tr><tr><td>9</td><td>9 &gt; 5, replace 5</td><td>{8, 9, 10}</td><td>8</td></tr></table></div>
+<p>Why a <em>min</em>-heap for the <em>largest</em> elements: the one element we must compare against and remove is the smallest of the kept ones, so that is the element the structure must expose.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: after any number of arrivals, the bag contains exactly the <var>k</var> largest numbers seen so far. True after the first <var>k</var>. Consider a newcomer <var>x</var> and the bag's smallest <var>s</var>. If <var>x</var> ≤ <var>s</var>, then at least <var>k</var> numbers are at least as large as <var>x</var>, so <var>x</var> is not among the <var>k</var> largest, and the bag is unchanged correctly. If <var>x</var> &gt; <var>s</var>, then <var>s</var> is beaten by <var>x</var> and by the other <var>k</var> − 1 bag members, so <var>s</var> drops out and <var>x</var> joins, which is exactly the swap we perform.</p>
+<p class="formula">min(bag) = <var>k</var>-th largest of everything seen, because exactly <var>k</var> − 1 seen numbers exceed it</p>
+
+<h3>Why it is fast</h3>
+<p>Each arrival does one comparison and at most one remove and one push on a heap of size <var>k</var>, each O(log <var>k</var>). For <var>n</var> arrivals: O(<var>n</var> log <var>k</var>), and only <var>k</var> numbers are stored. With <var>k</var> = 3 that is about 2 steps per number instead of half a million moves in the sorted list. Sorting everything would be O(<var>n</var> log <var>n</var>) and needs all <var>n</var> in memory, which fails for a stream.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>"The k largest", "k closest", "k most frequent", "kth largest in a stream", especially when <var>k</var> is much smaller than <var>n</var> or the data arrives continuously. Say: "I will keep a min-heap of size k; the root is the kth largest, and a newcomer replaces the root only if it is bigger." Kth Largest Element in a Stream is this object with an add() method. K Closest Points to Origin uses a max-heap of size <var>k</var> on distance, the mirror image. Top K Frequent Elements first counts, then runs the same heap on the counts.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Keep a min-heap of the k best; a newcomer replaces the root only if it beats it.</p>
     <p><strong>Reach for it when:</strong> Kth largest, k closest points, top-k frequent, kth largest in a stream.</p>
     <p><strong>Cost:</strong> O(n log k) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Kth largest (k=3) stream on [4,5,8,2,3,5,10,9]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Keep a <em>min-heap of size k</em>: its root is the kth largest</li><li>Heap has room: push 4</li><li>Heap has room: push 5</li><li>Heap has room: push 8</li><li>2 ≤ root 4: it cannot be in the top 3, <em>skip</em></li><li>3 ≤ root 4: it cannot be in the top 3, <em>skip</em></li><li>5 beats the root 4: <em>replace</em> the root and sift down</li><li>10 beats the root 5: <em>replace</em> the root and sift down</li><li>9 beats the root 5: <em>replace</em> the root and sift down</li><li>After the stream the root is the 3rd largest: <em>8</em></li><li>Each item costs one heap op of size k: <em>O(n log k)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>7 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/top-k-frequent-elements">Top K Frequent Elements</a></td><td><span class="diff medium">Medium</span></td><td class="num">59</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/kth-largest-element-in-an-array">Kth Largest Element in an Array</a></td><td><span class="diff medium">Medium</span></td><td class="num">55</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-k-closest-elements">Find K Closest Elements</a></td><td><span class="diff medium">Medium</span></td><td class="num">38</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/kth-largest-element-in-a-stream">Kth Largest Element in a Stream</a></td><td><span class="diff easy">Easy</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/top-k-frequent-words">Top K Frequent Words</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/sort-characters-by-frequency">Sort Characters By Frequency</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/k-closest-points-to-origin">K Closest Points to Origin</a></td><td><span class="diff medium">Medium</span></td><td class="num">27</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-heap">Heap</a>: <a href="/dsa/heap-two-heaps-median/">Two heaps (running median)</a>, <a href="/dsa/heap-k-way-merge/">K-way merge</a>, <a href="/dsa/heap-scheduling-greedy/">Greedy scheduling with a heap</a>, <a href="/dsa/heap-lazy-deletion/">Lazy deletion heap</a>, <a href="/dsa/heap-frequency-rebuild/">Pop-k-then-rebuild (frequency greedy)</a>.</p>
   </article>
 
@@ -428,7 +450,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

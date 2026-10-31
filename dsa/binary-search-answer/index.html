@@ -394,22 +394,57 @@
       <p>feasible(x) is monotone, so the smallest feasible x is a boundary.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Koko has four piles of bananas: 3, 6, 7, 11. She eats at a fixed speed of <var>k</var> bananas per hour, finishing at most one pile per hour (if a pile has fewer than <var>k</var> she still spends the hour). The guards return in 8 hours. What is the slowest speed that still finishes every pile in time?</p>
+<p>By hand: at speed 1 the piles take 3 + 6 + 7 + 11 = 27 hours, too slow. Speed 2: 2 + 3 + 4 + 6 = 15 hours. Speed 3: 1 + 2 + 3 + 4 = 10. Speed 4: 1 + 2 + 2 + 3 = 8. That fits, and 3 did not, so the answer is 4. You tried every speed from 1 up, and each try walked all the piles. If the biggest pile held a billion bananas, the answer could be around a billion, and you would do a billion tries.</p>
+<p>Notice the pattern of the tries: too slow, too slow, too slow, fits, fits, fits, &hellip; Once a speed works, every faster speed works. That is a yes/no condition that is false and then true, and we already know how to find such a boundary quickly.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p><strong>Piece 1: a checker.</strong> Write feasible(<var>k</var>): hours needed at speed <var>k</var> is the sum over piles of &lceil;pile / <var>k</var>&rceil;; return whether that is &le; 8. This is a straight walk over the piles.</p>
+<p><strong>Piece 2: a range of possible answers.</strong> The slowest sensible speed is 1 and the fastest useful speed is the biggest pile, 11, since anything faster changes nothing. So lo = 1, hi = 11.</p>
+<p><strong>Piece 3: binary search the boundary.</strong> Test the middle speed. If it is feasible, the answer is mid or slower: hi = mid. If not, the answer is faster: lo = mid + 1. Stop when lo = hi.</p>
+<div class="table-wrap"><table>
+<tr><th>lo</th><th>hi</th><th>mid</th><th>hours at mid</th><th>feasible?</th><th>Move</th></tr>
+<tr><td>1</td><td>11</td><td>6</td><td>1+1+2+2 = 6</td><td>yes</td><td>hi = 6</td></tr>
+<tr><td>1</td><td>6</td><td>3</td><td>1+2+3+4 = 10</td><td>no</td><td>lo = 4</td></tr>
+<tr><td>4</td><td>6</td><td>5</td><td>1+2+2+3 = 8</td><td>yes</td><td>hi = 5</td></tr>
+<tr><td>4</td><td>5</td><td>4</td><td>1+2+2+3 = 8</td><td>yes</td><td>hi = 4</td></tr>
+<tr><td>4</td><td>4</td><td colspan="4">answer 4</td></tr>
+</table></div>
+<p>Four checks instead of four tries here, but for a billion-banana pile it is about thirty checks instead of a billion.</p>
+
+<h3>Why it is correct</h3>
+<p>The whole method rests on one fact: feasible(<var>k</var>) is monotone. If speed <var>k</var> finishes in time, speed <var>k</var> + 1 does too, because each pile takes the same or fewer hours.</p>
+<p class="formula">&lceil;<var>p</var> / (<var>k</var> + 1)&rceil; &le; &lceil;<var>p</var> / <var>k</var>&rceil; for every pile <var>p</var>, so hours(<var>k</var> + 1) &le; hours(<var>k</var>)</p>
+<p>Given monotonicity, the invariant is the boundary-search invariant: feasible(lo &minus; 1) is false (or lo is the minimum speed) and feasible(hi) is true. Moving lo past an infeasible mid and hi onto a feasible mid keeps both facts, the range shrinks every step, and lo = hi is the smallest feasible speed.</p>
+<p>The checker must be exact and greedy-simple. For "minimise the largest sum when splitting an array into <var>m</var> parts", the checker is: walk the array, start a new part whenever adding the next element would exceed the guessed limit, and count the parts. That greedy count is the fewest parts possible for that limit, so the check is exact.</p>
+
+<h3>Why it is fast</h3>
+<p>The number of checks is about log<sub>2</sub> of the size of the answer range, and each check walks the <var>n</var> piles once.</p>
+<p class="formula">time = O(<var>n</var> &times; log<sub>2</sub>(hi &minus; lo)) = O(<var>n</var> log(range))</p>
+<p>For 1000 piles and a range of a billion that is 1000 &times; 30 = 30 000 steps, instead of 1000 &times; a billion.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The cues are "minimum speed / capacity / time such that", "minimise the maximum", "maximise the minimum", "smallest <var>x</var> that makes it possible". Whenever checking a given answer is easy but computing the answer directly is not, ask whether the check is monotone. Say: "I can verify a candidate in O(<var>n</var>) and feasibility is monotone, so I binary search over the answer."</p>
+<p>Koko Eating Bananas is the example above. Capacity To Ship Packages Within D Days guesses a ship capacity and counts days greedily. Split Array Largest Sum guesses the largest allowed sum and counts parts. Swim in Rising Water guesses a water level and checks reachability with a flood fill, which shows the checker can be a graph search.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Guess an answer, check feasibility greedily, tighten the range.</p>
     <p><strong>Reach for it when:</strong> Split array largest sum, Koko bananas, ship capacity, minimize max / maximize min.</p>
     <p><strong>Cost:</strong> O(n log range) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Koko Eating Bananas piles [3,6,7,11], h=8</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Guess a speed k, <em>check feasibility</em>, then halve the k range</li><li>k = 6: hours = 1 + 1 + 2 + 2 = <em>6</em> ≤ 8</li><li>Feasible: try <em>slower</em>, hi = 6</li><li>k = 3: hours = 1 + 2 + 3 + 4 = <em>10</em> &gt; 8</li><li>Too slow: need <em>faster</em>, lo = 4</li><li>k = 5: hours = 1 + 2 + 2 + 3 = <em>8</em> ≤ 8</li><li>Feasible: try <em>slower</em>, hi = 5</li><li>k = 4: hours = 1 + 2 + 2 + 3 = <em>8</em> ≤ 8</li><li>Feasible: try <em>slower</em>, hi = 4</li><li>lo == hi: the minimum feasible speed is <em>4</em></li><li>feasible(k) is monotone, so the answer is a boundary: <em>O(n log range)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>13 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/koko-eating-bananas">Koko Eating Bananas</a></td><td><span class="diff medium">Medium</span></td><td class="num">59</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/split-array-largest-sum">Split Array Largest Sum</a></td><td><span class="diff hard">Hard</span></td><td class="num">58</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/capacity-to-ship-packages-within-d-days">Capacity To Ship Packages Within D Days</a></td><td><span class="diff medium">Medium</span></td><td class="num">44</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/swim-in-rising-water">Swim in Rising Water</a></td><td><span class="diff hard">Hard</span></td><td class="num">41</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/minimum-number-of-days-to-make-m-bouquets">Minimum Number of Days to Make m Bouquets</a></td><td><span class="diff medium">Medium</span></td><td class="num">40</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/path-with-minimum-effort">Path With Minimum Effort</a></td><td><span class="diff medium">Medium</span></td><td class="num">38</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/maximum-candies-allocated-to-k-children">Maximum Candies Allocated to K Children</a></td><td><span class="diff medium">Medium</span></td><td class="num">32</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-the-smallest-divisor-given-a-threshold">Find the Smallest Divisor Given a Threshold</a></td><td><span class="diff medium">Medium</span></td><td class="num">29</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/kth-smallest-element-in-a-sorted-matrix">Kth Smallest Element in a Sorted Matrix</a></td><td><span class="diff medium">Medium</span></td><td class="num">26</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/magnetic-force-between-two-balls">Magnetic Force Between Two Balls</a></td><td><span class="diff medium">Medium</span></td><td class="num">17</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/minimum-speed-to-arrive-on-time">Minimum Speed to Arrive on Time</a></td><td><span class="diff medium">Medium</span></td><td class="num">17</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/minimum-time-to-complete-trips">Minimum Time to Complete Trips</a></td><td><span class="diff medium">Medium</span></td><td class="num">13</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/minimized-maximum-of-products-distributed-to-any-store">Minimized Maximum of Products Distributed to Any Store</a></td><td><span class="diff medium">Medium</span></td><td class="num">11</td><td>last 6 months</td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-binary-search">Binary Search</a>: <a href="/dsa/binary-search-exact/">Classic binary search</a>, <a href="/dsa/binary-search-boundary/">First true (predicate boundary)</a>, <a href="/dsa/binary-search-rotated/">Rotated / mountain search</a>, <a href="/dsa/binary-search-two-arrays/">Partition two sorted arrays</a>.</p>
   </article>
 
@@ -428,7 +463,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

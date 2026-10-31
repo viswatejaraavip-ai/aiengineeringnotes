@@ -394,22 +394,45 @@
       <p>The heap root is the earliest-ending job still running.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Three meetings: [0, 30], [5, 10], [15, 20]. How many rooms are needed so that none overlap? By hand you draw them on a time line and count the thickest overlap: at time 7, two meetings are running, so two rooms. The drawing method works for three meetings. For ten thousand, you would need to compare every pair, about 50 million pairs, or walk the time line minute by minute, which is slow if times are large.</p>
+<p>A simpler mental picture: people arrive at a building in order of start time. Each one asks "is any room free right now?" A room is free if the meeting in it ended before this one starts. To answer, we only need to know the <em>earliest</em> ending time among the meetings currently running.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: sort the meetings by start time, so we handle arrivals in order. That is the queue at the door.</p>
+<p>Piece two: a min-heap of end times, one entry per occupied room. Its top is the room that frees up soonest.</p>
+<p>Piece three: the loop. For each meeting in start order, look at the heap top. If that end time is at most the meeting's start, the room is free: pop it (the old meeting is over). Then push the new meeting's end time. The number of entries in the heap after the push is the number of rooms in use right now; the answer is the largest size the heap ever reaches.</p>
+<div class="table-wrap"><table><tr><th>Arrives</th><th>Heap top (earliest end)</th><th>Free?</th><th>Heap after push</th><th>Rooms in use</th></tr><tr><td>[0, 30]</td><td>none</td><td>no room yet</td><td>{30}</td><td>1</td></tr><tr><td>[5, 10]</td><td>30</td><td>30 &gt; 5, no</td><td>{10, 30}</td><td>2</td></tr><tr><td>[15, 20]</td><td>10</td><td>10 ≤ 15, yes: pop 10</td><td>{20, 30}</td><td>2</td></tr></table></div>
+<p>Maximum rooms in use: 2.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: just before a meeting with start <var>s</var> is handled, the heap holds the end times of exactly the meetings that started earlier and are still running at time <var>s</var>, except possibly one that has just ended and is about to be popped. Popping only the top is enough because if the earliest end is still after <var>s</var>, every other end is too, so no room is free.</p>
+<p class="formula">rooms needed = max over time <var>t</var> of (number of meetings with start ≤ <var>t</var> &lt; end) = max heap size</p>
+<p>Why is reusing a free room never a mistake? Rooms are interchangeable; what matters is only how many are busy at each moment, and that count is fixed by the meetings, not by which room each one uses. The heap size tracks that count exactly at each start time, and the count can only increase at a start time, so checking at start times finds the maximum.</p>
+
+<h3>Why it is fast</h3>
+<p>Sorting costs O(<var>n</var> log <var>n</var>). Each meeting then does at most one pop and one push on a heap of at most <var>n</var> entries: O(<var>n</var> log <var>n</var>) total. For ten thousand meetings that is a few hundred thousand steps, against 50 million pair comparisons.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>"Minimum number of rooms / machines / servers", "assign each job to the first available worker", "process tasks in order of start time with the shortest first", "which room hosts the most meetings". Say: "Sort by start, keep a min-heap of end times; the heap top tells me the earliest resource to free up." Meeting Rooms II is this exactly. Meeting Rooms III adds a second heap of free room numbers so that the lowest-numbered free room is chosen. Single-Threaded CPU sorts tasks by arrival and keeps a heap ordered by processing time for the tasks that have already arrived.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Sort by start; a heap of end times tells you the earliest room that frees up.</p>
     <p><strong>Reach for it when:</strong> Meeting rooms II/III, task scheduler, CPU scheduling, reorganise string.</p>
     <p><strong>Cost:</strong> O(n log n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Meeting Rooms II on [[0,30],[5,10],[15,20]]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Sort by start; the heap holds the <em>end time</em> of every running meeting</li><li>Meeting [0,30] arrives; earliest-ending running meeting ends at <em>—</em></li><li>No room free yet: open room <em>1</em></li><li>Push its end 30; the heap size is the number of rooms in use</li><li>Meeting [5,10] arrives; earliest-ending running meeting ends at <em>30</em></li><li>No room free yet: open room <em>2</em></li><li>Push its end 10; the heap size is the number of rooms in use</li><li>Meeting [15,20] arrives; earliest-ending running meeting ends at <em>10</em></li><li>10 ≤ 15: that room is <em>free</em>, reuse it</li><li>Push its end 20; the heap size is the number of rooms in use</li><li>Rooms needed = max heap size = <em>2</em></li><li>Sort plus one heap op per meeting: <em>O(n log n)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>10 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/meeting-rooms-ii">Meeting Rooms II</a></td><td><span class="diff medium">Medium</span></td><td class="num">58</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/meeting-rooms-iii">Meeting Rooms III</a></td><td><span class="diff hard">Hard</span></td><td class="num">41</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/task-scheduler">Task Scheduler</a></td><td><span class="diff medium">Medium</span></td><td class="num">41</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/reorganize-string">Reorganize String</a></td><td><span class="diff medium">Medium</span></td><td class="num">34</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/single-threaded-cpu">Single-Threaded CPU</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/maximum-number-of-events-that-can-be-attended">Maximum Number of Events That Can Be Attended</a></td><td><span class="diff medium">Medium</span></td><td class="num">31</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/furthest-building-you-can-reach">Furthest Building You Can Reach</a></td><td><span class="diff medium">Medium</span></td><td class="num">23</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/minimum-cost-to-hire-k-workers">Minimum Cost to Hire K Workers</a></td><td><span class="diff hard">Hard</span></td><td class="num">22</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/process-tasks-using-servers">Process Tasks Using Servers</a></td><td><span class="diff medium">Medium</span></td><td class="num">11</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/course-schedule-iii">Course Schedule III</a></td><td><span class="diff hard">Hard</span></td><td class="num">6</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-heap">Heap</a>: <a href="/dsa/heap-top-k/">Top-k with a size-k heap</a>, <a href="/dsa/heap-two-heaps-median/">Two heaps (running median)</a>, <a href="/dsa/heap-k-way-merge/">K-way merge</a>, <a href="/dsa/heap-lazy-deletion/">Lazy deletion heap</a>, <a href="/dsa/heap-frequency-rebuild/">Pop-k-then-rebuild (frequency greedy)</a>.</p>
   </article>
 
@@ -428,7 +451,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

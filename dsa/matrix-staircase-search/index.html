@@ -394,22 +394,61 @@
       <p>The target can only lie below-left of the current cell.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Here is a 5 × 5 grid in which every row increases left to right and every column increases top to bottom. Is 5 in it?</p>
+<div class="table-wrap"><table>
+<tr><td>1</td><td>4</td><td>7</td><td>11</td><td>15</td></tr>
+<tr><td>2</td><td>5</td><td>8</td><td>12</td><td>19</td></tr>
+<tr><td>3</td><td>6</td><td>9</td><td>16</td><td>22</td></tr>
+<tr><td>10</td><td>13</td><td>14</td><td>17</td><td>24</td></tr>
+<tr><td>18</td><td>21</td><td>23</td><td>26</td><td>30</td></tr>
+</table></div>
+<p>Scanning all 25 cells works but ignores the ordering. Binary searching each row is better, 5 rows × about 3 steps, but still touches every row. The ordering is stronger than that: it holds in two directions at once, and there is a corner from which each step throws away a whole row or column.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Stand on the top-right cell, 15. Look at what you know about it. Everything to its left in that row is smaller than 15. Everything below it in that column is larger than 15. So 15 is the largest in its row and the smallest in its column. That gives a rule with only two moves:</p>
+<ul>
+<li>If the cell is larger than the target, the whole column below it is also larger, so the target cannot be in this column. Step left.</li>
+<li>If the cell is smaller than the target, the whole row to its left is also smaller, so the target cannot be in this row. Step down.</li>
+</ul>
+<p>Follow it for the target 5. The region that might still hold the target shrinks after each step:</p>
+<ol>
+<li>At 15 (row 0, column 4): 15 &gt; 5, drop column 4, step left to 11.</li>
+<li>At 11: 11 &gt; 5, drop column 3, step left to 7.</li>
+<li>At 7: 7 &gt; 5, drop column 2, step left to 4.</li>
+<li>At 4: 4 &lt; 5, drop row 0, step down to 5.</li>
+<li>At 5: equal, found at row 1, column 1.</li>
+</ol>
+<p>The path is a staircase from the top-right corner towards the bottom-left, which gives the pattern its name. Starting from the bottom-left corner works equally well, with the moves mirrored; the top-left and bottom-right corners do not work, because from them both moves go in the same direction (both bigger, or both smaller) and nothing can be discarded.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant is that the target, if present, lies in the rectangle from the current cell's row downwards and from its column leftwards. At the top-right corner that rectangle is the whole grid, so the invariant starts true. Suppose the current cell <var>c</var> is larger than the target <var>t</var>. Every cell below <var>c</var> in its column is at least <var>c</var> &gt; <var>t</var>, so none of them is the target, and removing that column keeps the invariant. Suppose instead <var>c</var> &lt; <var>t</var>. Every cell to the left of <var>c</var> in its row is at most <var>c</var> &lt; <var>t</var>, so removing that row keeps the invariant. If the rectangle becomes empty the target is absent; if the current cell equals the target we are done.</p>
+
+<h3>Why it is fast</h3>
+<p>Every step removes either one row or one column, and there are only <var>m</var> rows and <var>n</var> columns, so the number of steps is at most <var>m</var> + <var>n</var>: at most 10 for the 5 × 5 grid, against 25 for a scan. The time is O(<var>m</var> + <var>n</var>) with O(1) extra memory. Binary searching each row costs O(<var>m</var> log <var>n</var>), which is worse whenever <var>m</var> is large.</p>
+<p class="formula">steps ≤ (number of rows dropped) + (number of columns dropped) ≤ <var>m</var> + <var>n</var></p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "each row is sorted and each column is sorted", "count the negatives", "how many cells are at most <var>x</var>". The second and third cues matter because the same walk counts cells: when you step down after a cell smaller than <var>x</var>, every cell to the left in that row is also at most <var>x</var>, so you add the column index plus one to a counter. Say: "the grid is sorted in two directions, so from the top-right corner each comparison discards a whole row or column".</p>
+<p>Search a 2D Matrix II is the walk-through. Count Negative Numbers in a Sorted Matrix is the counting form. Kth Smallest Element in a Sorted Matrix combines the counter with a binary search over values: guess a value, count cells at most that value with the staircase in O(<var>m</var> + <var>n</var>), and tighten the guess.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Start at the top-right: go left if too big, down if too small.</p>
     <p><strong>Reach for it when:</strong> Search a 2D matrix II, count negatives, kth smallest in a sorted matrix (counting).</p>
     <p><strong>Cost:</strong> O(m + n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Search 5 in a 5×5 sorted matrix</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Start at the <em>top-right</em>: left is smaller, down is bigger</li><li>15 &gt; 5: the column below is all bigger, <em>go left</em></li><li>Candidates shrink to the blue region; now at 11</li><li>11 &gt; 5: the column below is all bigger, <em>go left</em></li><li>Candidates shrink to the blue region; now at 7</li><li>7 &gt; 5: the column below is all bigger, <em>go left</em></li><li>Candidates shrink to the blue region; now at 4</li><li>4 &lt; 5: the row to the left is all smaller, <em>go down</em></li><li>Candidates shrink to the blue region; now at 5</li><li>5 == 5: <em>found</em> at (1,1)</li><li>Each step discards a full row or column: at most m + n moves</li><li><em>O(m + n)</em> time, O(1) space</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>4 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/search-a-2d-matrix-ii">Search a 2D Matrix II</a></td><td><span class="diff medium">Medium</span></td><td class="num">42</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/search-a-2d-matrix">Search a 2D Matrix</a></td><td><span class="diff medium">Medium</span></td><td class="num">42</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/kth-smallest-element-in-a-sorted-matrix">Kth Smallest Element in a Sorted Matrix</a></td><td><span class="diff medium">Medium</span></td><td class="num">26</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/count-negative-numbers-in-a-sorted-matrix">Count Negative Numbers in a Sorted Matrix</a></td><td><span class="diff easy">Easy</span></td><td class="num">20</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-matrix">Matrix</a>: <a href="/dsa/matrix-rotate-spiral/">Matrix traversal and rotation</a>.</p>
   </article>
 
@@ -428,7 +467,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

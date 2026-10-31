@@ -394,22 +394,55 @@
       <p>Each index gets its previous-smaller when pushed and next-smaller when popped.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Take the list 6, 0, 8, 2, 1, 5. A "ramp" is a pair of positions <var>i</var> &lt; <var>j</var> with nums[<var>i</var>] &le; nums[<var>j</var>], and its width is <var>j</var> &minus; <var>i</var>. We want the widest ramp. Here the best is position 1 (value 0) to position 5 (value 5), width 4.</p>
+<p>By hand you would check every pair: 15 pairs for 6 numbers, <var>n</var>(<var>n</var> &minus; 1)/2 in general, which is 50 million pairs for ten thousand numbers. Most of those pairs are pointless. A left end at position 3 (value 2) can never beat a left end at position 1 (value 0): position 1 is further left <em>and</em> smaller, so any <var>j</var> that works for 3 works for 1 with a bigger width.</p>
+<p>So the only left ends worth keeping are the ones that are smaller than everything before them. Here that is 6 (position 0) and 0 (position 1). Everything after 0 is bigger than 0, so it is a worse left end.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p><strong>Piece 1: a stack of candidate left ends.</strong> Walk left to right. Push a position only if its value is smaller than the value on top of the pile. The pile then holds positions with strictly decreasing values: 0(6), 1(0) in the example. The other four positions are never pushed.</p>
+<p><strong>Piece 2: scan right ends from the far right.</strong> Now walk <var>j</var> from the last position backwards. For each <var>j</var>, while the top of the pile has a value &le; nums[<var>j</var>], that top is a valid left end for this <var>j</var>: record the width <var>j</var> &minus; top and pop it.</p>
+<p>Why pop? Because <var>j</var> is the rightmost right end we will ever try for that left end (we are moving leftwards), so no wider ramp with that left end can appear later.</p>
+<div class="table-wrap"><table>
+<tr><th>j (value)</th><th>Pops and widths</th><th>Pile after</th></tr>
+<tr><td>5 (5)</td><td>1(0): width 4</td><td>0(6)</td></tr>
+<tr><td>4 (1)</td><td>none, 6 &gt; 1</td><td>0(6)</td></tr>
+<tr><td>3 (2)</td><td>none</td><td>0(6)</td></tr>
+<tr><td>2 (8)</td><td>0(6): width 2</td><td>empty</td></tr>
+</table></div>
+<p>The widest ramp recorded is 4. This two-pass trick, where the stack gives each element one boundary when pushed and the other when popped, is the general shape of the pattern: one pass can find both the previous smaller and the next smaller element of every position.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant has two halves. After pass 1 the pile holds every position that is a new minimum so far, in decreasing order of value. During pass 2, every position still on the pile has not yet found any right end, and every popped position was matched with the largest <var>j</var> that works for it.</p>
+<p>For the first half: a position that is not a new minimum has an earlier, smaller position, which dominates it as a left end, so dropping it loses nothing. For the second half: when <var>j</var> pops the top <var>i</var>, every larger <var>j&prime;</var> &gt; <var>j</var> was already tried and did not pop <var>i</var>, meaning nums[<var>j&prime;</var>] &lt; nums[<var>i</var>], so <var>j</var> is the furthest right end for <var>i</var> and <var>j</var> &minus; <var>i</var> is the best width with left end <var>i</var>. Taking the maximum over all popped pairs gives the answer.</p>
+<p>The same reasoning gives, for the "previous and next smaller" version: when <var>j</var> pops <var>i</var>, nothing between them was smaller than <var>i</var> (it would have popped <var>i</var>), so <var>j</var> is the next smaller, and the element below <var>i</var> on the pile is the previous smaller.</p>
+
+<h3>Why it is fast</h3>
+<p>Pass 1 touches each position once. In pass 2 each position on the pile is popped at most once, and <var>j</var> moves <var>n</var> steps.</p>
+<p class="formula">work &le; <var>n</var> (pass 1) + <var>n</var> (moves of <var>j</var>) + <var>n</var> (pops) = 3<var>n</var>, which is O(<var>n</var>)</p>
+<p>For ten thousand numbers that is thirty thousand steps instead of fifty million pairs.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The cues are "for each element, the nearest smaller (or greater) on both sides", "widest pair with a condition", or a sum where each element contributes according to how far it can extend left and right. Say: "A monotonic stack gives each element its left boundary at push time and its right boundary at pop time, so one pass finds both."</p>
+<p>Maximum Width Ramp is the example above. Sum of Subarray Minimums uses the left and right boundaries to count how many subarrays each element is the minimum of, then multiplies. Shortest Unsorted Continuous Subarray uses the same stack to find the first and last position that is out of order.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>One pass finds both neighbours: the popped element&#x27;s right bound is the popper.</p>
     <p><strong>Reach for it when:</strong> Contribution sums, maximum width ramp, 132 pattern, visible counts.</p>
     <p><strong>Cost:</strong> O(n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Maximum Width Ramp on [6,0,8,2,1,5]</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Pass 1: push only indices that are <em>smaller than every earlier</em> value</li><li>6 is a new minimum: push index <em>0</em></li><li>0 is a new minimum: push index <em>1</em></li><li>8 ≥ 0: a worse left end, <em>skip</em></li><li>2 ≥ 0: a worse left end, <em>skip</em></li><li>1 ≥ 0: a worse left end, <em>skip</em></li><li>5 ≥ 0: a worse left end, <em>skip</em></li><li>Pass 2: scan <em>j from the right</em>; pop while nums[top] ≤ nums[j]</li><li>nums[1]=0 ≤ nums[5]=5: ramp width <em>4</em></li><li>j=4: no left end ≤ 1 remains, move on</li><li>j=3: no left end ≤ 2 remains, move on</li><li>nums[0]=6 ≤ nums[2]=8: ramp width <em>2</em></li><li>Widest ramp: i=1 (0) to j=5 (5), width <em>4</em></li><li>Two linear passes, each index pushed and popped once: <em>O(n)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>8 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/sum-of-subarray-minimums">Sum of Subarray Minimums</a></td><td><span class="diff medium">Medium</span></td><td class="num">46</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/minimum-number-of-increments-on-subarrays-to-form-a-target-array">Minimum Number of Increments on Subarrays to Form a Target Array</a></td><td><span class="diff hard">Hard</span></td><td class="num">36</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/maximum-width-ramp">Maximum Width Ramp</a></td><td><span class="diff medium">Medium</span></td><td class="num">35</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/shortest-unsorted-continuous-subarray">Shortest Unsorted Continuous Subarray</a></td><td><span class="diff medium">Medium</span></td><td class="num">34</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/odd-even-jump">Odd Even Jump</a></td><td><span class="diff hard">Hard</span></td><td class="num">34</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/max-chunks-to-make-sorted">Max Chunks To Make Sorted</a></td><td><span class="diff medium">Medium</span></td><td class="num">28</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/132-pattern">132 Pattern</a></td><td><span class="diff medium">Medium</span></td><td class="num">27</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/the-number-of-weak-characters-in-the-game">The Number of Weak Characters in the Game</a></td><td><span class="diff medium">Medium</span></td><td class="num">21</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-monotonic-stack">Monotonic Stack</a>: <a href="/dsa/mono-next-greater/">Next greater element</a>, <a href="/dsa/mono-histogram/">Largest rectangle (bounds by pops)</a>, <a href="/dsa/mono-remove-k/">Greedy removal with a stack</a>.</p>
   </article>
 
@@ -428,7 +461,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

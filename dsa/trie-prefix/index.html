@@ -394,22 +394,45 @@
       <p>Every stored word is a root-to-flag path.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>You keep a list of words: <code>apple</code>, <code>app</code>, <code>ape</code>. People ask two kinds of question: "is <code>app</code> a word?" and "does any word start with <code>ap</code>?" By hand, with a short list, you read down the list and compare. With a dictionary of 100,000 words, answering "any word starting with <code>ap</code>" means comparing the prefix against every entry, and each comparison can take several letters: around 100,000 × (prefix length) steps per question. Sorting the list helps the first question but the prefix question still needs a search plus a scan.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Instead of storing words whole, store them letter by letter along shared paths. Start with a single empty node, the root. A node has up to 26 children, one per letter, and a flag that says "a word ends here".</p>
+<ol>
+<li>Insert <code>apple</code>: the root has no child <code>a</code>, so create one. That node has no child <code>p</code>, create it. Continue for <code>p</code>, <code>l</code>, <code>e</code>, creating five nodes in a line. Mark the last node (<code>e</code>) as a word end.<br>Levels: root → a → p → p → l → e✓</li>
+<li>Insert <code>app</code>: walk <code>a</code>, <code>p</code>, <code>p</code>; all three nodes already exist, nothing is created. Mark the second <code>p</code> as a word end.<br>Levels: root → a → p → p✓ → l → e✓</li>
+<li>Insert <code>ape</code>: <code>a</code> and <code>p</code> exist; <code>e</code> does not exist under that <code>p</code>, so a new branch starts.<br>Levels: root → a → p → { p✓ → l → e✓ , e✓ }</li>
+</ol>
+<p>Now the questions become walks. <code>search("app")</code>: walk <code>a</code>, <code>p</code>, <code>p</code>, arrive at a node with the flag set: true. <code>startsWith("ap")</code>: walk <code>a</code>, <code>p</code>, the path exists, no flag needed: true. <code>search("apl")</code>: after <code>a</code>, <code>p</code> there is no child <code>l</code>: false. This tree of letters is a <strong>trie</strong> (from "retrieval").</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant: a word is in the set exactly when the path spelling it, letter by letter from the root, exists and ends at a flagged node. Insert creates exactly that path and sets exactly that flag, and never removes anything, so inserting one word cannot make another disappear. Two words that share a prefix share the nodes of that prefix, which is why <code>app</code> and <code>apple</code> coexist: the flag, not the end of a path, says where a word stops. A prefix query asks only whether the path exists, which is true exactly when some inserted word begins with it.</p>
+<p class="formula">search(<var>w</var>) = path(<var>w</var>) exists and flag(end of path) ; startsWith(<var>p</var>) = path(<var>p</var>) exists</p>
+
+<h3>Why it is fast</h3>
+<p>Every operation walks one node per letter, and moving to a child is an array lookup or a hash lookup, constant time. So insert, search and prefix check each cost O(<var>L</var>) for a word of length <var>L</var>, no matter how many words are stored: 100,000 words or 10 million, <code>startsWith("ap")</code> is two steps. Memory is at most one node per letter of every inserted word, often far less because of shared prefixes.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: many strings, repeated questions about prefixes, autocomplete, "starts with", wildcard letters, or walking a grid while matching many words at once. Say: I will store the words in a trie so each query walks one letter at a time. <em>Implement Trie (Prefix Tree)</em> is exactly the structure above. <em>Design Add and Search Words Data Structure</em> adds a wildcard: at a <code>.</code> try every child. <em>Search Suggestions System</em> walks the typed prefix and collects the first three words below that node.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>A tree of characters; a path spells a word, a flag marks word ends.</p>
     <p><strong>Reach for it when:</strong> Implement trie, add and search with wildcards, autocomplete, replace words.</p>
     <p><strong>Cost:</strong> O(L) per op.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Insert &#x27;apple&#x27;, &#x27;app&#x27;; search &#x27;app&#x27;; startsWith &#x27;ap&#x27;</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Start with an empty root</li><li>insert &#x27;apple&#x27;: no child &#x27;a&#x27;, <em>create</em> it</li><li>insert &#x27;apple&#x27;: no child &#x27;p&#x27;, <em>create</em> it</li><li>insert &#x27;apple&#x27;: no child &#x27;p&#x27;, <em>create</em> it</li><li>insert &#x27;apple&#x27;: no child &#x27;l&#x27;, <em>create</em> it</li><li>insert &#x27;apple&#x27;: no child &#x27;e&#x27;, <em>create</em> it</li><li>End of &#x27;apple&#x27;: mark node &#x27;e&#x27; as a <em>word end</em></li><li>insert &#x27;app&#x27;: a → p → p already exist, just <em>walk</em> them</li><li>Mark the second &#x27;p&#x27; as a word end too: the path is <em>shared</em></li><li>insert &#x27;ape&#x27;: a, p exist; &#x27;e&#x27; is a <em>new branch</em> under p</li><li>search(&#x27;app&#x27;): walk a, p, p and the node has ✓ → <em>true</em></li><li>startsWith(&#x27;ap&#x27;): the path exists, no ✓ needed → <em>true</em></li><li>search(&#x27;apl&#x27;): after a, p there is no child &#x27;l&#x27; → <em>false</em></li><li>Every operation walks one character per step: <em>O(L)</em></li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>7 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/longest-common-prefix">Longest Common Prefix</a></td><td><span class="diff easy">Easy</span></td><td class="num">74</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/implement-trie-prefix-tree">Implement Trie (Prefix Tree)</a></td><td><span class="diff medium">Medium</span></td><td class="num">36</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/design-search-autocomplete-system">Design Search Autocomplete System</a></td><td><span class="diff hard">Hard</span></td><td class="num">26</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/design-add-and-search-words-data-structure">Design Add and Search Words Data Structure</a></td><td><span class="diff medium">Medium</span></td><td class="num">22</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/implement-magic-dictionary">Implement Magic Dictionary</a></td><td><span class="diff medium">Medium</span></td><td class="num">22</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/search-suggestions-system">Search Suggestions System</a></td><td><span class="diff medium">Medium</span></td><td class="num">21</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/replace-words">Replace Words</a></td><td><span class="diff medium">Medium</span></td><td class="num">5</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-trie">Trie</a>: <a href="/dsa/trie-grid-search/">Trie-guided grid DFS</a>, <a href="/dsa/trie-xor/">Binary trie for maximum XOR</a>.</p>
   </article>
 
@@ -428,7 +451,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

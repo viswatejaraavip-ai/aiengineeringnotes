@@ -394,22 +394,56 @@
       <p>After the shrink loop, [l, r] is valid and l is as small as possible.</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>In the string abcabcbb, find the longest stretch with no repeated letter. By hand you would start at each position and extend to the right until a letter repeats: from 0 you get abc (then a repeats), from 1 you get bca, from 2 cab, and so on. The answer is 3.</p>
+<p>That is a fresh scan from every start: <var>n</var> starts, each extending up to <var>n</var>, O(<var>n</var><sup>2</sup>), and each extension needs a "have I seen this letter?" check. The waste is that the scan from position 1 re-reads bc, which the scan from position 0 already knew were distinct.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Piece one: a window [<var>l</var>, <var>r</var>] with a set (or count table) of the letters inside it, so "is this letter already in the window?" is one step.</p>
+<p>Piece two, the rule for the right end: always try to grow. Move <var>r</var> one step right and add the new letter to the set.</p>
+<p>Piece three, the rule for the left end: if the window just became invalid (the new letter was already inside), shrink from the left, removing letters from the set, until the window is valid again. Then record the window's length if it is the longest so far.</p>
+<div class="table-wrap"><table>
+<tr><th><var>r</var></th><th>Letter</th><th>Already in window?</th><th>Shrink</th><th>Window</th><th>Best</th></tr>
+<tr><td>0</td><td>a</td><td>no</td><td></td><td>[0..0] a</td><td>1</td></tr>
+<tr><td>1</td><td>b</td><td>no</td><td></td><td>[0..1] ab</td><td>2</td></tr>
+<tr><td>2</td><td>c</td><td>no</td><td></td><td>[0..2] abc</td><td>3</td></tr>
+<tr><td>3</td><td>a</td><td>yes</td><td>drop a: <var>l</var> → 1</td><td>[1..3] bca</td><td>3</td></tr>
+<tr><td>4</td><td>b</td><td>yes</td><td>drop b: <var>l</var> → 2</td><td>[2..4] cab</td><td>3</td></tr>
+<tr><td>5</td><td>c</td><td>yes</td><td>drop c: <var>l</var> → 3</td><td>[3..5] abc</td><td>3</td></tr>
+<tr><td>6</td><td>b</td><td>yes</td><td>drop a, b: <var>l</var> → 5</td><td>[5..6] cb</td><td>3</td></tr>
+<tr><td>7</td><td>b</td><td>yes</td><td>drop c, b: <var>l</var> → 7</td><td>[7..7] b</td><td>3</td></tr>
+</table></div>
+<p>The word "valid" is the only thing that changes between problems: "no repeated letter", "at most <var>k</var> distinct values", "at most <var>k</var> zeros flipped", "the most frequent letter can be made to fill the window with at most <var>k</var> replacements". The aggregate is whatever lets you test validity in O(1) after each add or remove.</p>
+
+<h3>Why it is correct</h3>
+<p>The invariant, true after every shrink loop: <em>[<var>l</var>, <var>r</var>] is valid, and no window ending at <var>r</var> that starts before <var>l</var> is valid</em>. The first half is just what the shrink loop guarantees. For the second half, suppose some window [<var>l</var>′, <var>r</var>] with <var>l</var>′ &lt; <var>l</var> were valid. The shrink loop only advances <var>l</var> while the window is invalid, so at the moment <var>l</var> moved past <var>l</var>′ the window [<var>l</var>′, <var>r</var>″] was invalid for some <var>r</var>″ ≤ <var>r</var>. Validity here is <em>hereditary</em>: a window with a repeat still has that repeat when you extend it. So [<var>l</var>′, <var>r</var>] is invalid too. Hence for each <var>r</var> the window [<var>l</var>, <var>r</var>] is the longest valid window ending at <var>r</var>, and the maximum over all <var>r</var> is the longest valid window overall. The argument needs that property: if a window is invalid, every larger window containing it is invalid. Every "at most <var>k</var>" constraint has it.</p>
+
+<h3>Why it is fast</h3>
+<p>Count pointer moves. <var>r</var> moves right exactly <var>n</var> times. <var>l</var> only ever moves right, and it never passes <var>r</var>, so it moves at most <var>n</var> times in total across all shrink loops, even though one loop may move it several steps:</p>
+<p class="formula">total moves ≤ <var>n</var> (for <var>r</var>) + <var>n</var> (for <var>l</var>) = 2<var>n</var></p>
+<p>Each move does O(1) work on the set. So the time is O(<var>n</var>), with O(alphabet) memory. The quadratic rescans are gone because the left end never goes backwards.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>Cues: "longest substring/subarray such that …", with a condition of the form "at most", "no", "without". The answer is a length and the condition is hereditary. The first thing to say: "I will grow the right end every step and shrink the left end only while the window is invalid; each pointer moves at most <var>n</var> times."</p>
+<p><strong>Longest Substring Without Repeating Characters</strong> is the example. <strong>Fruit Into Baskets</strong> is "at most 2 distinct values" with a count table. <strong>Longest Repeating Character Replacement</strong> is valid while window length − (count of the most frequent letter) ≤ <var>k</var>; the standard trick keeps the historical maximum count, which never makes the answer wrong because the best window only needs to be found once.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>Grow right; while invalid, shrink left; record the longest valid span.</p>
     <p><strong>Reach for it when:</strong> Longest substring with ≤k distinct / no repeats / ≤k replacements.</p>
     <p><strong>Cost:</strong> O(n) time.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>Longest Substring Without Repeating Characters on &#x27;abcabcbb&#x27;</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>Grow <em>r</em>; while the window has a repeat, shrink <em>l</em>; record the longest valid span</li><li>Window [0..0] = &#x27;a&#x27; is valid, length 1, best = <em>1</em></li><li>Window [0..1] = &#x27;ab&#x27; is valid, length 2, best = <em>2</em></li><li>Window [0..2] = &#x27;abc&#x27; is valid, length 3, best = <em>3</em></li><li>&#x27;a&#x27; repeats at index 0: jump l to <em>1</em></li><li>Window [1..3] = &#x27;bca&#x27; is valid, length 3, best = <em>3</em></li><li>&#x27;b&#x27; repeats at index 1: jump l to <em>2</em></li><li>Window [2..4] = &#x27;cab&#x27; is valid, length 3, best = <em>3</em></li><li>&#x27;c&#x27; repeats at index 2: jump l to <em>3</em></li><li>Window [3..5] = &#x27;abc&#x27; is valid, length 3, best = <em>3</em></li><li>&#x27;b&#x27; repeats at index 4: jump l to <em>5</em></li><li>Window [5..6] = &#x27;cb&#x27; is valid, length 2</li><li>&#x27;b&#x27; repeats at index 6: jump l to <em>7</em></li><li>Window [7..7] = &#x27;b&#x27; is valid, length 1</li><li>Longest: &#x27;abc&#x27; → <em>3</em></li><li>l and r only move right: <em>O(n)</em> with a last-seen map</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>9 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/longest-substring-without-repeating-characters">Longest Substring Without Repeating Characters</a></td><td><span class="diff medium">Medium</span></td><td class="num">73</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/longest-repeating-character-replacement">Longest Repeating Character Replacement</a></td><td><span class="diff medium">Medium</span></td><td class="num">54</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/fruit-into-baskets">Fruit Into Baskets</a></td><td><span class="diff medium">Medium</span></td><td class="num">52</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/max-consecutive-ones-iii">Max Consecutive Ones III</a></td><td><span class="diff medium">Medium</span></td><td class="num">49</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/frequency-of-the-most-frequent-element">Frequency of the Most Frequent Element</a></td><td><span class="diff medium">Medium</span></td><td class="num">39</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/maximum-erasure-value">Maximum Erasure Value</a></td><td><span class="diff medium">Medium</span></td><td class="num">22</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/longest-substring-with-at-most-two-distinct-characters">Longest Substring with At Most Two Distinct Characters</a></td><td><span class="diff medium">Medium</span></td><td class="num">20</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/longest-substring-with-at-most-k-distinct-characters">Longest Substring with At Most K Distinct Characters</a></td><td><span class="diff medium">Medium</span></td><td class="num">18</td><td></td></tr><tr><td><a href="https://leetcode.com/problems/longest-nice-subarray">Longest Nice Subarray</a></td><td><span class="diff medium">Medium</span></td><td class="num">18</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-sliding-window">Sliding Window</a>: <a href="/dsa/window-fixed/">Fixed-size window</a>, <a href="/dsa/window-variable-shortest/">Shortest satisfying window</a>, <a href="/dsa/window-count-at-most/">Count windows via at-most(k) trick</a>, <a href="/dsa/window-with-counter/">Window with a need-counter</a>.</p>
   </article>
 
@@ -428,7 +462,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>

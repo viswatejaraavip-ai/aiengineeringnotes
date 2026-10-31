@@ -394,22 +394,56 @@
       <p>pred(lo−1) is false and pred(hi) is true (or hi is past the end).</p>
     </div>
 
-    <h2 id="idea"><span class="num">01</span>The idea</h2>
+    <h2 id="intuition"><span class="num">01</span>The intuition</h2>
+<h3>Start with what you would do by hand</h3>
+<p>Eight versions of a program, numbered 1 to 8. Some version introduced a bug, and every version after it is also bad. You can call isBad(v), which is slow (imagine it runs a full test suite). Find the first bad version. Here the first bad one is 5, so the answers look like: good, good, good, good, bad, bad, bad, bad.</p>
+<p>By hand you call isBad(1), isBad(2), &hellip; until the first bad answer: 5 calls here, up to <var>n</var> calls in general. With ten thousand versions that could be ten thousand test-suite runs.</p>
+<p>Look at the shape of the answers: a run of falses then a run of trues, never switching back. Checking version 4 and seeing "good" tells you versions 1 to 3 are good too, without calling them. Checking version 6 and seeing "bad" tells you 7 and 8 are bad. One call eliminates a whole side.</p>
+
+<h3>Build the structure, one piece at a time</h3>
+<p>Again the structure is two boundaries, but with a different meaning from the classic search: we are not looking for a particular value, we are looking for the place where false turns into true.</p>
+<p><strong>Piece 1: the range of candidates.</strong> lo = 1, hi = 8. The first bad version is somewhere in [lo, hi].</p>
+<p><strong>Piece 2: test the middle.</strong> mid = (lo + hi) &divide; 2 = 4. isBad(4) is false.</p>
+<p><strong>Piece 3: move the correct boundary.</strong> If the middle is good, the first bad one is strictly after it: lo = mid + 1. If the middle is bad, the first bad one is mid or earlier: hi = mid. Note that hi = mid, not mid &minus; 1, because mid itself could be the answer. Stop when lo equals hi.</p>
+<div class="table-wrap"><table>
+<tr><th>lo</th><th>hi</th><th>mid</th><th>isBad(mid)</th><th>Move</th></tr>
+<tr><td>1</td><td>8</td><td>4</td><td>false</td><td>lo = 5</td></tr>
+<tr><td>5</td><td>8</td><td>6</td><td>true</td><td>hi = 6</td></tr>
+<tr><td>5</td><td>6</td><td>5</td><td>true</td><td>hi = 5</td></tr>
+<tr><td>5</td><td>5</td><td colspan="3">lo = hi, answer 5</td></tr>
+</table></div>
+<p>Three calls instead of five, and for ten thousand versions about fourteen instead of ten thousand.</p>
+
+<h3>Why it is correct</h3>
+<p>Call the yes/no test a predicate. It is <em>monotone</em>: once it is true it stays true. The invariant is: isBad(lo &minus; 1) is false (or lo is the first version), and isBad(hi) is true (or hi is past the end). So the first true lies in [lo, hi].</p>
+<p>When isBad(mid) is false, monotonicity says every version up to mid is also false, so setting lo = mid + 1 keeps "isBad(lo &minus; 1) is false" true. When isBad(mid) is true, setting hi = mid keeps "isBad(hi) is true" true. The range shrinks every step because mid &lt; hi whenever lo &lt; hi, so lo = mid + 1 and hi = mid both move. When lo = hi the two facts combine: lo &minus; 1 is false and lo is true, so lo is the first true.</p>
+<p>This is the same binary search as the classic one, but phrased as "find the boundary of a monotone predicate". Searching for a value <var>x</var> in a sorted list is the special case where the predicate is nums[<var>i</var>] &ge; <var>x</var>, and the boundary is the lower bound of <var>x</var>.</p>
+
+<h3>Why it is fast</h3>
+<p>Each call halves the number of candidate versions.</p>
+<p class="formula">calls &le; &lceil;log<sub>2</sub> <var>n</var>&rceil;, so 10 000 versions need at most 14 calls</p>
+<p>When the test is expensive, as a test suite or a network request is, this is the difference between a day and a minute.</p>
+
+<h3>How to recognise it in an interview</h3>
+<p>The cues are "first version that", "smallest index such that", "minimum <var>x</var> that satisfies", "leftmost or rightmost occurrence", or any yes/no condition that is false for a while and then true for good. Say: "The condition is monotone, so I binary search for the boundary, keeping hi on a known true and lo just past a known false."</p>
+<p>First Bad Version is the example above. Find First and Last Position of Element in Sorted Array runs the boundary search twice, once with nums[<var>i</var>] &ge; target and once with nums[<var>i</var>] &gt; target. Search Insert Position is the single boundary nums[<var>i</var>] &ge; target.</p>
+
+    <h2 id="idea"><span class="num">02</span>The idea in one line</h2>
     <p>A monotone false…true predicate: find the first index where it flips.</p>
     <p><strong>Reach for it when:</strong> First bad version, lower/upper bound, leftmost insertion, &#x27;minimum x such that&#x27;.</p>
     <p><strong>Cost:</strong> O(log n) evaluations.</p>
 
-    <h2 id="walkthrough"><span class="num">02</span>The walk-through, step by step</h2>
+    <h2 id="walkthrough"><span class="num">03</span>The walk-through, step by step</h2>
     <p>The video works one example: <strong>First Bad Version with n=8, first bad = 5</strong>. These are its captions in order, so you can follow without the video or check a step you missed.</p>
     <ol class="steps">
       <li>A monotone predicate: find the <em>first</em> index where it turns true</li><li>mid = 4: isBad(4) = <em>false</em></li><li>Good: the first bad is <em>after</em> 4, lo = 5</li><li>mid = 6: isBad(6) = <em>true</em></li><li>Bad: the first bad is 6 <em>or earlier</em>, hi = 6</li><li>mid = 5: isBad(5) = <em>true</em></li><li>Bad: the first bad is 5 <em>or earlier</em>, hi = 5</li><li>lo == hi == 5: the <em>first bad version is 5</em></li><li>Keep lo on &#x27;maybe&#x27;, hi on &#x27;definitely true&#x27;: <em>O(log n)</em> calls</li>
     </ol>
 
-    <h2 id="google"><span class="num">03</span>Asked at Google</h2>
+    <h2 id="google"><span class="num">04</span>Asked at Google</h2>
     <p>8 Google-tagged LeetCode problems use this pattern. Frequency is LeetCode's Google-tag score (higher means reported more often); "last 6 months" marks problems reported in the most recent window of the export.</p>
     <div class="table-wrap"><table><tr><th>Problem</th><th>Difficulty</th><th class="num">Frequency</th><th>Reported</th></tr><tr><td><a href="https://leetcode.com/problems/search-insert-position">Search Insert Position</a></td><td><span class="diff easy">Easy</span></td><td class="num">55</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-first-and-last-position-of-element-in-sorted-array">Find First and Last Position of Element in Sorted Array</a></td><td><span class="diff medium">Medium</span></td><td class="num">52</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/peak-index-in-a-mountain-array">Peak Index in a Mountain Array</a></td><td><span class="diff medium">Medium</span></td><td class="num">44</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/first-bad-version">First Bad Version</a></td><td><span class="diff easy">Easy</span></td><td class="num">41</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-k-closest-elements">Find K Closest Elements</a></td><td><span class="diff medium">Medium</span></td><td class="num">38</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/time-based-key-value-store">Time Based Key-Value Store</a></td><td><span class="diff medium">Medium</span></td><td class="num">33</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/find-smallest-letter-greater-than-target">Find Smallest Letter Greater Than Target</a></td><td><span class="diff easy">Easy</span></td><td class="num">20</td><td>last 6 months</td></tr><tr><td><a href="https://leetcode.com/problems/h-index-ii">H-Index II</a></td><td><span class="diff medium">Medium</span></td><td class="num">5</td><td></td></tr></table></div>
 
-    <h2 id="related"><span class="num">04</span>Related patterns</h2>
+    <h2 id="related"><span class="num">05</span>Related patterns</h2>
     <p>Other patterns in <a href="/dsa/#dsa-binary-search">Binary Search</a>: <a href="/dsa/binary-search-exact/">Classic binary search</a>, <a href="/dsa/binary-search-answer/">Binary search on the answer</a>, <a href="/dsa/binary-search-rotated/">Rotated / mountain search</a>, <a href="/dsa/binary-search-two-arrays/">Partition two sorted arrays</a>.</p>
   </article>
 
@@ -428,7 +462,8 @@
     <!-- site:onpage -->
     <p class="nav-title">On this page</p>
     <ol>
-      <li><a href="#idea">The idea</a></li>
+      <li><a href="#intuition">The intuition</a></li>
+      <li><a href="#idea">The idea in one line</a></li>
       <li><a href="#walkthrough">The walk-through, step by step</a></li>
       <li><a href="#google">Asked at Google</a></li>
       <li><a href="#related">Related patterns</a></li>
