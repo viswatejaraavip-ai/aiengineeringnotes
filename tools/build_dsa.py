@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = json.loads((ROOT / "tools" / "dsa_patterns.json").read_text())
-VIDEO_BASE = "https://github.com/viswatejaraavip-ai/aiengineeringnotes/releases/download/dsa-videos-v1"
+VIDEO_BASE = "/dsa/videos"
 DATE = "31 Oct 2026"
 SITE = "https://aiengineeringnotes.com"
 
